@@ -1,0 +1,10 @@
+{
+  "name": "einkaufsagent-bpmn-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "bpmn-js": "18.31.0",
+    "bpmn-moddle": "10.3.1",
+    "bpmnlint": "11.14.0"
+  }
+}

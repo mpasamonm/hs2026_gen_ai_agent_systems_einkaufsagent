@@ -1,0 +1,46 @@
+[project]
+name = "einkaufsagent"
+version = "0.1.0"
+description = "Verhandlungsagent «Einkauf» – Gruppenarbeit GenKI & Agentensysteme, FHNW HSW 2026"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph==1.2.12",
+    "langchain-core==1.6.6",
+    "langchain-openai==1.6.7",
+    "langsmith==0.14.4",
+    "pydantic==2.13.5",
+    "python-dotenv==1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.16.10",
+]
+
+[project.scripts]
+ea-run = "einkaufsagent.run:main"
+ea-eval = "einkaufsagent.eval:main"
+ea-benchmark = "einkaufsagent.benchmark:main"
+ea-check-models = "einkaufsagent.check_models:main"
+
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/einkaufsagent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["docs"]  # BPMN-Hilfsskripte und Markdown-Code-Blöcke sind Dokumentation, nicht Paketcode
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # Zeilenlänge regelt `ruff format`; lange deutsche Strings bleiben am Stück

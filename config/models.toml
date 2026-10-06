@@ -1,0 +1,35 @@
+# Modellkandidaten für den Benchmark (ADR 0004). IDs exakt wie im FHNW-LiteLLM-Dropdown.
+# structured_output: "function_calling" oder "json_schema"; mit `uv run ea-check-models` prüfen und hier setzen.
+# Preise (USD pro 1 Mio. Tokens): Listenpreise OpenRouter vom 06.10.2026 als Schätzung. Die FHNW-Preise
+# (Azure) können abweichen: in LiteLLM unter «Models + Endpoints» nachsehen und hier überschreiben.
+
+[[models]]
+id = "gpt-5.6-luna"
+label = "GPT-5.6 Luna"
+role = "Arbeitsmodell, proprietär, günstig (OpenAI, 9.7.2026)"
+structured_output = "function_calling"
+reasoning_effort = "low"
+usd_per_mtok_input = 0.20
+usd_per_mtok_output = 1.20
+
+[[models]]
+id = "azure_ai/gpt-oss-120b"
+label = "gpt-oss-120b"
+role = "offenes Modell, Apache 2.0 (OpenAI, 5.8.2025)"
+structured_output = "function_calling"
+usd_per_mtok_input = 0.03  # günstigster OpenRouter-Anbieter; Azure liegt vermutlich höher
+usd_per_mtok_output = 0.17
+
+[[models]]
+id = "azure_ai/mistral-large-3"
+label = "Mistral Large 3"
+role = "offenes Modell, Apache 2.0, andere Modellfamilie, EU-Anbieter (Mistral, 2.12.2025)"
+structured_output = "function_calling"
+usd_per_mtok_input = 0.50
+usd_per_mtok_output = 1.50
+
+# Nicht im Benchmark (Begründung in ADR 0004):
+# azure_ai/gpt-5.4-mini            ältere, kleinere Schwester von Luna (17.3.2026)
+# azure_ai/kimi-k2.7-code          auf Coding spezialisiert (Juni 2026)
+# leoipulsar/harrier-0.6b:latest   Embedding-Modell (Microsoft Harrier OSS v1) → Kandidat für RAG in KW44
+# andreasmartin/apertus-v1.1-swiss-embed-0.4b  Embedding-Modell → Kandidat für RAG in KW44
