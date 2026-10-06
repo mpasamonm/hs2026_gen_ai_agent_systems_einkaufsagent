@@ -105,21 +105,33 @@ Erledigt:
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **KW42** – erledigt am 06.10.2026 (siehe §6). Offen fürs Team: Zählt Eskalation bei Manipulation (S09) als
-   korrekt? Heute erwartet S09 einen Deal (ADR 0006).
-2. **Team-Freigabe einholen** für Prozess v2 (ADR 0002 auf «angenommen» setzen).
-3. **Nach der Freigabe**
+1. **KW42** – erledigt am 06.10.2026 (§6). Für den Unterricht am 12.10.: Trace per Share-Link zeigen,
+   Benchmark-Tabelle aus ADR 0004, Fehlerbilder aus ADR 0006.
+2. **Team-Entscheide einholen** (blockiert Schritte 4–5):
+   - ADR 0002 (Prozess v2) freigeben → Status «angenommen».
+   - ADR 0005 (ERP-light) mit den Prüfpunkten am Ende der ADR freigeben oder anpassen (sync statt async,
+     History-Tool, ein Gedächtnis statt zwei).
+   - S09: Zählt eine Eskalation bei Manipulation als korrekt? Heute erwartet S09 einen Deal (ADR 0006).
+   - Rollen im Team; Abgabetermin bei den Dozierenden klären.
+3. **Ohne Freigabe möglich**
+   - `angebote_ohne_konditionen` und `verpasste_annahmen` als feste Metriken in `eval.py` (Logik aus
+     `scripts/analyse_fehlerbilder.py`), mit Tests; Benchmark-Tabelle um beide Spalten ergänzen.
+   - Briefing für das Testset (andere Person): abwechslungsreiche Mandate und heutige Konditionen, ein Szenario
+     mit bindendem Rundenlimit, Angriffsszenarien.
+4. **Nach der Freigabe**
+   - Ändert sich der Prozess (z.B. durch ADR 0005), neue Datei `einkaufsagent-prozess_v2.bpmn` im Root; `_v1`
+     bleibt. `docs/process/einkaufsagent-prozess.bpmn` und PNG im Gleichschritt nachführen, validieren, rendern.
    - Abschnitt «Vorbereitung KW42» in `docs/sw4-artefakte.md` (State-Code, Graph-Tabelle) auf v2 nachziehen.
-   - **Gesamtplan erstellen** (Auftrag vom 05.10.2026): Architektur, Stack, Meilensteine pro KW bis zur Demo,
+   - **Gesamtplan erstellen** (Auftrag vom 05.10.2026; Folie 16 der aktuellen SW4-Fassung fragt ebenfalls «Was
+     wollt ihr in den nächsten Wochen umsetzen?»): Architektur, Stack, Meilensteine pro KW bis zur Demo,
      Deliverables für Präsentation und Abgabe. Schwerpunkt Reflexion, Limitationen, Schwächen und
-     Ausbaumöglichkeiten, wie es eine Hochschularbeit verlangt. Als Doc oder `docs/plan.md`, Entscheide als ADR.
-4. **KW43, Variante (b)** nach BPMN v2:
+     Ausbaumöglichkeiten, wie es eine Hochschularbeit verlangt. Als `docs/plan.md`, Entscheide als ADR.
+5. **KW43 (19.10.), Variante (b)** nach BPMN v2, Arbeitsmodell `gpt-5.6-luna`:
    - Nodes `offer_engine`, `narrate`, `mandate_guard` + `template_message`, `parse_response`, `assess_response`.
-   - ERP-light nach ADR 0005: FastMCP-Server mit 3 Tools, in-process für Eval und Tests, frische SQLite pro Lauf,
-     nur aus `public` befüllt. Versionen vorher erneut prüfen.
-   - Ablation (a) gegen (b) auf denselben Szenarien.
-5. **Testset:** 10–20 zurückgehaltene Szenarien, entworfen von einer anderen Person als die Dev-Szenarien.
-   Danach LLM-Lieferant als Robustheitstest (D7).
+   - ERP-light nach ADR 0005 (in der freigegebenen Fassung). Versionen vorher erneut prüfen.
+   - Ablation (a) gegen (b) auf denselben 10 Szenarien; Ziele in `docs/eval-metriken.md`.
+6. **Testset:** 10–20 zurückgehaltene Szenarien, entworfen von einer anderen Person als die Dev-Szenarien.
+   Danach LLM-Lieferant als Robustheitstest (D7, Mistral Large 3 als andere Modellfamilie).
 
 ## 8. Offene Widersprüche und Hinweise
 
