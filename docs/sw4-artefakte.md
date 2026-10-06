@@ -64,7 +64,7 @@ Im Projekt wird der Lieferant simuliert oder von Testpersonen gespielt.
 | # | Als … | möchte ich … | damit … | Akzeptanzkriterium | Wann |
 | --- | --- | --- | --- | --- | --- |
 | US1 | Einkäuferin | pro Lieferantengruppe ein Mandat hinterlegen (Zielwerte, Grenzen, erlaubte Zugeständnisse) | der Agent ohne mich verhandeln kann | Mandat als strukturierte Daten; 0 Mandatsverstösse im Testsatz | MVP, KW42–43 |
-| US2 | Einkäuferin | dass der Agent Zahlungsziel und Rabatt nachverhandelt | wir im Long Tail bessere Konditionen erreichen | Abschlussquote ≥ 60 % in Szenarien mit Verhandlungsspielraum (Annahme; Walmart erreichte 68 %) | MVP, KW42 |
+| US2 | Einkäuferin | dass der Agent Zahlungsziel und Rabatt nachverhandelt | wir im Long Tail bessere Konditionen erreichen | Abschlussquote ≥ 90 % in Szenarien mit Verhandlungsspielraum (justiert 06.10.2026; Baseline reines LLM 71 %, Walmart real 68 %) | MVP, KW42 |
 | US3 | Lieferant | zwischen mehreren Paketen wählen und Gegenvorschläge machen | ich eine Lösung finde, die zu meiner Liquidität passt | Erste Nachricht enthält 2–3 gleichwertige Pakete; Gegenangebote werden in ≥ 95 % korrekt erkannt | MVP, KW43–44 |
 | US4 | Einkäuferin | bei Forderungen ausserhalb des Mandats eine Eskalation mit Zusammenfassung erhalten | ich in einer Minute entscheiden kann | 100 % dieser Fälle eskaliert; Zusammenfassung nennt Forderung, Gegenwert und Empfehlung | MVP, KW46 |
 | US5 | Einkäuferin | dass Manipulationsversuche ins Leere laufen | keine falschen Zusagen entstehen | 0 erfolgreiche Manipulationen im Angriffs-Testsatz | MVP, KW47 |
@@ -142,7 +142,7 @@ Pro Schritt steht, welcher Baustein gebraucht wird (Folie 2, Blöcke 4–6). Die
 
 ## Artefakt 4 – Erfolgskriterien und Limitierungen (Folie 20, 21.4)
 
-Die vier Kästen von Folie 20, ausgefüllt. Die Zielwerte sind Startwerte (Annahme) und werden nach dem ersten Testlauf in KW42 justiert.
+Die vier Kästen von Folie 20, ausgefüllt. Die Zielwerte waren Startwerte (Annahme); am 06.10.2026 nach dem Benchmark justiert (ADR 0004, 0006). Sie gelten für die hybride Variante (b); die Spalte «Vergleich» nennt die gemessene Baseline Variante (a) mit gpt-5.6-luna und die Regel-Referenz ohne LLM.
 
 **Welches Problem lösen wir?** Rund 450 kleinere Lieferanten der Musterhandel AG werden nie nachverhandelt, weil dem Einkauf die Kapazität fehlt. Konditionen wie Zahlungsziel und Rabatt bleiben jahrelang unverändert; Working Capital und Marge bleiben liegen.
 
@@ -166,16 +166,16 @@ Die vier Kästen von Folie 20, ausgefüllt. Die Zielwerte sind Startwerte (Annah
 
 | Kriterium | Metrik | Zielwert | Vergleich |
 | --- | --- | --- | --- |
-| Abschluss | Abschlussquote in Szenarien mit Verhandlungsspielraum | ≥ 60 % (Annahme) | Variante (a) reines LLM; Walmart erreichte 68 % |
+| Abschluss | Abschlussquote in Szenarien mit Verhandlungsspielraum | ≥ 90 % | (a): 71 %; Referenz: 100 %; Walmart erreichte real 68 % |
 | Korrekter Abbruch | Kein Deal in Szenarien ohne Spielraum | 100 % | Variante (a) |
-| Verhandlungsergebnis | Anteil des Spielraums (ZOPA), den der Käufer gewinnt | höher als Variante (a) | Variante (a) |
-| Effizienz | Runden bis zum Abschluss | im Schnitt ≤ 4 | Literatur: LLM-Agenten brauchen rund 3 statt 1,25 Runden |
-| Sicherheit | Mandatsverstösse | 0 | Variante (a) |
+| Verhandlungsergebnis | Anteil des Spielraums (ZOPA), den der Käufer gewinnt | höher als Variante (a) | (a): 0,18; Referenz: 0,72 |
+| Effizienz | Runden bis zum Abschluss | im Schnitt ≤ 4 | (a): 2,4; Referenz: 1,9; Literatur: LLM-Agenten brauchen rund 3 statt 1,25 Runden |
+| Sicherheit | Mandatsverstösse | 0 | (a): 0 mit Luna, 4 in 30 Läufen mit Mistral Large 3 |
 | Robustheit | Erfolgreiche Manipulationen im Angriffs-Testsatz | 0 | Variante (a) |
 | Ehrlichkeit | Täuschungen (LLM-Judge, an 20 Handbewertungen kalibriert) | 0 | Variante (a) |
 | Verständnis | Gegenangebote korrekt extrahiert | ≥ 95 % | — |
-| Zuverlässigkeit | pass^3: Szenario dreimal hintereinander erfolgreich | ≥ 70 % (Annahme) | Variante (a) |
-| Kosten | Kosten pro Verhandlung über LiteLLM | nach Modellwahl festlegen | heute: Arbeitszeit im Einkauf |
+| Zuverlässigkeit | pass^3: Szenario dreimal hintereinander erfolgreich | ≥ 80 % | (a): 60 %; Referenz: 100 % |
+| Kosten | Kosten pro Verhandlung über LiteLLM | ≤ 0.01 USD | (a): 0.0022 USD; heute: Arbeitszeit im Einkauf |
 
 **Vergleich mit heute:** Diese Lieferanten werden heute gar nicht verhandelt. Jede erfolgreiche Verhandlung ist zusätzlicher Wert; technisch vergleichen wir mit Variante (a), dem reinen Sprachmodell ohne Angebotslogik und Mandatsprüfung.
 

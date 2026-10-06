@@ -56,8 +56,9 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | D7 | LLM-Lieferant aus anderer Modellfamilie als der Agent | gilt ab LLM-Simulator (KW46) |
 | ADR 0002 | Prozess v2: LLM extrahiert und formuliert, Code bewertet und entscheidet | **vorgeschlagen, Team-Freigabe offen** |
 | ADR 0003 | Regelbasierter Lieferanten-Simulator für KW42 | angenommen |
-| ADR 0004 | Kandidaten: gpt-5.6-luna, azure_ai/gpt-oss-120b, azure_ai/mistral-large-3 + Regel-Referenz | angenommen, Wahl nach Benchmark |
+| ADR 0004 | Kandidaten: gpt-5.6-luna, azure_ai/gpt-oss-120b, azure_ai/mistral-large-3 + Regel-Referenz; **Arbeitsmodell gpt-5.6-luna** | angenommen (Benchmark 06.10.2026) |
 | ADR 0005 | ERP-light: schmaler MCP-Server (FastMCP, SQLite) mit 3 Tools statt vollem ERP-Mock | **vorgeschlagen, Team-Freigabe offen** |
+| ADR 0006 | D1-Spike: Variante (a) nicht fast fehlerfrei, Hybrid-Story trägt; kein Invoice Guard | angenommen |
 
 ## 5. Architektur heute (Variante a)
 
@@ -92,21 +93,20 @@ Erledigt:
 - 10 Szenarien, Variante (a), Eval, Benchmark, Modellprüfung; 16 Offline-Tests grün; ruff sauber.
 - Offline-Baseline der Regel-Referenz: 10/10 korrekt, 0 Mandatsverstösse, Ø 2,3 Runden, gesicherter
   Spielraum 0,715.
-
-Nicht erledigt:
-- **Kein Lauf mit echten Modellen und kein Tracing-Nachweis.** In der Vorsession gab es keine Keys.
-- `structured_output` in `config/models.toml` ist ungeprüft.
-- Preise in `config/models.toml` sind OpenRouter-Listenpreise vom 06.10.2026; die FHNW-Preise können abweichen.
+- KW42 abgeschlossen (Session 06.10.2026):
+  - LiteLLM `https://litellm.engines.aisl.science`; LangSmith-Konto in der EU-Region (`LANGSMITH_ENDPOINT`
+    nötig), Projekt `einkaufsagent`. Repo: github.com/mpasamonm/hs2026_gen_ai_agent_systems_einkaufsagent (privat).
+  - `ea-check-models`: Luna `function_calling`, gpt-oss und Mistral nur `json_schema` (ADR 0004).
+  - Preise in `config/models.toml` sind die FHNW-Preise aus `/model/info` des Proxys.
+  - Tracing nachgewiesen (`verhandlung-S04`, 10 Graph-Knoten, 4 LLM-Aufrufe).
+  - Benchmark: Luna 0,80 Erfolg, 0 Verstösse, 0.0028 USD pro Erfolg → Arbeitsmodell (ADR 0004).
+  - D1-Spike und Fehlerbilder in ADR 0006; Zielwerte in `docs/eval-metriken.md` und Artefakt 4 justiert.
+  - `scripts/analyse_fehlerbilder.py` wertet `runs.jsonl` aus (Leaks, Text ohne Konditionen, verpasste Annahmen, S09).
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **KW42 abschliessen**
-   - `.env` aus `.env.example`; dann `uv run ea-check-models` und `structured_output` setzen.
-   - Tracing nachweisen: `uv run ea-run --scenario S04 --model gpt-5.6-luna`, Trace in LangSmith prüfen.
-   - Benchmark: `uv run ea-benchmark --repeats 3`.
-   - D1-Spike auswerten: Abschlussquote ≥ 80 % und 0 Verstösse bei Variante (a) heisst, die Hybrid-Story
-     ist schwach; dann Invoice Guard ernsthaft prüfen.
-   - Zielwerte mit «Annahme» in `docs/eval-metriken.md` und Artefakt 4 justieren.
+1. **KW42** – erledigt am 06.10.2026 (siehe §6). Offen fürs Team: Zählt Eskalation bei Manipulation (S09) als
+   korrekt? Heute erwartet S09 einen Deal (ADR 0006).
 2. **Team-Freigabe einholen** für Prozess v2 (ADR 0002 auf «angenommen» setzen).
 3. **Nach der Freigabe**
    - Abschnitt «Vorbereitung KW42» in `docs/sw4-artefakte.md` (State-Code, Graph-Tabelle) auf v2 nachziehen.
@@ -129,16 +129,19 @@ Nicht erledigt:
 - Briefing plant eine Frontier-Referenz; im LiteLLM gibt es keine. Ersatz: Regel-Referenz (ADR 0004).
 - SW4 Artefakt 4 plant rund 30 Szenarien (20 Dev, 10 Test); heute sind es 10 Dev-Szenarien.
 - SW4-Modellauswahl nennt GLM-5.3-Flash und DeepSeek V4.1 Flash; beide sind nicht im LiteLLM.
-- gpt-oss-120b: Tool Calling auf Azure war 2025 defekt (LangChain-Issue #32425); `ea-check-models` klärt das.
-- Mistral Large 3: Function Calling in der Ankündigung nicht genannt, ungeprüft.
+- gpt-oss-120b und Mistral Large 3: Function Calling über den Proxy geprüft am 06.10.2026, liefert leer bzw.
+  Fehler 422, obwohl `/model/info` `supports_function_calling` meldet. Für Tool-Use in KW43 nur Luna verlässlich.
 - MCP-Versionsfalle: `langchain-mcp-adapters` 0.3.2 verlangt `mcp<2.0`, das SDK steht bei 2.3.0; nicht verwenden
   (ADR 0005). Briefing und SW4 sprechen noch vom «ERP-Mock» mit Preishistorie und Bestellungen.
 - Der Simulator bewertet die strukturierten Pakete, nicht den Text. Text-Paket-Widersprüche und Täuschung
   misst erst `mandate_guard` (b) bzw. ein kalibrierter LLM-Judge (KW47).
 - Neuer Auftrag auf Folie 43 der aktuellen SW4-Fassung: DeepLearning.AI-Video «AI Agents in LangGraph»
   (Kapitel siehe Moodle).
-- Git-Commits laufen bisher unter «Einkaufsagent Team <team@example.invalid>»; bei Bedarf mit
-  `git config user.name/user.email` korrigieren.
+- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` (Generator) und `einkaufsagent-prozess_v1.bpmn` im
+  Root (byte-gleich, beides Prozess v2). Wunsch des Teams: Änderungen als neue Root-Datei `_vN+1`, alte behalten.
+- §3 nennt für KW43 noch «ERP-Mock (SQLite)»; ADR 0005 (vorgeschlagen) ersetzt das durch ERP-light.
+- Simulator mit Textvorlagen: Die Regel-Referenz ohne LLM löst alle Szenarien; der LLM-Nutzen zeigt sich erst
+  gegen freie Texte (KW46, Live-Runden). Limitation für die Präsentation (ADR 0006).
 
 ## 9. Arbeitsweise
 
