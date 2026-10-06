@@ -17,3 +17,4 @@ D1–D7 stammen aus dem Kontext-Briefing; ab ADR 0002 aus der Session vom 05.10.
 | 0004 | Kandidaten Luna, gpt-oss-120b, Mistral Large 3 + Regel-Referenz | 05.10.2026 | gpt-5.4-mini, kimi-k2.7-code | Kandidat ohne strukturierte Ausgabe | 0004 |
 | 0005 | ERP-light: MCP-Server mit 3 Tools (vorgeschlagen) | 06.10.2026 | voller ERP-Mock, lokale Funktionen, langchain-mcp-adapters | Dozent verlangt LLM-gesteuerten Tool-Use als Kern | 0005 |
 | 0006 | D1-Spike: Variante (a) nicht fast fehlerfrei, Hybrid-Story trägt; Arbeitsmodell Luna (ADR 0004) | 06.10.2026 | Wechsel auf Invoice Guard | (b) schlägt (a) um < 20 Prozentpunkte | 0006 |
+| 0007 | Schlanke Prozessfassung `_v2`: ohne Timer und LLM-Strategie, RAG in der Eskalation, ein Gedächtnis (vorgeschlagen) | 06.10.2026 | `_v1` unverändert, RAG im Formulieren, Rückfrage-Pfad | Live-Demo mit Mensch als Lieferant | 0007 |

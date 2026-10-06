@@ -19,6 +19,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 2. Anhang C stammt aus der älteren SW4-Fassung. Aktuell ist `2026_SW4_Agentensystem2.pdf`, Text in
    `kontext/sw4-folien-v2-extrakt.md`. Foliennummern ab Folie 3 um 1 höher als in Anhang C.
 3. Arbeitshilfen: `kontext/briefing-export-2026-10-06.md`, `docs/sw4-artefakte.md`, `docs/adr/`.
+   `docs/gesamtsystem.md` ist die Grundlage fürs Team (Präsentation, Prüfung); bei jedem Entscheid nachführen.
    Werte mit «Annahme» sind Startwerte.
 4. Bei einem Widerspruch gilt das Original. Den Widerspruch ausdrücklich nennen, nicht still auflösen.
 
@@ -59,6 +60,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0004 | Kandidaten: gpt-5.6-luna, azure_ai/gpt-oss-120b, azure_ai/mistral-large-3 + Regel-Referenz; **Arbeitsmodell gpt-5.6-luna** | angenommen (Benchmark 06.10.2026) |
 | ADR 0005 | ERP-light: schmaler MCP-Server (FastMCP, SQLite) mit 3 Tools statt vollem ERP-Mock | **vorgeschlagen, Team-Freigabe offen** |
 | ADR 0006 | D1-Spike: Variante (a) nicht fast fehlerfrei, Hybrid-Story trägt; kein Invoice Guard | angenommen |
+| ADR 0007 | Schlanke Prozessfassung `einkaufsagent-prozess_v2.bpmn` (Entwurf): ohne Timer und LLM-Strategie, RAG in der Eskalation, ein Gedächtnis, ohne 1:3 | **vorgeschlagen, Team-Freigabe offen** |
 
 ## 5. Architektur heute (Variante a)
 
@@ -108,7 +110,8 @@ Erledigt:
 1. **KW42** – erledigt am 06.10.2026 (§6). Für den Unterricht am 12.10.: Trace per Share-Link zeigen,
    Benchmark-Tabelle aus ADR 0004, Fehlerbilder aus ADR 0006.
 2. **Team-Entscheide einholen** (blockiert Schritte 4–5):
-   - ADR 0002 (Prozess v2) freigeben → Status «angenommen».
+   - ADR 0002 (Prozess v2) zusammen mit ADR 0007 (schlanke Fassung `einkaufsagent-prozess_v2.bpmn`) freigeben
+     → Status «angenommen»; offen ist dabei der RAG-Ort (Eskalation oder «Angebot formulieren»).
    - ADR 0005 (ERP-light) mit den Prüfpunkten am Ende der ADR freigeben oder anpassen (sync statt async,
      History-Tool, ein Gedächtnis statt zwei).
    - S09: Zählt eine Eskalation bei Manipulation als korrekt? Heute erwartet S09 einen Deal (ADR 0006).
@@ -151,6 +154,8 @@ Erledigt:
   (Kapitel siehe Moodle).
 - BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` (Generator) und `einkaufsagent-prozess_v1.bpmn` im
   Root (byte-gleich, beides Prozess v2). Wunsch des Teams: Änderungen als neue Root-Datei `_vN+1`, alte behalten.
+  Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002); `_v2` = schlanke Fassung (ADR 0007, Entwurf). Im Team nur
+  Dateinamen verwenden. `_v2` wird bis zur Freigabe direkt angepasst, danach jede Änderung als neue Datei.
 - §3 nennt für KW43 noch «ERP-Mock (SQLite)»; ADR 0005 (vorgeschlagen) ersetzt das durch ERP-light.
 - Simulator mit Textvorlagen: Die Regel-Referenz ohne LLM löst alle Szenarien; der LLM-Nutzen zeigt sich erst
   gegen freie Texte (KW46, Live-Runden). Limitation für die Präsentation (ADR 0006).

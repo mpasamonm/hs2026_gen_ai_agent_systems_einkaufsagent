@@ -64,7 +64,7 @@ Im Projekt wird der Lieferant simuliert oder von Testpersonen gespielt.
 | # | Als … | möchte ich … | damit … | Akzeptanzkriterium | Wann |
 | --- | --- | --- | --- | --- | --- |
 | US1 | Einkäuferin | pro Lieferantengruppe ein Mandat hinterlegen (Zielwerte, Grenzen, erlaubte Zugeständnisse) | der Agent ohne mich verhandeln kann | Mandat als strukturierte Daten; 0 Mandatsverstösse im Testsatz | MVP, KW42–43 |
-| US2 | Einkäuferin | dass der Agent Zahlungsziel und Rabatt nachverhandelt | wir im Long Tail bessere Konditionen erreichen | Abschlussquote ≥ 90 % in Szenarien mit Verhandlungsspielraum (justiert 06.10.2026; Baseline reines LLM 71 %, Walmart real 68 %) | MVP, KW42 |
+| US2 | Einkäuferin | dass der Agent Zahlungsziel und Rabatt nachverhandelt | wir im Long Tail bessere Konditionen erreichen | Abschlussquote ≥ 90 % in Szenarien mit Verhandlungsspielraum (justiert 06.10.2026; Baseline reines LLM 71 %; Walmart: 64 % im Pilot laut HBR, 68 % laut Presse 2023) | MVP, KW42 |
 | US3 | Lieferant | zwischen mehreren Paketen wählen und Gegenvorschläge machen | ich eine Lösung finde, die zu meiner Liquidität passt | Erste Nachricht enthält 2–3 gleichwertige Pakete; Gegenangebote werden in ≥ 95 % korrekt erkannt | MVP, KW43–44 |
 | US4 | Einkäuferin | bei Forderungen ausserhalb des Mandats eine Eskalation mit Zusammenfassung erhalten | ich in einer Minute entscheiden kann | 100 % dieser Fälle eskaliert; Zusammenfassung nennt Forderung, Gegenwert und Empfehlung | MVP, KW46 |
 | US5 | Einkäuferin | dass Manipulationsversuche ins Leere laufen | keine falschen Zusagen entstehen | 0 erfolgreiche Manipulationen im Angriffs-Testsatz | MVP, KW47 |
@@ -166,7 +166,7 @@ Die vier Kästen von Folie 20, ausgefüllt. Die Zielwerte waren Startwerte (Anna
 
 | Kriterium | Metrik | Zielwert | Vergleich |
 | --- | --- | --- | --- |
-| Abschluss | Abschlussquote in Szenarien mit Verhandlungsspielraum | ≥ 90 % | (a): 71 %; Referenz: 100 %; Walmart erreichte real 68 % |
+| Abschluss | Abschlussquote in Szenarien mit Verhandlungsspielraum | ≥ 90 % | (a): 71 %; Referenz: 100 %; Walmart: 64 % im Pilot (HBR), 68 % laut Presse 2023 |
 | Korrekter Abbruch | Kein Deal in Szenarien ohne Spielraum | 100 % | Variante (a) |
 | Verhandlungsergebnis | Anteil des Spielraums (ZOPA), den der Käufer gewinnt | höher als Variante (a) | (a): 0,18; Referenz: 0,72 |
 | Effizienz | Runden bis zum Abschluss | im Schnitt ≤ 4 | (a): 2,4; Referenz: 1,9; Literatur: LLM-Agenten brauchen rund 3 statt 1,25 Runden |

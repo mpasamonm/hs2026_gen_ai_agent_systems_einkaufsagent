@@ -29,6 +29,7 @@ Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Ver
 | --- | --- |
 | `CLAUDE.md` | Übergabe für neue Sessions: Kontext, Entscheide, Stand, nächste Schritte, Arbeitsweise |
 | `kontext/` | lokale Kursunterlagen und Exporte, **nicht im Git** (siehe `kontext/README.md`) |
+| `docs/gesamtsystem.md` | Gesamtsystem und Begründungen: Grundlage für Präsentation, Demo und Prüfung |
 | `docs/sw4-artefakte.md` | SW4-Artefakte 1–4 (Use-Case, Prozess, Anforderungen, Erfolgskriterien) |
 | `docs/adr/` | Architekturentscheide (ADR), Index in `docs/adr/README.md` |
 | `docs/process/` | BPMN 2.0 des Soll-Prozesses (v2), Render, Validierungsskripte, Mapping BPMN → LangGraph |
