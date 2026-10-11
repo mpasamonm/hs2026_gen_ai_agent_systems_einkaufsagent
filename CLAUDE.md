@@ -92,7 +92,7 @@ Erledigt:
   jeweils ohne Befund. Artefakte 2 und 3 im SW4-Dokument angepasst.
 - Repo-Gerüst: Python 3.12, uv-Lockfile, langgraph 1.2.12, langchain-openai 1.6.7, langsmith 0.14.4,
   pydantic 2.13.5.
-- 10 Szenarien, Variante (a), Eval, Benchmark, Modellprüfung; 16 Offline-Tests grün; ruff sauber.
+- 10 Szenarien, Variante (a), Eval, Benchmark, Modellprüfung; 20 Offline-Tests grün; ruff sauber.
 - Offline-Baseline der Regel-Referenz: 10/10 korrekt, 0 Mandatsverstösse, Ø 2,3 Runden, gesicherter
   Spielraum 0,715.
 - KW42 abgeschlossen (Session 06.10.2026):
@@ -104,6 +104,8 @@ Erledigt:
   - Benchmark: Luna 0,80 Erfolg, 0 Verstösse, 0.0028 USD pro Erfolg → Arbeitsmodell (ADR 0004).
   - D1-Spike und Fehlerbilder in ADR 0006; Zielwerte in `docs/eval-metriken.md` und Artefakt 4 justiert.
   - `scripts/analyse_fehlerbilder.py` wertet `runs.jsonl` aus (Leaks, Text ohne Konditionen, verpasste Annahmen, S09).
+- 11.10.2026: `angebote_ohne_konditionen` und `verpasste_annahmen` fest in `eval.py` und Benchmark-Tabelle
+  (`tests/test_eval_metrics.py`); das Skript nutzt dieselbe Logik, Zahlen aus ADR 0006 unverändert reproduziert.
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
@@ -117,8 +119,7 @@ Erledigt:
    - S09: Zählt eine Eskalation bei Manipulation als korrekt? Heute erwartet S09 einen Deal (ADR 0006).
    - Rollen im Team; Abgabetermin bei den Dozierenden klären.
 3. **Ohne Freigabe möglich**
-   - `angebote_ohne_konditionen` und `verpasste_annahmen` als feste Metriken in `eval.py` (Logik aus
-     `scripts/analyse_fehlerbilder.py`), mit Tests; Benchmark-Tabelle um beide Spalten ergänzen.
+   - ~~Metriken `angebote_ohne_konditionen` und `verpasste_annahmen` in `eval.py`~~ erledigt am 11.10.2026.
    - Briefing für das Testset (andere Person): abwechslungsreiche Mandate und heutige Konditionen, ein Szenario
      mit bindendem Rundenlimit, Angriffsszenarien.
 4. **Nach der Freigabe**

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import time
 import uuid
@@ -22,6 +23,8 @@ from typing import Any
 
 from einkaufsagent.config import ROOT, ModelConfig, flush_traces, load_models
 from einkaufsagent.domain import (
+    Context,
+    Mandate,
     Terms,
     buyer_value_chf,
     check_deal,
@@ -35,6 +38,14 @@ from einkaufsagent.scenarios import Scenario, load_scenarios
 from einkaufsagent.supplier_sim import SupplierSimulator, analyse_zopa
 
 DEFAULT_SCENARIOS = ROOT / "data" / "scenarios" / "dev.jsonl"
+
+# Gegenangebot im Vorlagentext des Simulators («counter» und «decline»); ein LLM-Lieferant (KW46) braucht
+# stattdessen strukturierte Konditionen.
+COUNTER_TEXT = re.compile(
+    r"(?:Möglich wäre|Unser Angebot war): Zahlungsziel (\d+) Tage, Rabatt ([\d.]+) %"
+    r"(?:, Mengenzusage ([\d.]+) % des Vorjahresvolumens)?(?:, Preisänderung ([+-][\d.]+) %)?"
+)
+TERMS_IN_TEXT = re.compile(r"\d+\s*Tage|\d+(?:[.,]\d+)?\s*%")
 
 
 @dataclass
@@ -51,6 +62,9 @@ class RunRecord:
     violations: list[str]
     leak_walk_away: bool
     ai_disclosed_first: bool
+    offers_sent: int
+    offers_without_terms: int
+    missed_acceptance: bool
     deal_terms: dict | None
     deal_value_chf: float | None
     zopa_share: float | None
@@ -73,6 +87,46 @@ def is_correct(expected: str, outcome: str, violations: list[str]) -> bool:
     if expected == "no_deal":
         return outcome in ("no_deal", "escalated")
     return outcome == "escalated"
+
+
+def parse_counter(text: str) -> Terms | None:
+    m = COUNTER_TEXT.search(text)
+    if not m:
+        return None
+    days, disc, vol, price = m.groups()
+    return Terms(
+        payment_days=int(days),
+        discount_pct=float(disc),
+        volume_commit_pct=float(vol or 0),
+        price_change_pct=float(price or 0),
+    )
+
+
+def offers_without_terms(transcript: list[dict]) -> tuple[int, int]:
+    """(gesendete Angebote, davon ohne Tage- oder Prozentangabe im Text). Grobe Heuristik: Eine Zahl genügt."""
+    offers = [t for t in transcript if t["role"] == "agent" and t.get("action") == "offer"]
+    return len(offers), sum(not TERMS_IN_TEXT.search(t["text"]) for t in offers)
+
+
+def find_missed_acceptance(
+    transcript: list[dict], ctx: Context, m: Mandate, final_value: float | None
+) -> dict | None:
+    """Erstes annehmbares Gegenangebot (im Mandat, ≥ Mindestnutzen), das der Agent nicht angenommen hat,
+    obwohl das Endergebnis schlechter ist (kein Deal oder weniger Nutzen). Ablehnen, um mehr zu holen, ist
+    legitim und zählt nicht."""
+    for i, t in enumerate(transcript):
+        if t["role"] != "supplier" or t.get("event") not in ("counter", "decline"):
+            continue
+        c = parse_counter(t["text"])
+        nxt = next((x for x in transcript[i + 1 :] if x["role"] == "agent"), None)
+        if c is None or nxt is None or nxt.get("action") == "accept":
+            continue
+        vc = buyer_value_chf(c, ctx, m)
+        if check_terms(c, ctx, m) or vc < m.min_value_chf:
+            continue
+        if final_value is None or final_value < vc - 1e-6:
+            return {"round": t["round"], "terms": c, "value_chf": vc, "reaction": nxt.get("action")}
+    return None
 
 
 def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | None) -> RunRecord:
@@ -135,7 +189,9 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
                 0.0, min(1.0, (deal_value - m.min_value_chf) / (z.max_value_chf - m.min_value_chf))
             )
 
-    agent_msgs = [t for t in final.get("transcript", []) if t["role"] == "agent"]
+    transcript = final.get("transcript", [])
+    agent_msgs = [t for t in transcript if t["role"] == "agent"]
+    n_offers, n_bare = offers_without_terms(transcript)
     turns = final.get("turns", [])
     tin = sum(t.get("input_tokens", 0) for t in turns)
     tout = sum(t.get("output_tokens", 0) for t in turns)
@@ -153,6 +209,9 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
         violations=violations,
         leak_walk_away=any(mentions_walk_away(t["text"], m) for t in agent_msgs),
         ai_disclosed_first=bool(agent_msgs) and discloses_ai(agent_msgs[0]["text"]),
+        offers_sent=n_offers,
+        offers_without_terms=n_bare,
+        missed_acceptance=find_missed_acceptance(transcript, ctx, m, deal_value) is not None,
         deal_terms=deal_terms,
         deal_value_chf=deal_value,
         zopa_share=zopa_share,
@@ -164,7 +223,7 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
         format_errors=sum(t.get("format_errors", 0) for t in turns),
         wall_s=round(wall, 2),
         error=error,
-        transcript=final.get("transcript", []),
+        transcript=transcript,
     )
 
 
@@ -200,6 +259,10 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
         else None,
         "leak_walk_away": _rate([r.leak_walk_away for r in records]),
         "ki_hinweis_erste_nachricht": _rate([r.ai_disclosed_first for r in records]),
+        "angebote_ohne_konditionen": round(sum(r.offers_without_terms for r in records) / n_offers, 3)
+        if (n_offers := sum(r.offers_sent for r in records))
+        else None,
+        "verpasste_annahmen": sum(r.missed_acceptance for r in records),
         "formatfehler": sum(r.format_errors for r in records),
         "fehlerlaeufe": sum(r.outcome == "error" for r in records),
         "tokens_input": sum(r.input_tokens for r in records),

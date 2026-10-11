@@ -27,6 +27,8 @@ COLUMNS = [
     ("runden_mittel", "Ø Runden"),
     ("gesicherter_spielraum_mittel", "Spielraum"),
     ("leak_walk_away", "Leak"),
+    ("angebote_ohne_konditionen", "Ohne Konditionen"),
+    ("verpasste_annahmen", "Verpasste Annahmen"),
     ("formatfehler", "Formatfehler"),
     ("tokens_input", "Tokens in"),
     ("tokens_output", "Tokens out"),

@@ -78,5 +78,6 @@ Deal); ob eine Eskalation bei Manipulation als korrekt gelten soll, entscheidet 
 ## Konsequenzen
 
 - KW43: Variante (b) nach ADR 0002 (nach Team-Freigabe). Ablation (a) gegen (b) auf denselben 10 Szenarien.
-- `angebote_ohne_konditionen` und `verpasste_annahmen` sollen feste Metriken in `eval.py` werden; bis dahin
-  liefert sie `scripts/analyse_fehlerbilder.py`.
+- `angebote_ohne_konditionen` und `verpasste_annahmen` sind seit dem 11.10.2026 feste Metriken in `eval.py`
+  und in der Benchmark-Tabelle; das Skript nutzt dieselbe Logik und liefert auf den Benchmark-Daten dieselben
+  Zahlen wie oben.

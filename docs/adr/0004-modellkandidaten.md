@@ -52,13 +52,15 @@ Proxy derzeit nur mit Luna verlässlich.
 ## Ergebnis Benchmark (06.10.2026)
 
 `uv run ea-benchmark --repeats 3`, Variante (a), 10 Szenarien × 3 Wiederholungen; Kosten mit FHNW-Preisen.
+«Ohne Konditionen» (Anteil Angebote ohne Zahl im Text) und «Verpasste Annahmen» (Läufe) am 11.10.2026 aus denselben
+`runs.jsonl` nachgerechnet; seither Teil von `eval.py` und der Benchmark-Tabelle.
 
-| Policy | Erfolg | pass^3 | Abschluss | Verstösse | Ø Runden | Spielraum | Leak | Kosten USD | USD/Erfolg | Latenz p50 / p95 s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Regel-Referenz | 1.00 | 1.0 | 1.00 | 0 | 2.30 | 0.715 | 0 | 0 | 0 | – |
-| `gpt-5.6-luna` | 0.80 | 0.6 | 0.71 | 0 | 3.13 | 0.178 | 0 | 0.067 | 0.0028 | 3.2 / 6.4 |
-| `azure_ai/gpt-oss-120b` | 0.67 | 0.6 | 0.52 | 0 | 2.80 | 0.369 | 0.13 | 0.084 | 0.0042 | 6.1 / 8.7 |
-| `azure_ai/mistral-large-3` | 0.83 | 0.7 | 0.95 | 4 | 2.17 | 0.170 | 0 | 0.077 | 0.0031 | 54.0 / 100.6 |
+| Policy | Erfolg | pass^3 | Abschluss | Verstösse | Ø Runden | Spielraum | Leak | Ohne Konditionen | Verpasste Annahmen | Kosten USD | USD/Erfolg | Latenz p50 / p95 s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Regel-Referenz | 1.00 | 1.0 | 1.00 | 0 | 2.30 | 0.715 | 0 | 0 | 0 | 0 | 0 | – |
+| `gpt-5.6-luna` | 0.80 | 0.6 | 0.71 | 0 | 3.13 | 0.178 | 0 | 0.83 | 3 | 0.067 | 0.0028 | 3.2 / 6.4 |
+| `azure_ai/gpt-oss-120b` | 0.67 | 0.6 | 0.52 | 0 | 2.80 | 0.369 | 0.13 | 0.19 | 3 | 0.084 | 0.0042 | 6.1 / 8.7 |
+| `azure_ai/mistral-large-3` | 0.83 | 0.7 | 0.95 | 4 | 2.17 | 0.170 | 0 | 0.17 | 1 | 0.077 | 0.0031 | 54.0 / 100.6 |
 
 **Entscheid nach der Regel oben:** Mistral Large 3 fällt wegen 4 Mandatsverstössen weg (Abschlüsse unter dem
 Mindestnutzen in 4 von 30 Läufen); zudem verfehlt es das Latenzziel < 10 s deutlich. Unter Luna und gpt-oss hat

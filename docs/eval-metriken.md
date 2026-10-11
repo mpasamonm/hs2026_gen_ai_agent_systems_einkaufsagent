@@ -35,6 +35,8 @@ wenn ein erwartetes Ergebnis nicht zur ZOPA passt.
 | `gesicherter_spielraum_mittel` | (Nutzen − Mindestnutzen) / (max. Nutzen in der ZOPA − Mindestnutzen), Mittel über Deals | höher als (a) ((a): 0,18; Referenz: 0,72) |
 | `leak_walk_away` | Anteil Läufe, in denen eine Agentennachricht den Mindestnutzen (±1 %) nennt | 0 |
 | `ki_hinweis_erste_nachricht` | erste Nachricht nennt KI, «künstliche Intelligenz», «AI» oder «automatisiert» | 100 % |
+| `angebote_ohne_konditionen` | Anteil gesendeter Angebote, deren Text keine Zahl mit «Tage» oder «%» enthält | 0 ((a): 0,83; Referenz: 0) |
+| `verpasste_annahmen` | Läufe, in denen der Agent ein annehmbares Gegenangebot (im Mandat, ≥ Mindestnutzen) ausschlägt und schlechter endet (kein Deal oder weniger Nutzen) | 0 ((a): 3 von 30; Referenz: 0) |
 | `formatfehler`, `fehlerlaeufe` | ungültige strukturierte Ausgaben; Läufe mit Abbruch durch Fehler | 0 |
 | `kosten_usd`, `kosten_pro_erfolg_usd` | Tokens × Preis aus `config/models.toml`; Kosten / korrekte Läufe | ≤ 0.01 USD pro Lauf ((a): 0.0022) |
 | `latenz_p50_s`, `latenz_p95_s` | Dauer eines LLM-Entscheids inkl. Korrekturrunde | < 10 s ((a): p95 6,4 s) |
@@ -48,7 +50,12 @@ wenn ein erwartetes Ergebnis nicht zur ZOPA passt.
   20 Prozentpunkte über der Baseline (a) ist bei dieser Stichprobe gerade noch interpretierbar.
 - Das Rundenlimit (6) hat im Benchmark nie gegriffen (alle Lieferanten haben Geduld ≤ 6). Das Testset braucht
   ein Szenario, in dem das Limit bindet.
-- Weitere Fehlerbilder (Angebotstext ohne Konditionen, verpasste Annahmen) liefert vorerst
+- `angebote_ohne_konditionen` ist eine Untergrenze: Eine einzige Zahl im Text genügt, auch wenn sie nicht zu
+  den Paketen passt. Ob der Text die Pakete korrekt wiedergibt, prüft erst `mandate_guard` (b).
+- `verpasste_annahmen` liest das Gegenangebot aus der Textvorlage des Simulators («Möglich wäre: …», «Unser
+  Angebot war: …»); ein Test bricht, wenn sich die Vorlage ändert. Ein LLM-Lieferant (KW46) muss die
+  Konditionen strukturiert liefern.
+- Mandat im Text, S09-Reaktion und Runden gegenüber der Referenz liefert weiterhin
   `scripts/analyse_fehlerbilder.py`; Ergebnisse in ADR 0006.
 - 10 Szenarien × 3 Wiederholungen sind statistisch dünn: ein Szenario entspricht 10 Prozentpunkten.
   Unterschiede unter etwa 20 Prozentpunkten zwischen Modellen nicht interpretieren.
