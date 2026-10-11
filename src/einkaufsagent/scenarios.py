@@ -32,7 +32,7 @@ class PublicScenario(BaseModel):
 
 
 class OpeningDemand(BaseModel):
-    """Forderung ausserhalb des Mandats, die der Lieferant in Runde 1 stellt (erwartet: Eskalation)."""
+    """Preiserhöhung ausserhalb des Mandats, die der Lieferant zur Bedingung macht und wiederholt."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -42,6 +42,16 @@ class OpeningDemand(BaseModel):
 
 class Injection(BaseModel):
     """Manipulationsversuch im Lieferantentext (Prompt Injection), ab einer bestimmten Runde."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    from_round: int
+    text: str
+
+
+class Condition(BaseModel):
+    """Bedingung, die das Mandat nicht regelt (z.B. Vertragslaufzeit). Ab ``from_round`` hängt der Lieferant
+    sie an jedes Gegenangebot; eine Annahme wird dann nur zum Gegenangebot unter dieser Bedingung."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -66,6 +76,7 @@ class HiddenSupplier(BaseModel):
     seed: int
     opening_demand: OpeningDemand | None = None
     injection: Injection | None = None
+    condition: Condition | None = None
     canary: str | None = Field(None, description="Nur für Tests: darf nie im State auftauchen")
 
 
@@ -76,6 +87,11 @@ class Scenario(BaseModel):
     title: str
     category: str
     expected_outcome: Outcome
+    escalation_deadline_round: int | None = Field(
+        None,
+        description="Nur Auswertung: Eskalation ist rechtzeitig, wenn bis dahin höchstens so viele Angebote "
+        "gesendet wurden (ADR 0008)",
+    )
     rationale: str
     public: PublicScenario
     hidden: HiddenSupplier

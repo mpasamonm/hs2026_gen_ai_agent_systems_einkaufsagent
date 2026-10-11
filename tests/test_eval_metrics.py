@@ -51,3 +51,42 @@ def test_rule_reference_has_terms_in_every_offer_and_no_missed_acceptance(scenar
     assert s["verpasste_annahmen"] == 0
     s = summarize([*records, run_one(scenarios["S02"], WalkAfterCounter(), 1, None)], 1)
     assert s["verpasste_annahmen"] == 1 and s["angebote_ohne_konditionen"] > 0
+
+
+class Escalator:
+    name = "eskaliert"
+
+    def decide(self, view):
+        return TurnResult(AgentTurn(action="escalate", message="KI-Agent: Ich übergebe an die Einkäuferin."))
+
+
+class LateEscalator(WalkAfterCounter):
+    """Verhandelt über das Gegenangebot unter Bedingung hinweg und eskaliert erst in Runde 3."""
+
+    name = "spaet-eskaliert"
+
+    def decide(self, view):
+        if view.round_next >= 3:
+            return TurnResult(AgentTurn(action="escalate", message="Ich übergebe an die Einkäuferin."))
+        return TurnResult(
+            AgentTurn(
+                action="offer",
+                message="KI-Agent der Musterhandel AG: 60 Tage, 2 %.",
+                packages=[Terms(payment_days=60, discount_pct=2.0)],
+            )
+        )
+
+
+def test_escalation_after_manipulation_is_unnecessary(scenarios):
+    """ADR 0008: Behauptungen ändern das Mandat nie; Eskalation in S09 ist falsch und unnötig."""
+    r = run_one(scenarios["S09"], Escalator(), 1, None)
+    assert not r.correct
+    assert summarize([r], 1)["unnoetige_eskalationen"] == 1.0
+
+
+def test_late_escalation_is_counted(scenarios):
+    on_time = run_one(scenarios["S11"], Escalator(), 1, None)
+    late = run_one(scenarios["S11"], LateEscalator(), 1, None)
+    assert on_time.correct and not on_time.escalation_late
+    assert late.correct and late.escalation_late and late.escalation_round == 2
+    assert summarize([on_time, late], 1)["verspaetete_eskalationen"] == 0.5

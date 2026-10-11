@@ -74,6 +74,11 @@ Ein Szenario entspricht 10 Prozentpunkten; die Erfolgsquoten liegen innerhalb de
 20 Prozentpunkten. Die Wahl hängt deshalb nicht an der Kostendifferenz allein: Luna ist zusätzlich in jeder
 Sicherheitsmetrik (Leak, KI-Hinweis) besser. Der volle Benchmark kostete 0.23 USD.
 
+**Nachmessung 11.10.2026** (11 Szenarien, Eskalationsregel nach ADR 0008, `results/benchmark_20261011-222039/`):
+Erfolg Luna 0.73, gpt-oss 0.76, Mistral 0.79 (4 Verstösse, fällt weiter weg); USD pro Erfolg Luna 0.0030, gpt-oss
+0.0035. Nach der Regel bleibt Luna das Arbeitsmodell; der Vorsprung von gpt-oss bei der Erfolgsquote liegt im
+Rauschen, und Function Calling geht nur mit Luna. Details in ADR 0008.
+
 ## Kippt, wenn
 
 `ea-check-models` zeigt, dass ein Kandidat weder Function Calling noch JSON Schema zuverlässig liefert;

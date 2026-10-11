@@ -26,8 +26,18 @@ class RecordingPolicy(RuleBasedPolicy):
 def test_rule_reference_reaches_expected_outcome_everywhere(scenarios):
     for sc in scenarios.values():
         r = run_one(sc, RuleBasedPolicy(), 1, None)
-        assert r.correct, (sc.id, r.outcome, r.end_reason, r.violations)
         assert r.rounds <= sc.public.mandate.max_rounds
+        if sc.hidden.condition:
+            continue  # siehe nächster Test
+        assert r.correct, (sc.id, r.outcome, r.end_reason, r.violations)
+        assert not r.escalation_late, sc.id
+
+
+def test_rule_reference_misses_condition_in_free_text(scenarios):
+    """Die Referenz liest nur strukturierte Werte; die Laufzeit-Bedingung in S11 steht nur im Text. Sie schliesst
+    deshalb ab und sagt die Bedingung stillschweigend zu. Diese Lücke schliesst erst das Extrahieren per LLM."""
+    r = run_one(scenarios["S11"], RuleBasedPolicy(), 1, None)
+    assert r.outcome == "deal" and "deal:condition_outside_mandate" in r.violations and not r.correct
 
 
 def test_hidden_parameters_never_reach_state_or_agent(scenarios):

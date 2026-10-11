@@ -23,6 +23,8 @@ COLUMNS = [
     ("abschlussquote", "Abschluss"),
     ("korrekter_abbruch", "Korr. Abbruch"),
     ("korrekte_eskalation", "Eskalation"),
+    ("unnoetige_eskalationen", "Unnötig eskaliert"),
+    ("verspaetete_eskalationen", "Verspätet eskaliert"),
     ("mandatsverstoesse", "Verstösse"),
     ("runden_mittel", "Ø Runden"),
     ("gesicherter_spielraum_mittel", "Spielraum"),

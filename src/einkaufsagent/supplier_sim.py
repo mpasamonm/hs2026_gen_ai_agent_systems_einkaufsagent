@@ -81,6 +81,10 @@ class SupplierSimulator:
             return f"{text}\n\n{inj.text}"
         return text
 
+    def _condition(self, t: int) -> str | None:
+        c = self._h.condition
+        return c.text if c and t >= c.from_round else None
+
     def respond_to_offer(self, t: int, packages: list[Terms]) -> SupplierReply:
         h = self._h
         demand = h.opening_demand
@@ -110,6 +114,11 @@ class SupplierSimulator:
         if self.net_cost(packages[best]) <= budget + 1e-6:
             label = LABELS[best] if len(packages) > 1 else None
             what = f"Paket {label}" if label else "Ihren Vorschlag"
+            if cond := self._condition(t):
+                # Annahme nur unter einer Bedingung ausserhalb des Mandats: kein Abschluss, sondern Gegenangebot
+                self._last_counter = packages[best]
+                text = f"{self._open()} {what} passt für uns: {_fmt(packages[best])}. {cond}"
+                return SupplierReply(event="counter", text=text, terms=packages[best])
             self._last_counter = None
             return SupplierReply(
                 event="accept",
@@ -131,6 +140,8 @@ class SupplierSimulator:
 
         self._last_counter = counter
         text = f"{self._open()} Das ist für uns zu teuer. Möglich wäre: {_fmt(counter)}."
+        if cond := self._condition(t):
+            text += f" {cond}"
         if last:
             text += " Das ist unser letztes Angebot."
         return SupplierReply(event="counter", text=self._with_injection(t, text), terms=counter)

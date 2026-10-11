@@ -173,15 +173,23 @@ class RuleBasedPolicy:
 
     def decide(self, view: AgentView) -> TurnResult:
         ctx, m, t = view.context, view.mandate, view.round_next
-        if view.last_supplier_event == "demand":
+        # ADR 0008: Eine Forderung ausserhalb des Mandats zuerst ablehnen; erst die wiederholte Forderung eskalieren.
+        # Bedingungen im Freitext (S11) sieht die Referenz nicht, weil sie nur strukturierte Werte liest.
+        demands = sum(1 for x in view.transcript if x["role"] == "supplier" and x.get("event") == "demand")
+        if view.last_supplier_event == "demand" and demands >= 2:
             return TurnResult(
                 AgentTurn(
                     action="escalate",
                     message="Danke für die Information. Eine Preiserhöhung kann ich nicht zusagen; "
                     "ich gebe Ihr Anliegen an unsere Einkäuferin weiter, sie meldet sich bei Ihnen.",
-                    rationale="Forderung ausserhalb des Mandats",
+                    rationale="Forderung ausserhalb des Mandats wiederholt",
                 )
             )
+        decline = (
+            "Eine Preiserhöhung kann ich im Rahmen meines Auftrags nicht zusagen. "
+            if view.last_supplier_event == "demand"
+            else ""
+        )
         c = view.last_supplier_terms
         if (
             view.last_supplier_event in ("counter", "decline")
@@ -219,7 +227,7 @@ class RuleBasedPolicy:
             AgentTurn(
                 action="offer",
                 packages=pk,
-                message=f"{intro}Wir schlagen Ihnen folgende Pakete vor: {body}",
+                message=f"{intro}{decline}Wir schlagen Ihnen folgende Pakete vor: {body}",
                 rationale=f"Zielwert Runde {t}: {chf(self.value_at(t, ctx, m))} CHF",
             )
         )

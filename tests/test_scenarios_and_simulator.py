@@ -2,8 +2,8 @@ from einkaufsagent.domain import Terms
 from einkaufsagent.supplier_sim import SupplierSimulator, analyse_zopa
 
 
-def test_ten_dev_scenarios_with_consistent_labels(scenarios):
-    assert len(scenarios) == 10
+def test_dev_scenarios_with_consistent_labels(scenarios):
+    assert len(scenarios) == 11
     for sc in scenarios.values():
         z = analyse_zopa(sc.public.context, sc.public.mandate, sc.hidden)
         if sc.expected_outcome == "deal":
@@ -11,7 +11,8 @@ def test_ten_dev_scenarios_with_consistent_labels(scenarios):
         if sc.expected_outcome == "no_deal":
             assert not z.exists, sc.id
         if sc.expected_outcome == "escalate":
-            assert sc.hidden.opening_demand is not None, sc.id
+            assert sc.hidden.opening_demand or sc.hidden.condition, sc.id
+            assert sc.escalation_deadline_round is not None, sc.id
 
 
 def test_volume_commitment_is_required_somewhere(scenarios):
@@ -63,3 +64,13 @@ def test_demand_and_injection(scenarios):
     greedy = [Terms(payment_days=90, discount_pct=5.0)]
     assert "150 %" not in sim.respond_to_offer(1, greedy).text
     assert "150 %" in sim.respond_to_offer(2, greedy).text
+
+
+def test_condition_turns_acceptance_into_conditional_counter(scenarios):
+    """S11: Auch ein annehmbares Paket bekommt nur ein Gegenangebot unter der Bedingung (ADR 0008)."""
+    sc = scenarios["S11"]
+    sim = SupplierSimulator(sc.hidden, sc.public.context)
+    cheap = Terms(payment_days=35, discount_pct=0.0)
+    r = sim.respond_to_offer(1, [cheap])
+    assert r.event == "counter" and r.terms == cheap
+    assert sc.hidden.condition.text in r.text

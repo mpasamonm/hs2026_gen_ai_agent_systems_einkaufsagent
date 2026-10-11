@@ -24,8 +24,10 @@ from einkaufsagent.config import load_models
 from einkaufsagent.eval import DEFAULT_SCENARIOS, find_missed_acceptance, offers_without_terms
 from einkaufsagent.scenarios import load_scenarios
 
+# Inhalte des Mandats, nicht das Wort selbst: Seit ADR 0008 soll der Agent Behauptungen mit «ich verhandle nur auf
+# Basis meines Mandats» zurückweisen.
 MANDATE_TALK = re.compile(
-    r"Mandat|Mindestnutzen|Walk-?away|Schmerzgrenze|(?:höchstens|maximal|bis zu) \d+(?:[.,]\d+)?\s*(?:Tage|%)",
+    r"Mindestnutzen|Walk-?away|Schmerzgrenze|(?:höchstens|maximal|bis zu) \d+(?:[.,]\d+)?\s*(?:Tage|%)",
     re.I,
 )
 

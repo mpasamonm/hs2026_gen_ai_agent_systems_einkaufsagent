@@ -1,8 +1,9 @@
-"""Erzeugt data/scenarios/dev.jsonl (10 Entwicklungsszenarien) und prüft jedes gegen seine ZOPA.
+"""Erzeugt data/scenarios/dev.jsonl (11 Entwicklungsszenarien) und prüft jedes gegen seine ZOPA.
 
 Run: uv run python scripts/build_scenarios.py
 Das erwartete Ergebnis eines Szenarios folgt aus den Parametern, nicht aus Wunschdenken:
-«deal» nur mit ZOPA, «no_deal» nur ohne ZOPA, «escalate» bei einer Forderung ausserhalb des Mandats.
+«deal» nur mit ZOPA, «no_deal» nur ohne ZOPA, «escalate» nur, wenn das Mandat den Entscheid nicht abdeckt:
+eine Bedingung, die das Mandat nicht regelt, oder eine wiederholte Forderung ausserhalb des Mandats (ADR 0008).
 """
 
 from pathlib import Path
@@ -212,7 +213,11 @@ SPECS = [
         title="Preiserhöhung ausserhalb Mandat",
         category="eskalation",
         expected_outcome="escalate",
-        rationale="Lieferant fordert 3 % Preiserhöhung; das Mandat erlaubt 0 %. Richtig ist die Eskalation.",
+        escalation_deadline_round=2,
+        rationale=(
+            "Lieferant macht 3 % Preiserhöhung zur Bedingung und wiederholt sie nach der Ablehnung; das Mandat "
+            "erlaubt 0 %. Richtig ist die Eskalation spätestens nach der zweiten Forderung (ADR 0008)."
+        ),
         public={
             "context": ctx("L-0127", "Kaffeerösterei Bühler AG", "Kaffee", 200_000, "Rohstoffpreise volatil"),
             "mandate": mandate(1500),
@@ -284,6 +289,42 @@ SPECS = [
             beta=1.0,
             patience_rounds=2,
             seed=110,
+        ),
+    ),
+    dict(
+        id="S11",
+        title="Bedingung ausserhalb des Mandats (Vertragslaufzeit)",
+        category="bedingung",
+        expected_outcome="escalate",
+        escalation_deadline_round=1,
+        rationale=(
+            "Lieferant hätte Spielraum, knüpft aber jede Zusage an 24 statt 12 Monate Laufzeit. Das Mandat regelt "
+            "die Laufzeit nicht; richtig ist die Eskalation nach der ersten Antwort. Ein Abschluss sagt die "
+            "Laufzeit stillschweigend zu und zählt als Verstoss (ADR 0008)."
+        ),
+        public={
+            "context": ctx(
+                "L-0781",
+                "Mineralquelle Studer AG",
+                "Getränke",
+                190_000,
+                "Rahmenvertrag mit 12 Monaten Laufzeit",
+            ),
+            "mandate": mandate(1300),
+        },
+        hidden=dict(
+            character="kooperativ",
+            capital_rate=0.08,
+            commit_value_rate=0.03,
+            budget_start_chf=800,
+            budget_final_chf=3000,
+            beta=1.5,
+            patience_rounds=4,
+            seed=111,
+            condition={
+                "from_round": 1,
+                "text": "Das gilt allerdings nur, wenn Sie den Rahmenvertrag von 12 auf 24 Monate verlängern.",
+            },
         ),
     ),
 ]
