@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 06.10.2026. Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 11.10.2026. Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -37,10 +37,10 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | KW | Datum | Auftrag | Konkret bei uns |
 | --- | --- | --- | --- |
 | 42 | 12.10. | Erste lauffähige Version, Tracing funktioniert | Variante (a), Eval, Benchmark, LangSmith |
-| 43 | 19.10. | MCP-Server anbinden | ERP-Mock als MCP-Server (SQLite), Variante (b) |
-| 44 | 26.10. | RAG einbauen | Einkaufsrichtlinie und Marktbenchmarks, Hybrid Retrieval |
+| 43 | 19.10. | MCP-Server anbinden | ERP-light als MCP-Server (FastMCP, SQLite, ADR 0005), Variante (b) |
+| 44 | 26.10. | RAG einbauen | Einkaufsrichtlinie beim Extrahieren und in der Eskalation (ADR 0007), Hybrid Retrieval |
 | 45 | – | Blockwoche | – |
-| 46 | 09.11. | Memory festlegen | Lieferanten-Gedächtnis (c), Eskalation per Interrupt, 1:3 parallel |
+| 46 | 09.11. | Memory festlegen | Lieferanten-Gedächtnis (c), Eskalation per Interrupt (1:3 parallel gestrichen, ADR 0007) |
 | 47 | 16.11. | Safeguarding (minimal prompt-basiert), Evaluation | Angriffsszenarien, Guardrails, Chat-UI, voller Eval-Lauf |
 | 48 | 23.11. | Abschlusspräsentation | Demo |
 
@@ -55,12 +55,13 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | D5 | Modelle über FHNW-LiteLLM | angenommen |
 | D6 | Konditionen-Nachverhandlung mit Paketen statt freiem Feilschen | angenommen |
 | D7 | LLM-Lieferant aus anderer Modellfamilie als der Agent | gilt ab LLM-Simulator (KW46) |
-| ADR 0002 | Prozess v2: LLM extrahiert und formuliert, Code bewertet und entscheidet | **vorgeschlagen, Team-Freigabe offen** |
+| ADR 0002 | Prozess v2: LLM extrahiert und formuliert, Code bewertet und entscheidet | angenommen 11.10.2026 (Team-Feedback) |
 | ADR 0003 | Regelbasierter Lieferanten-Simulator für KW42 | angenommen |
-| ADR 0004 | Kandidaten: gpt-5.6-luna, azure_ai/gpt-oss-120b, azure_ai/mistral-large-3 + Regel-Referenz; **Arbeitsmodell gpt-5.6-luna** | angenommen (Benchmark 06.10.2026) |
-| ADR 0005 | ERP-light: schmaler MCP-Server (FastMCP, SQLite) mit 3 Tools statt vollem ERP-Mock | **vorgeschlagen, Team-Freigabe offen** |
+| ADR 0004 | Kandidaten: gpt-5.6-luna, azure_ai/gpt-oss-120b, azure_ai/mistral-large-3 + Regel-Referenz; **Arbeitsmodell gpt-5.6-luna** | angenommen (Benchmark 06.10., Nachmessung 11.10.2026) |
+| ADR 0005 | ERP-light: schmaler MCP-Server (FastMCP, SQLite `:memory:`, synchron) mit 3 Tools statt vollem ERP-Mock | angenommen 11.10.2026 |
 | ADR 0006 | D1-Spike: Variante (a) nicht fast fehlerfrei, Hybrid-Story trägt; kein Invoice Guard | angenommen |
-| ADR 0007 | Schlanke Prozessfassung `einkaufsagent-prozess_v2.bpmn` (Entwurf): ohne Timer und LLM-Strategie, RAG in der Eskalation, ein Gedächtnis, ohne 1:3 | **vorgeschlagen, Team-Freigabe offen** |
+| ADR 0007 | Schlanke Prozessfassung `einkaufsagent-prozess_v2.bpmn`: ohne Timer und LLM-Strategie, RAG beim Extrahieren und in der Eskalation, ein Gedächtnis, ohne 1:3 | angenommen 11.10.2026 |
+| ADR 0008 | Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt; Behauptungen ändern das Mandat nie; S09 nur Deal | angenommen 11.10.2026 |
 
 ## 5. Architektur heute (Variante a)
 
@@ -68,14 +69,18 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `negotiate` ist ein LLM-Node (`LLMPolicy`, strukturierte Ausgabe `AgentTurn`); er bündelt die
   BPMN-Schritte Strategie, Pakete, Formulieren, Extrahieren und Bewerten.
 - Lieferant: `supplier_sim.py`, regelbasiert. Konzessionsbudget nach Faratin et al. (1998), Geduld,
-  Gegenangebot durch Kürzen des besten Pakets, optional Preisforderung und Prompt Injection.
-- Referenz ohne LLM: `RuleBasedPolicy` (lineare Konzession, 3 MESO-Pakete, Annahme nach AC_next).
-- Szenarien: `data/scenarios/dev.jsonl` (10 Stück), erzeugt und gegen die ZOPA geprüft mit
-  `scripts/build_scenarios.py`. 7 × Deal (S09 mit Injection), 2 × ohne ZOPA, 1 × Eskalation.
+  Gegenangebot durch Kürzen des besten Pakets, optional Preisforderung, Prompt Injection und Bedingung
+  ausserhalb des Mandats (nur im Text).
+- Referenz ohne LLM: `RuleBasedPolicy` (lineare Konzession, 3 MESO-Pakete, Annahme nach AC_next; lehnt die erste
+  Forderung ab und eskaliert die wiederholte). Löst S11 absichtlich nicht, weil sie den Text nicht liest.
+- Szenarien: `data/scenarios/dev.jsonl` (11 Stück), erzeugt und gegen die ZOPA geprüft mit
+  `scripts/build_scenarios.py`. 7 × Deal (S09 mit Injection, nur Deal korrekt), 2 × ohne ZOPA, 2 × Eskalation
+  (S08 wiederholte Preisforderung, S11 Laufzeit-Bedingung).
 - Eval: `eval.py`, Metriken in `docs/eval-metriken.md`. Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
-- Prozess: `docs/process/einkaufsagent-prozess.bpmn` (v2). Zuordnung BPMN → LangGraph in
-  `docs/process/README.md`. Änderungen über `docs/process/gen_bpmn.py`, danach validieren und rendern.
+- Prozess: gültig ist `einkaufsagent-prozess_v2.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
+  LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v2.py`; jede Änderung als neue Datei
+  `_v3`, danach validieren und rendern.
 
 **Invarianten – nie brechen**
 - Verdeckte Lieferantenparameter (`hidden` im Szenario) gelangen nie in den Graph-State, einen Prompt oder
@@ -84,17 +89,19 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Rundenlogik wie BPMN v2: `round` zählt Angebotsrunden. Ein Gegenangebot ist auch nach der letzten Runde
   annehmbar. «accept» gilt nur für das letzte Gegenangebot; eine abgelehnte Annahme zählt als Runde.
 - Ab Variante (b) entscheidet nur Code über Zahlen und Mandat; das LLM extrahiert und formuliert.
+- Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. RAG liefert Kontext,
+  keine Grenzen (ADR 0007).
 
-## 6. Stand am 06.10.2026
+## 6. Stand am 11.10.2026
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
   jeweils ohne Befund. Artefakte 2 und 3 im SW4-Dokument angepasst.
 - Repo-Gerüst: Python 3.12, uv-Lockfile, langgraph 1.2.12, langchain-openai 1.6.7, langsmith 0.14.4,
   pydantic 2.13.5.
-- 10 Szenarien, Variante (a), Eval, Benchmark, Modellprüfung; 20 Offline-Tests grün; ruff sauber.
-- Offline-Baseline der Regel-Referenz: 10/10 korrekt, 0 Mandatsverstösse, Ø 2,3 Runden, gesicherter
-  Spielraum 0,715.
+- 11 Szenarien, Variante (a), Eval, Benchmark, Modellprüfung; 24 Offline-Tests grün; ruff sauber.
+- Offline-Baseline der Regel-Referenz: 10/11 korrekt (S11 absichtlich nicht), Ø 2,3 Runden, gesicherter
+  Spielraum 0,71.
 - KW42 abgeschlossen (Session 06.10.2026):
   - LiteLLM `https://litellm.engines.aisl.science`; LangSmith-Konto in der EU-Region (`LANGSMITH_ENDPOINT`
     nötig), Projekt `einkaufsagent`. Repo: github.com/mpasamonm/hs2026_gen_ai_agent_systems_einkaufsagent (privat).
@@ -104,37 +111,41 @@ Erledigt:
   - Benchmark: Luna 0,80 Erfolg, 0 Verstösse, 0.0028 USD pro Erfolg → Arbeitsmodell (ADR 0004).
   - D1-Spike und Fehlerbilder in ADR 0006; Zielwerte in `docs/eval-metriken.md` und Artefakt 4 justiert.
   - `scripts/analyse_fehlerbilder.py` wertet `runs.jsonl` aus (Leaks, Text ohne Konditionen, verpasste Annahmen, S09).
-- 11.10.2026: `angebote_ohne_konditionen` und `verpasste_annahmen` fest in `eval.py` und Benchmark-Tabelle
-  (`tests/test_eval_metrics.py`); das Skript nutzt dieselbe Logik, Zahlen aus ADR 0006 unverändert reproduziert.
+- Session 11.10.2026:
+  - `angebote_ohne_konditionen` und `verpasste_annahmen` fest in `eval.py` und Benchmark-Tabelle
+    (`tests/test_eval_metrics.py`); das Skript nutzt dieselbe Logik, Zahlen aus ADR 0006 unverändert reproduziert.
+  - Team-Feedback eingearbeitet: ADR 0002, 0005, 0007 angenommen; RAG auch beim Extrahieren, nicht im
+    Angebotstext; neue ADR 0008 (Eskalationsregel, gegen Denial of Service). S09 erwartet nur einen Deal (ein
+    kurzer Zwischenentscheid «Eskalation auch korrekt» ist damit hinfällig).
+  - Simulator mit Bedingung ausserhalb des Mandats, neues S11; Metriken `unnoetige_eskalationen` und
+    `verspaetete_eskalationen`; Prompt (a) Regeln 2 und 6 angepasst; Regel-Referenz lehnt erste Forderung ab.
+  - Nachmessung (ADR 0008): Luna 0,73 Erfolg, 0,67 Abschluss, 0 Verstösse; LLMs erkennen S11, verpassen aber S08
+    meist; Luna eskaliert S09 zweimal unnötig. Zwei Läufe schwanken um bis zu 9 Prozentpunkte.
+  - BPMN `_v2` angepasst (RAG-Verbindung zu «Antwort extrahieren», Gateway «Mandat reicht nicht oder unklar»),
+    validiert (moddle, bpmnlint, bpmn-js je 0) und gerendert; Kopie in `docs/process/`.
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **KW42** – erledigt am 06.10.2026 (§6). Für den Unterricht am 12.10.: Trace per Share-Link zeigen,
-   Benchmark-Tabelle aus ADR 0004, Fehlerbilder aus ADR 0006.
-2. **Team-Entscheide einholen** (blockiert Schritte 4–5):
-   - ADR 0002 (Prozess v2) zusammen mit ADR 0007 (schlanke Fassung `einkaufsagent-prozess_v2.bpmn`) freigeben
-     → Status «angenommen»; offen ist dabei der RAG-Ort (Eskalation oder «Angebot formulieren»).
-   - ADR 0005 (ERP-light) mit den Prüfpunkten am Ende der ADR freigeben oder anpassen (sync statt async,
-     History-Tool, ein Gedächtnis statt zwei).
-   - S09: Zählt eine Eskalation bei Manipulation als korrekt? Heute erwartet S09 einen Deal (ADR 0006).
-   - Rollen im Team; Abgabetermin bei den Dozierenden klären.
-3. **Ohne Freigabe möglich**
-   - ~~Metriken `angebote_ohne_konditionen` und `verpasste_annahmen` in `eval.py`~~ erledigt am 11.10.2026.
-   - Briefing für das Testset (andere Person): abwechslungsreiche Mandate und heutige Konditionen, ein Szenario
-     mit bindendem Rundenlimit, Angriffsszenarien.
-4. **Nach der Freigabe**
-   - Ändert sich der Prozess (z.B. durch ADR 0005), neue Datei `einkaufsagent-prozess_v2.bpmn` im Root; `_v1`
-     bleibt. `docs/process/einkaufsagent-prozess.bpmn` und PNG im Gleichschritt nachführen, validieren, rendern.
-   - Abschnitt «Vorbereitung KW42» in `docs/sw4-artefakte.md` (State-Code, Graph-Tabelle) auf v2 nachziehen.
-   - **Gesamtplan erstellen** (Auftrag vom 05.10.2026; Folie 16 der aktuellen SW4-Fassung fragt ebenfalls «Was
-     wollt ihr in den nächsten Wochen umsetzen?»): Architektur, Stack, Meilensteine pro KW bis zur Demo,
-     Deliverables für Präsentation und Abgabe. Schwerpunkt Reflexion, Limitationen, Schwächen und
-     Ausbaumöglichkeiten, wie es eine Hochschularbeit verlangt. Als `docs/plan.md`, Entscheide als ADR.
-5. **KW43 (19.10.), Variante (b)** nach BPMN v2, Arbeitsmodell `gpt-5.6-luna`:
-   - Nodes `offer_engine`, `narrate`, `mandate_guard` + `template_message`, `parse_response`, `assess_response`.
-   - ERP-light nach ADR 0005 (in der freigegebenen Fassung). Versionen vorher erneut prüfen.
-   - Ablation (a) gegen (b) auf denselben 10 Szenarien; Ziele in `docs/eval-metriken.md`.
-6. **Testset:** 10–20 zurückgehaltene Szenarien, entworfen von einer anderen Person als die Dev-Szenarien.
+1. **Unterricht 12.10.:** Trace per Share-Link zeigen, Benchmark und Eskalationsbefund aus ADR 0008, Fehlerbilder
+   aus ADR 0006.
+2. **Team:** über die Freigaben vom 11.10. informieren (ADR 0002, 0005, 0007 angenommen, ADR 0008 neu, S09 nur
+   Deal); Rollen; Abgabetermin bei den Dozierenden klären.
+3. **Briefing für das Testset** (andere Person): abwechslungsreiche Mandate und heutige Konditionen, ein Szenario
+   mit bindendem Rundenlimit, Angriffsszenarien, pro Eskalationskategorie aus ADR 0008 mindestens ein Szenario,
+   mit anderen Bedingungen als den Beispielen im Prompt (Laufzeit, Exklusivität, Vorauskasse).
+4. **Doku nachziehen:** Abschnitt «Vorbereitung KW42» und Artefakte 2–4 in `docs/sw4-artefakte.md` auf `_v2` und
+   ADR 0008.
+5. **Gesamtplan erstellen** (Auftrag vom 05.10.2026; Folie 16 der aktuellen SW4-Fassung fragt ebenfalls «Was
+   wollt ihr in den nächsten Wochen umsetzen?»): Architektur, Stack, Meilensteine pro KW bis zur Demo,
+   Deliverables für Präsentation und Abgabe. Schwerpunkt Reflexion, Limitationen, Schwächen und
+   Ausbaumöglichkeiten, wie es eine Hochschularbeit verlangt. Als `docs/plan.md`, Entscheide als ADR.
+6. **KW43 (19.10.), Variante (b)** nach `_v2`, Arbeitsmodell `gpt-5.6-luna`:
+   - Nodes `offer_engine`, `narrate`, `mandate_guard` + `template_message`, `parse_response` (mit Aussagen und
+     Typ), `assess_response` (Eskalation nach ADR 0008, Zurückweisung als Vorlage).
+   - ERP-light nach ADR 0005: synchron, `:memory:`, 3 Tools; `get_negotiation_history` gebaut, vom LLM erst in KW46
+     genutzt. Versionen vorher erneut prüfen (fastmcp, mcp).
+   - Ablation (a) gegen (b) auf denselben 11 Szenarien; Ziele in `docs/eval-metriken.md`.
+7. **Testset:** 10–20 zurückgehaltene Szenarien, entworfen von einer anderen Person als die Dev-Szenarien.
    Danach LLM-Lieferant als Robustheitstest (D7, Mistral Large 3 als andere Modellfamilie).
 
 ## 8. Offene Widersprüche und Hinweise
@@ -143,7 +154,7 @@ Erledigt:
 - Das Briefing sagt, v1 sei «ohne Warnungen» geprüft. Das gilt für den bpmn-js-Import; bpmnlint findet
   2 fake-joins. v1 ist abgelöst.
 - Briefing plant eine Frontier-Referenz; im LiteLLM gibt es keine. Ersatz: Regel-Referenz (ADR 0004).
-- SW4 Artefakt 4 plant rund 30 Szenarien (20 Dev, 10 Test); heute sind es 10 Dev-Szenarien.
+- SW4 Artefakt 4 plant rund 30 Szenarien (20 Dev, 10 Test); heute sind es 11 Dev-Szenarien.
 - SW4-Modellauswahl nennt GLM-5.3-Flash und DeepSeek V4.1 Flash; beide sind nicht im LiteLLM.
 - gpt-oss-120b und Mistral Large 3: Function Calling über den Proxy geprüft am 06.10.2026, liefert leer bzw.
   Fehler 422, obwohl `/model/info` `supports_function_calling` meldet. Für Tool-Use in KW43 nur Luna verlässlich.
@@ -153,13 +164,17 @@ Erledigt:
   misst erst `mandate_guard` (b) bzw. ein kalibrierter LLM-Judge (KW47).
 - Neuer Auftrag auf Folie 43 der aktuellen SW4-Fassung: DeepLearning.AI-Video «AI Agents in LangGraph»
   (Kapitel siehe Moodle).
-- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` (Generator) und `einkaufsagent-prozess_v1.bpmn` im
-  Root (byte-gleich, beides Prozess v2). Wunsch des Teams: Änderungen als neue Root-Datei `_vN+1`, alte behalten.
-  Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002); `_v2` = schlanke Fassung (ADR 0007, Entwurf). Im Team nur
-  Dateinamen verwenden. `_v2` wird bis zur Freigabe direkt angepasst, danach jede Änderung als neue Datei.
-- §3 nennt für KW43 noch «ERP-Mock (SQLite)»; ADR 0005 (vorgeschlagen) ersetzt das durch ERP-light.
-- Simulator mit Textvorlagen: Die Regel-Referenz ohne LLM löst alle Szenarien; der LLM-Nutzen zeigt sich erst
-  gegen freie Texte (KW46, Live-Runden). Limitation für die Präsentation (ADR 0006).
+- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v2.bpmn` im Root
+  (byte-gleich, gültige Fassung seit 11.10.2026). Wunsch des Teams: Änderungen als neue Root-Datei `_vN+1`, alte
+  behalten; die nächste heisst `_v3`. Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002, abgelöst); `_v2` =
+  schlanke Fassung (ADR 0007, 0008). Im Team nur Dateinamen verwenden.
+- Rendern braucht unter WSL `libasound2t64` (ohne sudo: `apt-get download`, `dpkg -x`, `LD_LIBRARY_PATH`), siehe
+  `docs/process/README.md`.
+- Simulator mit Textvorlagen: Die Regel-Referenz löst alle Szenarien ausser S11 (Bedingung nur im Text). Der
+  LLM-Nutzen zeigt sich bisher nur dort; Ton und freie Antworten erst gegen freie Texte (KW46, Live-Runden).
+  Limitation für die Präsentation (ADR 0006, 0008).
+- Artefakte 2–4 in `docs/sw4-artefakte.md` spiegeln noch `_v1` und die alte Eskalationsregel («Forderung
+  ausserhalb Mandat → Eskalation»).
 
 ## 9. Arbeitsweise
 
@@ -190,8 +205,9 @@ uv run ea-run --scenario S04 --model gpt-5.6-luna
 uv run ea-eval --model gpt-5.6-luna --repeats 3
 uv run ea-benchmark --repeats 3
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
-# BPMN (optional, Node 22 + Playwright-Chromium):
-cd docs/process && npm install && python3 gen_bpmn.py einkaufsagent-prozess.bpmn \
-  && node validate.mjs einkaufsagent-prozess.bpmn \
-  && python3 render.py einkaufsagent-prozess.bpmn einkaufsagent-prozess.png
+# BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
+cd docs/process && npm install && python3 gen_bpmn_v2.py ../../einkaufsagent-prozess_v2.bpmn \
+  && node validate.mjs ../../einkaufsagent-prozess_v2.bpmn \
+  && uv run --no-project --with playwright==1.63.0 python render.py \
+     ../../einkaufsagent-prozess_v2.bpmn ../../einkaufsagent-prozess_v2.png
 ```

@@ -2,7 +2,8 @@
 
 Run: python3 gen_bpmn_v2.py <out.bpmn>
 Changes against _v1: no timer, no LLM strategy node, send+wait as one task (= send_and_wait),
-one ERP store incl. history (= memory, ADR 0005 Prüfpunkt 3), RAG store for the escalation,
+one ERP store incl. history (= memory, ADR 0005 Prüfpunkt 3), RAG store for extraction and escalation
+(ADR 0007, team feedback 11.10.2026), escalation only if the mandate does not cover the decision (ADR 0008),
 book_deal + update_memory merged into one record step on all paths.
 Layout grid: lane L1 (Einkäuferin) y 60–260, lane L2 (Agent) y 260–760,
 rows in L2: upper 370, main 490, lower 640, loop line 720. Supplier pool y 820–880.
@@ -50,7 +51,8 @@ node("Task_Pakete", "scriptTask", "Pakete berechnen (Code)", "task", 710, 490, "
      "LangGraph: offer_engine. 2–3 gleichwertige Pakete (MESO) entlang der Konzessionskurve; nur Werte im "
      "Mandat. Variante (c): Startpunkt aus der Verhandlungshistorie. Ab KW43.")
 node("Task_Formulieren", "serviceTask", "Angebot formulieren (LLM)", "task", 860, 490, "L2", "llm",
-     "LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Ab KW43.")
+     "LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. "
+     "Ohne RAG: kein Richtlinientext an den Lieferanten (ADR 0007). Ab KW43.")
 node("Task_Guard", "businessRuleTask", "Nachricht prüfen (Code)", "task", 1010, 490, "L2", "code",
      "LangGraph: mandate_guard. Regelliste: Zahlen im Text = Paketwerte, keine Zusagen ausserhalb Mandat, "
      "kein Walk-away-Leak, KI-Hinweis in der ersten Nachricht. Ab KW43; Basis für Safeguarding KW47.")
@@ -64,16 +66,19 @@ node("Task_SendWait", "task", "Angebot senden, Antwort abwarten", "task", 1470, 
      "in der Demo: Chat-Oberfläche. Ab KW42.")
 node("Task_Extract", "serviceTask", "Antwort extrahieren (LLM)", "task", 1620, 490, "L2", "llm",
      "LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, "
-     "neue Forderungen. Lieferantentext ist untrusted input. Ab KW43.")
+     "Aussagen mit Typ (Befugnis-Behauptung, Information, Forderung, Bedingung). Ab KW44 mit passender Regel aus "
+     "der Einkaufsrichtlinie (RAG, Retrieval fest im Node). Lieferantentext ist untrusted input. Ab KW43.")
 node("Task_Assess", "businessRuleTask", "Antwort bewerten (Code)", "task", 1770, 490, "L2", "code",
      "LangGraph: assess_response. Einigung, wenn das gewählte Paket einem gesendeten entspricht oder ein "
      "Gegenangebot im Mandat mindestens so viel wert ist wie das eigene nächste Paket (AC_next). "
-     "Forderung ausserhalb Mandat oder nicht auswertbare Antwort (Schema ungültig, Paket unbekannt) → Eskalation. Ab KW43.")
+     "Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt: Bedingung, die das Mandat nicht regelt, "
+     "abgelehnte Forderung wiederholt, oder Antwort nicht auswertbar (Schema ungültig, Paket unbekannt). "
+     "Behauptungen über Zusagen ändern das Mandat nie: zurückweisen, protokollieren, weiter (ADR 0008). Ab KW43.")
 node("GW_Bewertung", "exclusiveGateway", "Bewertung?", "gw", 1900, 490, "L2",
      label=(1830, 520, 60, 14))
 node("Task_EskPrep", "serviceTask", "Eskalation aufbereiten (LLM + Tools)", "task", 2030, 370, "L2", "llm",
      "LangGraph: escalate (vor interrupt). LLM mit zwei Tools: Einkaufsrichtlinie (RAG, KW44) und "
-     "Verhandlungshistorie (MCP). Ergebnis: Forderung, Gegenwert, Empfehlung mit Quelle (US4). "
+     "Verhandlungshistorie (MCP). Ergebnis: Anlass, betroffene Regeln mit Quelle, Gegenwert, Empfehlung (US4). "
      "Fehler sind hier billig, weil die Einkäuferin entscheidet.")
 node("GW_Weiter", "exclusiveGateway", "Weiterverhandeln?", "gw", 1900, 640, "L2",
      label=(1760, 632, 112, 14))
@@ -136,7 +141,7 @@ flow("Flow_14", "Task_Assess", "GW_Bewertung", [(1820, 490), (1875, 490)])
 flow("Flow_15", "GW_Bewertung", "GW_JoinFinal", [(1925, 490), (2145, 490)], "Einigung",
      'state.assessment == "agreement"', (1935, 470, 48, 14))
 flow("Flow_16", "GW_Bewertung", "Task_EskPrep", [(1900, 465), (1900, 370), (1980, 370)],
-     "ausserhalb Mandat oder unklar", 'state.assessment == "escalate"', (1800, 395, 95, 27))
+     "Mandat reicht nicht oder unklar", 'state.assessment == "escalate"', (1800, 395, 95, 27))
 flow("Flow_17", "GW_Bewertung", "GW_Weiter", [(1900, 515), (1900, 615)],
      "Gegenangebot ungenügend oder Ablehnung", 'state.assessment in ("counter", "reject")',
      (1908, 545, 110, 40))
@@ -175,6 +180,7 @@ assoc = [
     ("DOA_Mandat", "out", "Task_Mandat", "DO_Mandat", [(410, 190), (422, 208)]),
     ("DIA_ERP", "in", "Task_Kontext", "DS_ERP_Read", [(470, 615), (470, 530)]),
     ("DIA_Richtlinie", "in", "Task_EskPrep", "DS_Richtlinie", [(1935, 300), (2000, 300), (2000, 330)]),
+    ("DIA_Richtlinie_Extract", "in", "Task_Extract", "DS_Richtlinie", [(1885, 300), (1620, 300), (1620, 450)]),
     ("DOA_ERP", "out", "Task_Record", "DS_ERP_Write", [(2290, 530), (2290, 615)]),
 ]
 

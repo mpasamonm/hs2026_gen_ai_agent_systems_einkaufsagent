@@ -1,8 +1,10 @@
 # ADR 0002 – Soll-Prozess v2: Code bewertet, LLM extrahiert und formuliert
 
-- **Status:** vorgeschlagen (Freigabe durch das Team ausstehend)
-- **Datum:** 05.10.2026
-- **Artefakte:** `docs/process/einkaufsagent-prozess.bpmn` (v2), Mapping in `docs/process/README.md`
+- **Status:** angenommen am 11.10.2026 nach Team-Feedback; als Zeichnung gilt die schlanke Fassung
+  `einkaufsagent-prozess_v2.bpmn` (ADR 0007), Punkt 5 ist durch ADR 0008 präzisiert
+- **Datum:** 05.10.2026, angepasst 11.10.2026
+- **Artefakte:** `einkaufsagent-prozess_v1.bpmn` (diese Fassung), `einkaufsagent-prozess_v2.bpmn` (gültig),
+  Mapping in `docs/process/README.md`
 
 ## Kontext
 
@@ -25,9 +27,12 @@ v2 übernimmt die Struktur von v1 und drei Ideen des Team-Entwurfs. Die Kernpunk
 4. **Fail-safe statt Korrekturschleife:** Verletzt eine formulierte Nachricht das Mandat, geht ein
    deterministischer Standardtext hinaus. Die Template-Rate wird zur Metrik.
 5. **Eskalation** auch bei unklarer Antwort und nach 48 h ohne Antwort; LLM bereitet auf, Mensch entscheidet
-   per Interrupt (weiter, ggf. mit erweitertem Mandat, abbrechen oder übernehmen).
+   per Interrupt (weiter, ggf. mit erweitertem Mandat, abbrechen oder übernehmen). Seit 11.10.2026: Eskaliert wird
+   nur, wenn das Mandat den Entscheid nicht abdeckt; Behauptungen über Zusagen ändern das Mandat nie (ADR 0008).
+   Den Timer hat ADR 0007 gestrichen.
 6. **Jeder Ausgang** teilt dem Lieferanten das Ergebnis mit und schreibt Protokoll und Gedächtnis.
-7. **Datenspeicher sichtbar** (aus dem Team-Entwurf): ERP-Mock und Lieferanten-Gedächtnis.
+7. **Datenspeicher sichtbar** (aus dem Team-Entwurf): ERP-Mock und Lieferanten-Gedächtnis. In `_v2` ein Speicher:
+   ERP-Adapter mit Historie als Gedächtnis (ADR 0005, 0007), dazu die Einkaufsrichtlinie (RAG).
 
 ## Verworfene Alternativen
 

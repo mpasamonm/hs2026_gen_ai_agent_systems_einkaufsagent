@@ -84,7 +84,7 @@
       <bpmn:outgoing>Flow_05</bpmn:outgoing>
     </bpmn:scriptTask>
     <bpmn:serviceTask id="Task_Formulieren" name="Angebot formulieren (LLM)">
-      <bpmn:documentation>LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Ohne RAG: kein Richtlinientext an den Lieferanten (ADR 0007). Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_05</bpmn:incoming>
       <bpmn:outgoing>Flow_06</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -114,12 +114,17 @@
       <bpmn:outgoing>Flow_12</bpmn:outgoing>
     </bpmn:task>
     <bpmn:serviceTask id="Task_Extract" name="Antwort extrahieren (LLM)">
-      <bpmn:documentation>LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, neue Forderungen. Lieferantentext ist untrusted input. Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, Aussagen mit Typ (Befugnis-Behauptung, Information, Forderung, Bedingung). Ab KW44 mit passender Regel aus der Einkaufsrichtlinie (RAG, Retrieval fest im Node). Lieferantentext ist untrusted input. Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_12</bpmn:incoming>
       <bpmn:outgoing>Flow_13</bpmn:outgoing>
+      <bpmn:property id="Property_DIA_Richtlinie_Extract" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DIA_Richtlinie_Extract">
+        <bpmn:sourceRef>DS_Richtlinie</bpmn:sourceRef>
+        <bpmn:targetRef>Property_DIA_Richtlinie_Extract</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
     </bpmn:serviceTask>
     <bpmn:businessRuleTask id="Task_Assess" name="Antwort bewerten (Code)">
-      <bpmn:documentation>LangGraph: assess_response. Einigung, wenn das gewählte Paket einem gesendeten entspricht oder ein Gegenangebot im Mandat mindestens so viel wert ist wie das eigene nächste Paket (AC_next). Forderung ausserhalb Mandat oder nicht auswertbare Antwort (Schema ungültig, Paket unbekannt) → Eskalation. Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: assess_response. Einigung, wenn das gewählte Paket einem gesendeten entspricht oder ein Gegenangebot im Mandat mindestens so viel wert ist wie das eigene nächste Paket (AC_next). Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt: Bedingung, die das Mandat nicht regelt, abgelehnte Forderung wiederholt, oder Antwort nicht auswertbar (Schema ungültig, Paket unbekannt). Behauptungen über Zusagen ändern das Mandat nie: zurückweisen, protokollieren, weiter (ADR 0008). Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_13</bpmn:incoming>
       <bpmn:outgoing>Flow_14</bpmn:outgoing>
     </bpmn:businessRuleTask>
@@ -130,7 +135,7 @@
       <bpmn:outgoing>Flow_17</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:serviceTask id="Task_EskPrep" name="Eskalation aufbereiten (LLM + Tools)">
-      <bpmn:documentation>LangGraph: escalate (vor interrupt). LLM mit zwei Tools: Einkaufsrichtlinie (RAG, KW44) und Verhandlungshistorie (MCP). Ergebnis: Forderung, Gegenwert, Empfehlung mit Quelle (US4). Fehler sind hier billig, weil die Einkäuferin entscheidet.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: escalate (vor interrupt). LLM mit zwei Tools: Einkaufsrichtlinie (RAG, KW44) und Verhandlungshistorie (MCP). Ergebnis: Anlass, betroffene Regeln mit Quelle, Gegenwert, Empfehlung (US4). Fehler sind hier billig, weil die Einkäuferin entscheidet.</bpmn:documentation>
       <bpmn:incoming>Flow_16</bpmn:incoming>
       <bpmn:outgoing>Flow_18</bpmn:outgoing>
       <bpmn:property id="Property_DIA_Richtlinie" name="__targetRef_placeholder" />
@@ -204,7 +209,7 @@
     <bpmn:sequenceFlow id="Flow_15" name="Einigung" sourceRef="GW_Bewertung" targetRef="GW_JoinFinal">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.assessment == &quot;agreement&quot;</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_16" name="ausserhalb Mandat oder unklar" sourceRef="GW_Bewertung" targetRef="Task_EskPrep">
+    <bpmn:sequenceFlow id="Flow_16" name="Mandat reicht nicht oder unklar" sourceRef="GW_Bewertung" targetRef="Task_EskPrep">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.assessment == &quot;escalate&quot;</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_17" name="Gegenangebot ungenügend oder Ablehnung" sourceRef="GW_Bewertung" targetRef="GW_Weiter">
@@ -312,6 +317,7 @@ Ablation: (a) ein LLM-Node übernimmt Pakete, Formulieren, Extrahieren und Bewer
       <bpmndi:BPMNEdge id="DOA_Mandat_di" bpmnElement="DOA_Mandat"><di:waypoint x="410" y="190" /><di:waypoint x="422" y="208" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DIA_ERP_di" bpmnElement="DIA_ERP"><di:waypoint x="470" y="615" /><di:waypoint x="470" y="530" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DIA_Richtlinie_di" bpmnElement="DIA_Richtlinie"><di:waypoint x="1935" y="300" /><di:waypoint x="2000" y="300" /><di:waypoint x="2000" y="330" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DIA_Richtlinie_Extract_di" bpmnElement="DIA_Richtlinie_Extract"><di:waypoint x="1885" y="300" /><di:waypoint x="1620" y="300" /><di:waypoint x="1620" y="450" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DOA_ERP_di" bpmnElement="DOA_ERP"><di:waypoint x="2290" y="530" /><di:waypoint x="2290" y="615" /></bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
