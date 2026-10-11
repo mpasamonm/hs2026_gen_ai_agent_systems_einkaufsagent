@@ -25,10 +25,15 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 
 ## 3. Modulrahmen (aus Anhang A und B)
 
-- Bewertung «erfüllt/nicht erfüllt»; Voraussetzung für die mündliche Prüfung, die zu rund 50 % die
-  Gruppenarbeit abfragt. Jede Person muss das Gesamtsystem erklären können.
+- Gruppenarbeit «erfüllt/nicht erfüllt», Voraussetzung für die Zulassung zur mündlichen Einzelprüfung. Die
+  Prüfung zählt 100 % der Note; rund 50 % betreffen die Gruppenarbeit und den individuellen Beitrag, der Rest den
+  Unterrichtsstoff. Jede Person muss das Gesamtsystem erklären können, nicht nur den eigenen Teil.
+- Mögliche Prüfungsfragen laut Anhang A: Problemstellung, Modell- und Methodenwahl, Architektur, technische
+  Umsetzung, Daten und Werkzeuge, Evaluation, Limitationen, alternative Lösungsansätze.
 - Abschlusspräsentation 23.11.2026, 13.00 Uhr, 10 Minuten inkl. Fragen: Problem, Ansatz, Umsetzung,
-  Evaluation, Erkenntnisse und Limitationen, möglichst mit Demo.
+  Evaluation, Erkenntnisse und Limitationen, möglichst mit Demo. Alle Mitglieder nehmen teil; die Dozierenden
+  können individuelle Rückfragen stellen, auch zum eigenen Beitrag. Die Präsentation gehört zur Gruppenarbeit
+  (erfüllt/nicht erfüllt) und gibt keine Punkte.
 - Abgabe: Link auf ausführbare Lösung, Projektartefakte, Präsentation als PDF. Abgabetermin in den
   Unterlagen nicht genannt (bei den Dozierenden klären).
 - Pro-Code mit LangGraph; No- und Low-Code-Tools (n8n, Voiceflow) sind nicht erlaubt.
@@ -129,7 +134,8 @@ Erledigt:
 1. **Unterricht 12.10.:** Trace per Share-Link zeigen, Benchmark und Eskalationsbefund aus ADR 0008, Fehlerbilder
    aus ADR 0006.
 2. **Team:** über die Freigaben vom 11.10. informieren (ADR 0002, 0005, 0007 angenommen, ADR 0008 neu, S09 nur
-   Deal); Rollen; Abgabetermin bei den Dozierenden klären.
+   Deal); Rollen und Beitrag pro Person in `docs/gesamtsystem.md` festhalten (die Prüfung fragt danach);
+   Abgabetermin bei den Dozierenden klären.
 3. **Briefing für das Testset** (andere Person): abwechslungsreiche Mandate und heutige Konditionen, ein Szenario
    mit bindendem Rundenlimit, Angriffsszenarien, pro Eskalationskategorie aus ADR 0008 mindestens ein Szenario,
    mit anderen Bedingungen als den Beispielen im Prompt (Laufzeit, Exklusivität, Vorauskasse).
