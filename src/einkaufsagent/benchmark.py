@@ -1,7 +1,8 @@
-"""Modell-Benchmark: Variante (a) mit mehreren LiteLLM-Modellen plus Regel-Referenz auf denselben Szenarien.
+"""Modell-Benchmark: eine Variante mit mehreren LiteLLM-Modellen plus Regel-Referenz auf denselben Szenarien.
 
-    uv run ea-benchmark --repeats 3                    # alle Modelle aus config/models.toml + Regel-Referenz
+    uv run ea-benchmark --repeats 3                    # Variante (a), alle Modelle + Regel-Referenz
     uv run ea-benchmark --models gpt-5.6-luna --repeats 1
+    uv run ea-benchmark --variant b --models gpt-5.6-luna --repeats 3
 
 Entscheidungsregel (ADR 0004): Kandidaten mit Mandatsverstössen > 0 sind für Variante (a) nicht
 produktionstauglich; unter den übrigen gewinnt die niedrigste «Kosten pro Erfolg» bei pass^k ≥ Zielwert.
@@ -31,6 +32,7 @@ COLUMNS = [
     ("leak_walk_away", "Leak"),
     ("angebote_ohne_konditionen", "Ohne Konditionen"),
     ("verpasste_annahmen", "Verpasste Annahmen"),
+    ("template_rate", "Template-Rate"),
     ("formatfehler", "Formatfehler"),
     ("tokens_input", "Tokens in"),
     ("tokens_output", "Tokens out"),
@@ -44,6 +46,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--models", nargs="*", help="Modell-IDs; Standard: alle aus config/models.toml")
     ap.add_argument("--no-rule", action="store_true", help="Regel-Referenz weglassen")
+    ap.add_argument("--variant", choices=["a", "b"], default="a", help="a = reines LLM, b = Hybrid")
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
@@ -51,11 +54,11 @@ def main() -> None:
 
     scenarios = load_scenarios(a.scenarios)
     models = a.models or list(load_models())
-    out_root = ROOT / "results" / f"benchmark_{datetime.now():%Y%m%d-%H%M%S}"
+    out_root = ROOT / "results" / f"benchmark_{datetime.now():%Y%m%d-%H%M%S}_{a.variant}"
     rows: list[tuple[str, dict]] = []
     entries = ([("rule", None)] if not a.no_rule else []) + [(None, m) for m in models]
     for pol, model in entries:
-        policy, cfg = make_policy(pol, model)
+        policy, cfg = make_policy(pol, model, a.variant)
         print(f"→ {policy.name}: {len(scenarios)} Szenarien × {a.repeats}")
         summary = run_eval(
             policy, cfg, scenarios, a.repeats, a.workers, out_root / policy.name.replace("/", "_")
@@ -76,7 +79,7 @@ def main() -> None:
     md = (
         "\n".join(
             [
-                f"# Modell-Benchmark Variante (a), {len(scenarios)} Szenarien × {a.repeats}",
+                f"# Modell-Benchmark Variante ({a.variant}), {len(scenarios)} Szenarien × {a.repeats}",
                 "",
                 f"Stand: {datetime.now():%Y-%m-%d %H:%M}",
                 "",

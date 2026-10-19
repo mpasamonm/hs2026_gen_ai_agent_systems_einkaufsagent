@@ -44,7 +44,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | KW | Datum | Auftrag | Konkret bei uns |
 | --- | --- | --- | --- |
 | 42 | 12.10. | Erste lauffähige Version, Tracing funktioniert | Variante (a), Eval, Benchmark, LangSmith (erledigt) |
-| 43 | 19.10. | MCP-Server anbinden | kein MCP (ADR 0009); Variante (b) mit Luna, `parse_response` austauschbar |
+| 43 | 19.10. | MCP-Server anbinden | kein MCP (ADR 0009); Variante (b) mit Luna, `parse_response` austauschbar (erledigt 19.10., ADR 0013) |
 | 44 | 26.10. | RAG einbauen | kein RAG (ADR 0009); ERP-Adapter mit Protokoll, Umformulierungen, Spike Klassifikation (ADR 0011), `_v4` |
 | 45 | – | Blockwoche | synthetisches Testset, Angriffe, Bias (ADR 0010) |
 | 46 | 09.11. | Memory festlegen | Eskalation per Interrupt, Mensch als Lieferant, Gedächtnis (c) klein und optional |
@@ -73,12 +73,20 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026 |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) in KW44 | angenommen 19.10.2026, Ergebnis offen |
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
+| ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026 |
 
-## 5. Architektur heute (Variante a)
+## 5. Architektur heute (Varianten a und b)
 
 - Graph `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
   `negotiate` ist ein LLM-Node (`LLMPolicy`, strukturierte Ausgabe `AgentTurn`); er bündelt die
   BPMN-Schritte Strategie, Pakete, Formulieren, Extrahieren und Bewerten.
+- Graph `src/einkaufsagent/graph_b.py` (Variante b, `_v3`): `load_context → offer_engine → narrate → mandate_guard
+  (→ template_message) → send_and_wait → parse_response → assess_response →` weiter / Gegenangebot annehmen /
+  `notify_supplier`. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
+  (`LLMParser`, `RuleParser`; Protokoll `Parser` mit optionaler `confidence`), Narrator in `narrate.py`. `narrate` sieht
+  nur Pakete und Runde; `parse_response` sieht nur Antwort und Gesendetes; keiner sieht das Mandat. Einigung liest
+  `parse_response` aus dem Text; die Eval prüft sie gegen den Simulator (`deal:not_agreed`). Offline:
+  `--variant b --policy rule` (Vorlage + Regex).
 - Lieferant: `supplier_sim.py`, regelbasiert. Konzessionsbudget nach Faratin et al. (1998), Geduld,
   Gegenangebot durch Kürzen des besten Pakets, optional Preisforderung, Prompt Injection und Bedingung
   ausserhalb des Mandats (nur im Text).
@@ -87,7 +95,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Szenarien: `data/scenarios/dev.jsonl` (11 Stück), erzeugt und gegen die ZOPA geprüft mit
   `scripts/build_scenarios.py`. 7 × Deal (S09 mit Injection, nur Deal korrekt), 2 × ohne ZOPA, 2 × Eskalation
   (S08 wiederholte Preisforderung, S11 Laufzeit-Bedingung).
-- Eval: `eval.py`, Metriken in `docs/eval-metriken.md`. Benchmark: `benchmark.py`.
+- Eval: `eval.py` mit `--variant a|b`, Metriken in `docs/eval-metriken.md`. Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
 - Prozess: gültig ist `einkaufsagent-prozess_v3.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
   LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v3.py`; jede Änderung als neue Datei
@@ -103,7 +111,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 19.10.2026
+## 6. Stand am 19.10.2026 (nach Bau b)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -145,22 +153,27 @@ Erledigt:
     gewählt haben und warum» und 9 «Abdeckung der Modulthemen» (inkl. OWASP LLM Top 10 2026); `docs/eval-metriken.md`
     mit geplanten Metriken; `docs/sw4-artefakte.md` als abgelöst markiert. Kein `docs/plan.md`; der Wochenplan bleibt
     lokal in `kontext/`.
+- Session 19.10.2026, Bau b (ADR 0013):
+  - Variante (b) nach `_v3` gebaut (`graph_b.py`, `hybrid.py`, `extract.py`, `narrate.py`), Fehlerpfade inklusive.
+    `ea-eval`, `ea-benchmark`, `ea-run` mit `--variant a|b`; neue Metriken `template_rate` und Verstoss
+    `deal:not_agreed`. 46 Tests grün (22 neu, davon Canary für b und Fake-Server-Kette), ruff sauber.
+  - Ablation mit Luna am selben Tag: (a) Erfolg 0.79, pass^3 0.64, Spielraum 0.195; (b) mit gültigem Prompt 1.00,
+    1.00, 0.715; Template-Rate 0; Kosten pro Erfolg halbiert. Kippregel ADR 0006 greift nicht. Zwei Präzisierungen im
+    Parse-Prompt nach Befunden in S06 und S08; alle drei Läufe in ADR 0013.
+  - `docs/gesamtsystem.md` §2.5 mit Pactum-Stand 2026 (Release Notes Sept. 2026: Aggressivität, Angebotsprüfung,
+    Eskalation, Audit-Trail = unsere Bausteine), §2.4 mit Liang und Xu als zweitem Beleg.
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **Bau-Session KW43** (Prompt `kontext/UEBERGABE-PROMPT-KW43-bau-b.md`): Variante (b) nach `_v3` mit
-   `gpt-5.6-luna`: `offer_engine`, `narrate`, `mandate_guard` + `template_message`, `parse_response` (austauschbar;
-   Paket, Gegenangebot, Aussagen mit Typ; kurze Richtlinie im Prompt), `assess_response` (ADR 0008, Zurückweisung als
-   Vorlage), `notify_supplier`. Kontext weiter aus dem JSON-Stub. Canary-Test auch für (b). Ablation (a) gegen (b) auf
-   den 11 Szenarien; Ergebnis als ADR und in `docs/gesamtsystem.md`.
-2. **KW44:** Umformulierungen der Simulator-Texte (ADR 0010), Spike Klassifikation (ADR 0011), ERP-Adapter über
-   SQLite mit Protokoll und Paketwahl (Metrik `korrekt_gebucht`), Fehlerpfade über die Fail-safes, `_v4`,
-   granite-Zeile in der Ablation.
-3. **KW45:** synthetisches Testset 12–15 Szenarien, Angriffe, Bias-Varianten (ADR 0010); (a) und (b) auf dem Testset.
-4. **KW46:** Eskalation per `interrupt()`, Mensch als Lieferant im Terminal, Gedächtnis (c) klein und optional.
+1. **KW44** (Prompt `kontext/UEBERGABE-PROMPT-KW44.md`): Umformulierungen der Simulator-Texte (ADR 0010), Spike
+   Klassifikation auf `parse_response` (ADR 0011), ERP-Adapter über SQLite mit Protokoll und Paketwahl
+   (`record_outcome`, Metrik `korrekt_gebucht`), `_v4` (Fehlerpfade sind im Code schon gebaut), granite-Zeile mit
+   `--variant b --model ibm/granite4.1:3b`.
+2. **KW45:** synthetisches Testset 12–15 Szenarien, Angriffe, Bias-Varianten (ADR 0010); (a) und (b) auf dem Testset.
+3. **KW46:** Eskalation per `interrupt()`, Mensch als Lieferant im Terminal, Gedächtnis (c) klein und optional.
    Danach keine neuen Funktionen mehr.
-5. **KW47:** voller Eval-Lauf, Ergebnisfolie, Demo-Probe mit Aufzeichnung, Folien; optional MCP nur lesend (ADR 0009).
-6. **Offen (mit den Dozierenden klären):** Abgabetermin und Form der «ausführbaren Lösung», ob eine schriftliche Dokumentation verlangt
+4. **KW47:** voller Eval-Lauf, Ergebnisfolie, Demo-Probe mit Aufzeichnung, Folien; optional MCP nur lesend (ADR 0009).
+5. **Offen (mit den Dozierenden klären):** Abgabetermin und Form der «ausführbaren Lösung», ob eine schriftliche Dokumentation verlangt
    ist; Rollen und Beitrag pro Person in `docs/gesamtsystem.md` festhalten (die Prüfung fragt danach).
 
 ## 8. Offene Widersprüche und Hinweise
@@ -187,9 +200,13 @@ Erledigt:
   Übergaben gelten für `--repeats 3`.
 - Synthetische Texte erzeugt Claude Opus über Claude Code (ADR 0010); das ist nicht per Skript wiederholbar, deshalb
   werden die Daten eingefroren und Prompt, Modell und Datum neben den Daten abgelegt.
-- Der Simulator bewertet die strukturierten Pakete, nicht den Text. Text-Paket-Widersprüche und Täuschung misst erst
-  `mandate_guard` (b). Die Regel-Referenz löst alle Szenarien ausser S11; der Nutzen des LLM zeigt sich gegen
-  Umformulierungen (KW44) und Menschen (Live-Runden). Limitation für die Präsentation (ADR 0006, 0008).
+- Der Simulator bewertet die strukturierten Pakete, nicht den Text. `mandate_guard` (b) prüft Zahlen gegen Pakete, nicht
+  deren Zuordnung. Die Regel-Referenz löst alle Szenarien ausser S11, (b) offline mit Regex-Parser alle; der Nutzen des
+  LLM zeigt sich erst gegen Umformulierungen (KW44) und Menschen (Live-Runden). Limitation für die Präsentation
+  (ADR 0006, 0008, 0013).
+- Die Präzisierungen im Parse-Prompt (ADR 0013) sind am Dev-Set entstanden; Prompt-Beispiele dürfen den Wortlaut der
+  Szenarien nicht übernehmen, und das Testset muss anders formuliert sein (ADR 0010).
+- `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
 - BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v3.bpmn` im Root
   (byte-gleich, gültig seit 19.10.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v4`.
   Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002). Im Team nur Dateinamen verwenden.
@@ -226,6 +243,9 @@ uv run ea-eval --policy rule --repeats 3          # offline-Baseline: 0.909, 3 V
 uv run ea-check-models                            # braucht .env
 uv run ea-run --scenario S04 --model gpt-5.6-luna
 uv run ea-eval --model gpt-5.6-luna --repeats 3
+uv run ea-eval --variant b --policy rule                      # Variante (b) offline: 11/11
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3
+uv run ea-run --scenario S09 --variant b --model gpt-5.6-luna # zeigt auch die Hinweise für die Einkäuferin
 uv run ea-benchmark --repeats 3
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):

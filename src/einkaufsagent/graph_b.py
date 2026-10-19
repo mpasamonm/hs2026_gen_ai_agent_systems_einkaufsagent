@@ -1,0 +1,252 @@
+"""Variante (b) als LangGraph-Graph nach BPMN `_v3`: das LLM formuliert und extrahiert, der Code entscheidet.
+
+    START → load_context → offer_engine → narrate → mandate_guard ─ ok ───────────→ send_and_wait
+                               ▲                                └ Verstoss → template_message ─┘     │
+                               │                                                                     ▼
+                               └──── weiter ◄──── assess_response ◄──────────────────────── parse_response
+                                                   │  └─ Gegenangebot annehmen (AC_next) → send_and_wait
+                                                   └─ Einigung / kein Deal / Eskalation → notify_supplier → END
+
+LLM-Nodes: ``narrate`` (sieht nur die Pakete) und ``parse_response`` (sieht nur die Antwort und was gesendet wurde).
+Alle Entscheide über Zahlen und Mandat fallen in Code-Nodes. Rundenlogik wie Variante (a): ``round`` zählt
+Angebotsrunden, ein Gegenangebot ist auch nach der letzten Runde annehmbar, eine abgelehnte Annahme zählt als Runde.
+Narrator, Parser und Simulator kommen per Closure in den Graphen; die verdeckten Parameter sind nie im State.
+"""
+
+from __future__ import annotations
+
+import operator
+from typing import Annotated, Any, Literal, TypedDict
+
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import END, START, StateGraph
+
+from einkaufsagent.domain import Context, Mandate, Terms
+from einkaufsagent.extract import ParsedReply, Parser, ParseResult, Sent
+from einkaufsagent.hybrid import accept_text, assess_reply, check_message, notify_text, template_offer
+from einkaufsagent.narrate import Narrator
+from einkaufsagent.policies import RuleBasedPolicy
+from einkaufsagent.supplier_sim import SupplierSimulator
+
+Outcome = Literal["deal", "no_deal", "escalated", "error"]
+
+
+class HybridAgent:
+    """Variante (b). Narrator und Parser sind austauschbar (ADR 0011); Pakete und AC_next aus der Regel-Referenz."""
+
+    variant = "b"
+
+    def __init__(self, narrator: Narrator, parser: Parser, name: str | None = None):
+        self.narrator = narrator
+        self.parser = parser
+        self.name = name or narrator.name
+        self.engine = RuleBasedPolicy()
+
+
+class HybridState(TypedDict, total=False):
+    scenario_id: str
+    context: dict[str, Any]
+    mandate: dict[str, Any]
+    transcript: Annotated[list[dict[str, Any]], operator.add]  # «event» beim Lieferanten nur für die Eval
+    round: int
+    offers: Annotated[list[dict[str, Any]], operator.add]  # alle Zusagen des Agenten
+    turns: Annotated[list[dict[str, Any]], operator.add]  # Tokens, Latenz, Formatfehler pro LLM-Aufruf
+    pending: dict[str, Any] | None  # nächste Nachricht: {"kind": "offer" | "accept", "packages": [...]}
+    draft: str | None  # Angebotstext von narrate bzw. Standardtext
+    template_reason: str | None  # warum der Standardtext hinausgeht (Metrik template_rate)
+    prefix: list[str]  # Zurückweisungen aus Vorlagen vor der nächsten Nachricht
+    sent: dict[str, Any] | None  # zuletzt gesendet (Sent)
+    parsed: dict[str, Any] | None  # ParsedReply; None = nicht auswertbar
+    parse_confidence: float | None
+    parse_error: str | None
+    rejected_demands: Annotated[list[str], operator.add]  # Grössen mit abgelehnter Forderung (ADR 0008)
+    notes: Annotated[list[str], operator.add]  # Hinweise für das Protokoll der Einkäuferin
+    outcome: Outcome | None
+    end_reason: str | None
+    deal_terms: dict[str, Any] | None
+
+
+def _terms(ps: list[dict[str, Any]]) -> list[Terms]:
+    return [Terms.model_validate(p) for p in ps]
+
+
+def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
+    engine = agent.engine
+
+    def _cm(state: HybridState) -> tuple[Context, Mandate]:
+        return Context.model_validate(state["context"]), Mandate.model_validate(state["mandate"])
+
+    def load_context(state: HybridState) -> dict:
+        # KW43: Kontext aus dem Szenario (JSON-Stub). KW44: ERP-Adapter über SQLite (ADR 0009).
+        _cm(state)
+        return {
+            "round": 0,
+            "pending": None,
+            "draft": None,
+            "template_reason": None,
+            "prefix": [],
+            "sent": None,
+            "parsed": None,
+            "outcome": None,
+            "end_reason": None,
+            "deal_terms": None,
+        }
+
+    def offer_engine(state: HybridState) -> dict:
+        ctx, m = _cm(state)
+        t = state["round"] + 1
+        packages = engine.packages(engine.value_at(t, ctx, m), ctx, m)
+        if not packages:
+            return {"outcome": "no_deal", "end_reason": "no_packages"}
+        return {
+            "round": t,
+            "pending": {"kind": "offer", "packages": [p.model_dump() for p in packages]},
+            "draft": None,
+            "template_reason": None,
+        }
+
+    def narrate(state: HybridState) -> dict:
+        res = agent.narrator.narrate(_terms(state["pending"]["packages"]), state["round"])
+        log = {
+            "node": "narrate",
+            "round": state["round"],
+            "input_tokens": res.input_tokens,
+            "output_tokens": res.output_tokens,
+            "latency_s": round(res.latency_s, 3),
+        }
+        reason = None if res.text else f"narrate_error: {res.error}"
+        return {"draft": res.text, "template_reason": reason, "turns": [log]}
+
+    def mandate_guard(state: HybridState) -> dict:
+        if state.get("template_reason"):
+            return {}
+        _, m = _cm(state)
+        problems = check_message(state["draft"], _terms(state["pending"]["packages"]), m, state["round"] == 1)
+        return {"template_reason": "; ".join(problems)} if problems else {}
+
+    def template_message(state: HybridState) -> dict:
+        return {"draft": template_offer(_terms(state["pending"]["packages"]), first=state["round"] == 1)}
+
+    def send_and_wait(state: HybridState) -> dict:
+        pending, t = state["pending"], state["round"]
+        packages = _terms(pending["packages"])
+        prefix = state.get("prefix") or []
+        if pending["kind"] == "offer":
+            reason = state.get("template_reason")
+            msg = {
+                "role": "agent",
+                "round": t,
+                "action": "offer",
+                "text": " ".join([*prefix, state["draft"]]),
+                "template": bool(reason),
+                "template_reason": reason,
+            }
+            reply = supplier.respond_to_offer(t, packages)
+        else:
+            msg = {
+                "role": "agent",
+                "round": t,
+                "action": "accept",
+                "text": " ".join([*prefix, accept_text(packages[0])]),
+            }
+            reply = supplier.respond_to_acceptance(t, packages[0])
+        # Weiter geht nur der Text. «event» (Wahrheit des Simulators) liest kein Node, nur die Eval.
+        return {
+            "transcript": [msg, {"role": "supplier", "round": t, "event": reply.event, "text": reply.text}],
+            "offers": [{"round": t, "action": pending["kind"], "packages": pending["packages"]}],
+            "sent": pending,
+            "pending": None,
+            "prefix": [],
+        }
+
+    def parse_response(state: HybridState) -> dict:
+        sent = Sent(state["sent"]["kind"], _terms(state["sent"]["packages"]))
+        res = agent.parser.parse(state["transcript"][-1]["text"], sent)
+        log = {
+            "node": "parse_response",
+            "round": state["round"],
+            "input_tokens": res.input_tokens,
+            "output_tokens": res.output_tokens,
+            "latency_s": round(res.latency_s, 3),
+            "format_errors": res.format_errors,
+        }
+        return {
+            "parsed": res.parsed.model_dump() if res.parsed else None,
+            "parse_confidence": res.confidence,
+            "parse_error": res.error,
+            "turns": [log],
+        }
+
+    def assess_response(state: HybridState) -> dict:
+        ctx, m = _cm(state)
+        parsed = state.get("parsed")
+        parse = ParseResult(
+            parsed=ParsedReply.model_validate(parsed) if parsed else None,
+            confidence=state.get("parse_confidence"),
+            error=state.get("parse_error"),
+        )
+        sent = Sent(state["sent"]["kind"], _terms(state["sent"]["packages"]))
+        a = assess_reply(parse, sent, state["round"], state.get("rejected_demands", []), ctx, m, engine)
+        update: dict = {
+            "round": a.round,
+            "notes": a.notes,
+            "rejected_demands": a.rejected,
+            "prefix": a.rejections,
+        }
+        if a.decision == "deal":
+            update |= {"outcome": "deal", "deal_terms": a.terms.model_dump(), "end_reason": a.reason}
+        elif a.decision == "no_deal":
+            update |= {"outcome": "no_deal", "end_reason": a.reason}
+        elif a.decision == "escalate":
+            update |= {"outcome": "escalated", "end_reason": f"escalate:{a.reason}"}
+        elif a.decision == "accept_counter":
+            update["pending"] = {"kind": "accept", "packages": [a.terms.model_dump()]}
+        return update
+
+    def notify_supplier(state: HybridState) -> dict:
+        outcome = state["outcome"]
+        deal = Terms.model_validate(state["deal_terms"]) if state.get("deal_terms") else None
+        if outcome == "escalated":
+            action = "escalate"
+        elif state.get("end_reason") in ("round_limit", "no_packages"):
+            action = "walk_away"
+        else:
+            action = "notify"
+        text = notify_text(outcome, deal)
+        return {"transcript": [{"role": "agent", "round": state["round"], "action": action, "text": text}]}
+
+    def after_offer_engine(state: HybridState) -> Literal["narrate", "notify_supplier"]:
+        return "notify_supplier" if state.get("outcome") else "narrate"
+
+    def after_guard(state: HybridState) -> Literal["template_message", "send_and_wait"]:
+        return "template_message" if state.get("template_reason") else "send_and_wait"
+
+    def after_assess(state: HybridState) -> Literal["notify_supplier", "send_and_wait", "offer_engine"]:
+        if state.get("outcome"):
+            return "notify_supplier"
+        return "send_and_wait" if state.get("pending") else "offer_engine"
+
+    g = StateGraph(HybridState)
+    for name, fn in [
+        ("load_context", load_context),
+        ("offer_engine", offer_engine),
+        ("narrate", narrate),
+        ("mandate_guard", mandate_guard),
+        ("template_message", template_message),
+        ("send_and_wait", send_and_wait),
+        ("parse_response", parse_response),
+        ("assess_response", assess_response),
+        ("notify_supplier", notify_supplier),
+    ]:
+        g.add_node(name, fn)
+    g.add_edge(START, "load_context")
+    g.add_edge("load_context", "offer_engine")
+    g.add_conditional_edges("offer_engine", after_offer_engine)
+    g.add_edge("narrate", "mandate_guard")
+    g.add_conditional_edges("mandate_guard", after_guard)
+    g.add_edge("template_message", "send_and_wait")
+    g.add_edge("send_and_wait", "parse_response")
+    g.add_edge("parse_response", "assess_response")
+    g.add_conditional_edges("assess_response", after_assess)
+    g.add_edge("notify_supplier", END)
+    return g.compile(checkpointer=InMemorySaver())

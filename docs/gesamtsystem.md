@@ -96,7 +96,10 @@ Nachvollziehen: `uv run ea-run --scenario S02 --policy rule`.
 Das Sprachmodell versteht und formuliert Text. Pakete berechnen, jede Nachricht gegen das Mandat prüfen und über
 Annahme entscheiden macht Code. Vorlage aus der Forschung: **OG-Narrator** (Xia et al., ACL 2024): Ein
 deterministischer Angebotsgenerator mit einem LLM als «Erzähler» hob die Abschlussquote des Käufers von 26,67 % auf
-88,88 %.
+88,88 %. Neuer stützen Liang und Xu (2026, arXiv 2608.07538) dasselbe: Schwächere Modelle nahmen rund 19 % unrentable
+Verträge an, und eine automatische Profitprüfung ist die nötige Schranke (Zahl aus der Recherche vom 19.10.2026, vor der
+Präsentation im Original nachlesen). Bei uns ist das der Mindestnutzen in `assess_response`; gemessen als Verstoss
+`below_walk_away`.
 
 Die Vorlesung sagt dasselbe über Tool-Calls: «Das Modell führt nichts aus. Es schlägt vor, euer Programm entscheidet
 und handelt.» (SW5, Folie 23)
@@ -106,11 +109,11 @@ Belegt wird die These mit einer **Ablation** auf denselben Szenarien:
 | Variante | Inhalt | Stand |
 | --- | --- | --- |
 | (a) reines LLM | Ein LLM-Node entscheidet alles; Mandat nur im Prompt | läuft seit KW42 |
-| (b) Hybrid | Pakete, Prüfung und Bewertung im Code; LLM formuliert und extrahiert | KW43 |
+| (b) Hybrid | Pakete, Prüfung und Bewertung im Code; LLM formuliert und extrahiert | gebaut 19.10.2026, gemessen (ADR 0013) |
 | (b) mit kleinem Modell | wie (b), mit dem offenen 3B-Modell `ibm/granite4.1:3b` aus dem FHNW-Proxy (ADR 0011) | KW44 |
 | (c) Hybrid mit Gedächtnis | (b), dazu startet «Pakete berechnen» bei der Paketwahl aus früheren Protokollen | KW46, klein und optional (ADR 0009) |
 
-### 2.5 Vorbild: Pactum bei Walmart
+### 2.5 Vorbild: Pactum bei Walmart (2021) und Stand 2026
 
 Walmart lässt einen Verhandlungs-Chatbot der Firma Pactum mit Long-Tail-Lieferanten verhandeln (Pilot 2020
 angekündigt, 2021 in Kanada durchgeführt, danach ausgeweitet).
@@ -137,6 +140,33 @@ schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.20
 
 **Der Pilot im Detail:** Anfang 2021, Walmart Canada (Walmart International), 89 Lieferanten von Betriebsmitteln wie
 Einkaufswagen; Einigung in im Schnitt 11 Tagen (PON). Die Dauer von rund drei Monaten nennen nur Sekundärquellen.
+
+**Stand 2026** (Recherche vom 19.10.2026; Walmart 2021 ist der Ursprung, nicht mehr der Stand):
+- **Walmart:** Die letzte belastbare Ausweitung meldete Bloomberg im April 2023 (USA, Chile, Südafrika, nur Waren für
+  den Eigenbedarf). Seither gibt es keine Primärquelle von Walmart; Pactum führt Walmart weiter als Kunden, ob der
+  Einsatz noch läuft, ist nicht belegt (unverified). Walmarts eigener Agent «Marty» (Juli 2025) unterstützt Lieferanten
+  bei Onboarding und Bestellungen, verhandelt aber nicht.
+- **Pactum:** Series C über 54 Mio. USD (Juni 2025); laut Website über 50 Grosskunden und 55 Mrd. USD Einkaufsvolumen.
+  Das Produkt «Campaigns» (Konditionen über viele Lieferanten) entspricht unserem Fall. Pactum nennt sich «explainable
+  rules-based AI»; laut CEO (Dez. 2024) ist eine Abschlussvollmacht «nur mit einem LLM» unmöglich. Ob Pactum für Texte
+  LLMs nutzt, ist nicht offengelegt.
+- **Release Notes Sept. 2026:** Aggressivität pro Lieferant oder Kategorie, automatische Prüfung jedes Angebots,
+  «anything outside the defined rules escalates to a person», Audit-Trail, über 40 Sprachen, E-Mail als Kanal.
+- **Markt:** Zip, Fairmarkit, Arkestro, SAP Joule und Coupa analysieren oder schlagen vor; autonom über Konditionen
+  verhandelt praktisch nur Pactum (seit Dez. 2025 auch im Coupa-Marketplace). Agent gegen Agent (der Lieferant hat
+  ebenfalls einen KI-Agenten) ist im Betrieb nicht belegt; Pactum nennt es als nächste Entwicklung (Dez. 2025).
+
+| Pactum 2026 | Bei uns |
+| --- | --- |
+| Aggressivität pro Lieferant oder Kategorie | Konzessionskurve in `offer_engine` (Anspruchsniveau bis Mindestnutzen) |
+| automatische Prüfung jedes Angebots | `mandate_guard` (Text) und `assess_response` (Annahme nur im Mandat) |
+| Eskalation, was ausserhalb der Regeln liegt | Eskalationsregel (ADR 0008) |
+| Audit-Trail | Protokoll auf jedem Ausgang (ADR 0009) |
+| regelbasiert und erklärbar entscheiden | «LLM schlägt vor, Code entscheidet» |
+
+Unsere Architektur entspricht damit dem Stand der Praxis 2026. Unser Beitrag ist die offene Messung: Pactum
+veröffentlicht keinen Vergleich mit einem reinen LLM, wir messen ihn mit bekannter Wahrheit (Ablation, Abschnitt 4).
+Für Folien: Walmart 2021 als Ursprung und Beleg für den Long Tail, Pactum 2026 als Stand.
 
 **Was wir übernehmen und was nicht:** Übernommen: Jede Verhandlung wird protokolliert und ins System zurückgeschrieben
 (unser Protokoll, ADR 0009); viele Lieferanten als Kampagne (unsere Ergebnisfolie, ADR 0012). Nicht übernommen:
@@ -186,7 +216,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 | RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response` und `escalate` | ADR 0009 |
 | Memory | KW46 | kurzfristig Graph-State mit Checkpointer; langfristig die Protokolle im ERP-Adapter (Gedächtnis für c, klein und optional) | ADR 0009 |
 | Human-in-the-loop | KW46 | Eskalation per `interrupt()`, Einkäuferin entscheidet | geplant |
-| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | geplant (ADR 0010) |
+| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Angriffe KW45 (ADR 0010) |
 | Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin; keine Web-App | ADR 0012 |
 
 ### 3.3 Modellwahl (ADR 0004, 0011)
@@ -209,12 +239,19 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   festgelegten Regel.
 - Apertus nur als Referenzzeile (D2); im LiteLLM gibt es kein Apertus-Chatmodell.
 
-### 3.4 Technik (Stand KW42)
+### 3.4 Technik (Stand KW43)
 
 - Python 3.12 mit uv; langgraph 1.2.12, langchain-core 1.6.6, langchain-openai 1.6.7, langsmith 0.14.4,
   pydantic 2.13.5 (gepinnt in `pyproject.toml`).
 - Graph Variante (a) in `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
 - `LLMPolicy` (Variante a) und `RuleBasedPolicy` (Referenz ohne LLM) in `policies.py`.
+- Graph Variante (b) in `graph_b.py` nach `_v3`: `offer_engine` (Pakete aus `RuleBasedPolicy`) → `narrate` (LLM, sieht
+  nur Pakete und Runde) → `mandate_guard` (Code; bei Befund `template_message`) → `send_and_wait` → `parse_response`
+  (LLM, strukturierte Ausgabe `ParsedReply`) → `assess_response` (Code, ADR 0008) → weiter, Gegenangebot annehmen oder
+  `notify_supplier`. Code-Schritte in `hybrid.py`, Parser in `extract.py` (austauschbar: LLM, Regeln, später
+  Entscheidungsmodell mit Konfidenz), Narrator in `narrate.py`. Fehlerpfade gebaut: ohne Text von `narrate` der
+  Standardtext, ohne auswertbare Antwort die Eskalation.
+- Offline ohne Key: `uv run ea-eval --variant b --policy rule` (Vorlage + Regex-Parser) löst alle 11 Szenarien.
 - **Invarianten:** Verdeckte Parameter des Lieferanten erreichen nie State, Prompt oder LangSmith; der Simulator
   kommt per Closure in den Graphen, ein Canary-Test prüft das. `round` zählt Angebotsrunden; ein Gegenangebot ist
   auch nach der letzten Runde annehmbar.
@@ -271,14 +308,32 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Agenten in 98,9 % der Fälle, brauchten aber im Schnitt 2,98 statt 1,25 Runden; die Verzögerung kostete 21–34 %
   des möglichen Überschusses. Die Aufteilung hing stärker vom Modellanbieter ab als von der Modellgrösse. Deshalb
   messen wir Runden und lassen die Testtexte von einer anderen Modellfamilie schreiben als der des Agenten.
-- **Geplant (ADR 0010–0012):** Ablation (a) gegen (b) auf den 11 Szenarien und auf dem synthetischen Testset, je mit
-  Luna und mit `granite4.1:3b`; (c) klein und optional. Robustheit über Umformulierungen der Lieferantentexte
+- **Ablation (a) gegen (b), 19.10.2026** (11 Szenarien × 3, `gpt-5.6-luna`, am selben Tag; Details und alle drei
+  Läufe von (b) in ADR 0013):
+
+| Variante | Erfolg | pass^3 | Abschluss | Eskalation korrekt | Verstösse | gesicherter Spielraum | ohne Konditionen | USD pro Erfolg | Latenz p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (a) reines LLM | 0.79 | 0.64 | 0.76 | 0.67 | 0 | 0.195 | 86 % | 0.0027 | 3.0 s |
+| (b) Hybrid (gültiger Prompt) | 1.00 | 1.00 | 1.00 | 1.00 | 0 | 0.715 | 0 % | 0.0013 | 1.3 s |
+| Regel-Referenz ohne LLM | 0.91 | 0.91 | 1.00 | 0.50 | 3 (S11) | 0.711 | 0 % | 0 | – |
+
+  Die Kippregel aus ADR 0006 greift nicht (Spielraum +52 Punkte, Erfolg +21 Punkte). Template-Rate 0: Luna hielt sich
+  immer an die Paketwerte. Die zwei Fehlerbilder der Vorläufe von (b) lagen beide im Extrahieren (S06 unnötig
+  eskaliert, S08 Forderung übersehen) und endeten sicher, ohne Zusage ausserhalb des Mandats.
+- **Geplant (ADR 0010–0012):** Ablation auf dem synthetischen Testset, je mit Luna und mit `granite4.1:3b`; (c) klein
+  und optional. Robustheit über Umformulierungen der Lieferantentexte
   (kippt die Extraktion?), Angriffe mit Erfolgsquote und Fehlalarmen, Bias über ausgetauschte Lieferantennamen,
   Spike LLM gegen Entscheidungsmodell, 5–10 Live-Runden mit Spielkarte, bewertet im Code.
 
 ## 5 Erkenntnisse und Limitationen
 
 **Erkenntnisse bisher**
+- **Die Kernthese trägt (ADR 0013).** Mit demselben Modell verhandelt der Hybrid besser als das reine LLM: Abschluss
+  1.00 statt 0.76, gesicherter Spielraum 0.715 statt 0.195, alle Angebote mit Zahlen statt 14 %, halbe Kosten pro
+  Erfolg. Bei Luna ist es ein Qualitäts-, kein Sicherheitsgewinn: Luna hat auch allein keine Verstösse.
+- **Der Restfehler sitzt im Lesen, und er endet sicher.** Alle Fehlläufe von (b) entstanden in `parse_response`
+  (Bedingung falsch gelesen, Forderung übersehen) und wurden zu einer unnötigen oder verpassten Eskalation, nie zu
+  einer Zusage ausserhalb des Mandats. Wie gut das Lesen ist, misst der Spike in KW44.
 - Das reine LLM hält mit Luna das Mandat ein, verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
   der Regel-Referenz und 83 % Angebotstexte ohne Konditionen. Sicherheit allein hängt vom Modell ab (Luna 0,
   Mistral 4 Verstösse).
@@ -301,8 +356,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   mit Fehlern); Ergebnisse gelten für den gemessenen Stand.
 - Herstellerangaben zu Entscheidungsmodellen (Geschwindigkeit, Kalibrierung) sind kaum unabhängig geprüft; wir
   verlassen uns nur auf die eigene Messung (ADR 0011).
-- Täuschung und Widersprüche zwischen Text und Paketen misst erst die Mandatsprüfung in (b) bzw. ein kalibrierter
-  LLM-Judge (KW47).
+- Gegen Textvorlagen löst auch ein Regex-Parser alles; der Nutzen des LLM in (b) zeigt sich erst gegen Umformulierungen
+  (KW44) und Menschen. Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden; ob sie tragen, zeigt das
+  Testset (ADR 0013).
+- `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
+  richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
 
 ## 6 Demo und Abgabe
@@ -390,10 +448,10 @@ relevante Eigenschaften» (Anhang A).
 | Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`) | synthetisches Testset (KW45) | – |
 | Robustheit | Wiederholungen | Umformulierungen der Lieferantentexte, Kippen der Extraktion (KW44); Szenario mit bindendem Rundenlimit | – |
 | Sicherheit | Bauweise, siehe unten | Angriffsset mit Erfolgsquote und Fehlalarmen (KW45) | – |
-| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe | Fehlerpfade über die bestehenden Fail-safes (KW44, `_v4`) | eigener Retry-Graph |
+| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet | Zeichnung in `_v4` (KW44) | eigener Retry-Graph |
 | Bias | – | Lieferantennamen und Herkunft tauschen, 3 Szenarien × 4 Varianten (KW45); in (b) muss das Ergebnis gleich bleiben, Unterschiede kämen aus der Extraktion | – |
 | Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
-| Guardrails | Mandatsprüfung im Code, Standardtext, Regeln im Prompt | Text gegen Pakete prüfen (KW43) | LLM-Judge (nur falls Zeit bleibt) |
+| Guardrails | Mandatsprüfung im Code, Text gegen Pakete (`mandate_guard`), Standardtext, Regeln im Prompt; Template-Rate als Metrik | Zuordnung Zahl zu Paket | LLM-Judge (nur falls Zeit bleibt) |
 | Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
 | Memory | State; Protokolle als Gedächtnis für (c) | Checkpointer für `interrupt()` (KW46) | LangGraph Store (ein Speicher genügt) |
 | Human-in-the-loop | Eskalation an die Einkäuferin | `interrupt()` (KW46) | – |
@@ -439,7 +497,13 @@ ab.
   arXiv:2608.07538.
 - Baarslag, T., Hindriks, K. & Jonker, C. Effective acceptance conditions in automated negotiation (AC_next);
   Angaben nicht nachgeprüft.
-- Walmart und Pactum: [Pactum, Commercial term negotiations](https://pactum.com/commercial-terms/);
+- Walmart und Pactum, Stand 2026: [Pactum, Series C](https://pactum.com/news-pactum-secures-54-million-in-series-c-funding-to-scale-agentic-ai-in-procurement/)
+  (09.06.2025); [Pactum, What's new September 2026](https://pactum.com/blog/whats-new-pactum-september-2026);
+  [Art of Procurement, Introducing Pactum AI](https://artofprocurement.com/blog/introducing-pactumai) (Stand 01.12.2024);
+  [Engadget, 28.04.2023](https://www.engadget.com/walmarts-suppliers-would-rather-negotiate-with-ai-than-a-human-162131831.html);
+  [Walmart Global Tech, All in on agents](https://tech.walmart.com/content/walmart-global-tech/en_us/blog/post/all-in-on-agents.html)
+  (24.07.2025).
+- Walmart und Pactum, Pilot: [Pactum, Commercial term negotiations](https://pactum.com/commercial-terms/);
   [PYMNTS, 2023](https://www.pymnts.com/news/artificial-intelligence/2023/walmart-finds-75-percent-vendors-prefer-negotiating-with-chatbot/partial/);
   [Leaders.com, Let AI do the talking](https://leaders.com/news/business/let-a-i-do-the-talking/);
   [HBR-Fallstudie «Pactum's AI in Contract Negotiations: Walmart and Maersk»](https://store.hbr.org/product/pactum-s-ai-in-contract-negotiations-walmart-and-maersk/TB0756).

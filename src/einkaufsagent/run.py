@@ -2,6 +2,7 @@
 
 uv run ea-run --scenario S02 --policy rule
 uv run ea-run --scenario S02 --model gpt-5.6-luna
+uv run ea-run --scenario S09 --variant b --model gpt-5.6-luna
 """
 
 from __future__ import annotations
@@ -19,15 +20,18 @@ def main() -> None:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--policy", choices=["rule"])
     g.add_argument("--model")
+    ap.add_argument("--variant", choices=["a", "b"], default="a", help="a = reines LLM, b = Hybrid")
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
     a = ap.parse_args()
     sc = next(s for s in load_scenarios(a.scenarios) if s.id == a.scenario)
-    policy, cfg = make_policy(a.policy, a.model)
+    policy, cfg = make_policy(a.policy, a.model, a.variant)
     r = run_one(sc, policy, 1, cfg)
     print(f"{sc.id} · {sc.title} · Lieferant: {sc.public.context.supplier_name}\n")
     for t in r.transcript:
         who = "AGENT" if t["role"] == "agent" else "LIEFERANT"
         tag = t.get("action") or t.get("event")
+        if t.get("template"):
+            tag += f", Standardtext: {t['template_reason']}"
         print(f"[R{t['round']}] {who} ({tag}): {t['text']}\n")
     print(
         f"Ergebnis: {r.outcome} ({r.end_reason}) · erwartet: {r.expected} · {'korrekt' if r.correct else 'falsch'}"
@@ -37,6 +41,8 @@ def main() -> None:
         f"{f'{r.deal_value_chf:.0f} CHF' if r.deal_value_chf is not None else '–'}"
     )
     print(f"Tokens: {r.input_tokens} in / {r.output_tokens} out · Formatfehler: {r.format_errors}")
+    for n in r.notes:
+        print(f"Hinweis für die Einkäuferin: {n}")
     if r.error:
         print(f"Fehler: {r.error}")
     flush_traces()

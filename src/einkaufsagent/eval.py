@@ -1,10 +1,12 @@
 """Eval-Skript: alle Szenarien × Wiederholungen mit einer Policy; Metriken nach Artefakt 4.
 
 Beispiele:
-    uv run ea-eval --policy rule                       # Regel-Referenz, offline, ohne API-Key
-    uv run ea-eval --model gpt-5.6-luna --repeats 3    # Variante (a) über LiteLLM, mit LangSmith-Tracing
+    uv run ea-eval --policy rule                                   # Regel-Referenz, offline, ohne API-Key
+    uv run ea-eval --model gpt-5.6-luna --repeats 3                # Variante (a) über LiteLLM, mit Tracing
+    uv run ea-eval --variant b --policy rule                       # Variante (b) offline: Vorlage + Regex
+    uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3    # Variante (b) mit LLM
 
-Ausgabe: results/<zeitstempel>_<policy>/runs.jsonl, summary.json, summary.md
+Ausgabe: results/<zeitstempel>_<variante>_<policy>/runs.jsonl, summary.json, summary.md
 """
 
 from __future__ import annotations
@@ -32,19 +34,23 @@ from einkaufsagent.domain import (
     discloses_ai,
     mentions_walk_away,
 )
+from einkaufsagent.extract import LLMParser, RuleParser
 from einkaufsagent.graph_a import build_graph
+from einkaufsagent.graph_b import HybridAgent
+from einkaufsagent.graph_b import build_graph as build_graph_b
+from einkaufsagent.narrate import LLMNarrator, TemplateNarrator
 from einkaufsagent.policies import LLMPolicy, Policy, RuleBasedPolicy
 from einkaufsagent.scenarios import Scenario, load_scenarios
-from einkaufsagent.supplier_sim import SupplierSimulator, analyse_zopa
+from einkaufsagent.supplier_sim import (
+    SupplierReply,
+    SupplierSimulator,
+    analyse_zopa,
+    parse_counter,
+    same_terms,
+)
 
 DEFAULT_SCENARIOS = ROOT / "data" / "scenarios" / "dev.jsonl"
 
-# Gegenangebot im Vorlagentext des Simulators («counter» und «decline»); ein LLM-Lieferant (KW46) braucht
-# stattdessen strukturierte Konditionen.
-COUNTER_TEXT = re.compile(
-    r"(?:Möglich wäre|Unser Angebot war): Zahlungsziel (\d+) Tage, Rabatt ([\d.]+) %"
-    r"(?:, Mengenzusage ([\d.]+) % des Vorjahresvolumens)?(?:, Preisänderung ([+-][\d.]+) %)?"
-)
 TERMS_IN_TEXT = re.compile(r"\d+\s*Tage|\d+(?:[.,]\d+)?\s*%")
 
 
@@ -79,6 +85,9 @@ class RunRecord:
     wall_s: float
     error: str | None = None
     transcript: list[dict[str, Any]] = field(default_factory=list)
+    variant: str = "a"
+    offers_template: int | None = None  # nur (b): Angebote mit Standardtext statt LLM-Text
+    notes: list[str] = field(default_factory=list)  # nur (b): Hinweise für das Protokoll
 
 
 def is_correct(expected: str, outcome: str, violations: list[str]) -> bool:
@@ -89,19 +98,6 @@ def is_correct(expected: str, outcome: str, violations: list[str]) -> bool:
     if expected == "no_deal":
         return outcome in ("no_deal", "escalated")
     return outcome == "escalated"
-
-
-def parse_counter(text: str) -> Terms | None:
-    m = COUNTER_TEXT.search(text)
-    if not m:
-        return None
-    days, disc, vol, price = m.groups()
-    return Terms(
-        payment_days=int(days),
-        discount_pct=float(disc),
-        volume_commit_pct=float(vol or 0),
-        price_change_pct=float(price or 0),
-    )
 
 
 def offers_without_terms(transcript: list[dict]) -> tuple[int, int]:
@@ -131,22 +127,41 @@ def find_missed_acceptance(
     return None
 
 
-def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | None) -> RunRecord:
+class RecordingSupplier:
+    """Hält die Antworten des Simulators für die Eval fest (Wahrheit: hat der Lieferant wirklich zugestimmt?)."""
+
+    def __init__(self, sim: SupplierSimulator):
+        self._sim = sim
+        self.replies: list[SupplierReply] = []
+
+    def respond_to_offer(self, t: int, packages: list[Terms]) -> SupplierReply:
+        self.replies.append(r := self._sim.respond_to_offer(t, packages))
+        return r
+
+    def respond_to_acceptance(self, t: int, terms: Terms) -> SupplierReply:
+        self.replies.append(r := self._sim.respond_to_acceptance(t, terms))
+        return r
+
+
+def run_one(
+    sc: Scenario, policy: Policy | HybridAgent, repeat: int, model_cfg: ModelConfig | None
+) -> RunRecord:
     ctx, m = sc.public.context, sc.public.mandate
-    supplier = SupplierSimulator(sc.hidden, ctx)  # verdeckte Parameter bleiben hier
-    graph = build_graph(policy, supplier)
+    supplier = RecordingSupplier(SupplierSimulator(sc.hidden, ctx))  # verdeckte Parameter bleiben hier
+    variant = getattr(policy, "variant", "a")
+    graph = build_graph_b(policy, supplier) if variant == "b" else build_graph(policy, supplier)
     run_id = str(uuid.uuid4())
     config = {
         "configurable": {"thread_id": run_id},
-        "recursion_limit": 50,
+        "recursion_limit": 100,
         "run_name": f"verhandlung-{sc.id}",
-        "tags": ["variante-a", policy.name, sc.id],
+        "tags": [f"variante-{variant}", policy.name, sc.id],
         "metadata": {
             "scenario_id": sc.id,
             "category": sc.category,
             "repeat": repeat,
             "policy": policy.name,
-            "variant": "a",
+            "variant": variant,
         },
     }
     t0 = time.perf_counter()
@@ -184,6 +199,9 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
     if final.get("outcome") == "deal" and deal_terms:
         dt = Terms.model_validate(deal_terms)
         violations += [f"deal:{v.code}" for v in check_deal(dt, ctx, m) if v.code == "below_walk_away"]
+        last = supplier.replies[-1] if supplier.replies else None
+        if last is None or last.event not in ("accept", "confirm") or not same_terms(last.terms, dt):
+            violations.append("deal:not_agreed")  # gebucht, obwohl der Lieferant so nicht zugestimmt hat (b)
         cond = sc.hidden.condition  # Abschluss sagt die Bedingung ausserhalb des Mandats stillschweigend zu
         if cond and final.get("round", 0) >= cond.from_round:
             violations.append("deal:condition_outside_mandate")
@@ -197,6 +215,7 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
     transcript = final.get("transcript", [])
     agent_msgs = [t for t in transcript if t["role"] == "agent"]
     n_offers, n_bare = offers_without_terms(transcript)
+    n_template = sum(t.get("template", False) for t in agent_msgs if t.get("action") == "offer")
     esc_round = next((t["round"] for t in agent_msgs if t.get("action") == "escalate"), None)
     deadline = sc.escalation_deadline_round
     turns = final.get("turns", [])
@@ -228,12 +247,15 @@ def run_one(sc: Scenario, policy: Policy, repeat: int, model_cfg: ModelConfig | 
         input_tokens=tin,
         output_tokens=tout,
         cost_usd=model_cfg.cost_usd(tin, tout) if model_cfg else 0.0,
-        llm_calls=sum(1 for t in turns if "input_tokens" in t),
+        llm_calls=sum(1 for t in turns if t.get("input_tokens")),
         llm_latencies_s=[t["latency_s"] for t in turns if "latency_s" in t],
         format_errors=sum(t.get("format_errors", 0) for t in turns),
         wall_s=round(wall, 2),
         error=error,
         transcript=transcript,
+        variant=variant,
+        offers_template=n_template if variant == "b" else None,
+        notes=final.get("notes", []),
     )
 
 
@@ -279,6 +301,9 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
         if (n_offers := sum(r.offers_sent for r in records))
         else None,
         "verpasste_annahmen": sum(r.missed_acceptance for r in records),
+        "template_rate": round(sum(r.offers_template or 0 for r in records) / n_offers, 3)
+        if n_offers and any(r.offers_template is not None for r in records)
+        else None,
         "formatfehler": sum(r.format_errors for r in records),
         "fehlerlaeufe": sum(r.outcome == "error" for r in records),
         "tokens_input": sum(r.input_tokens for r in records),
@@ -292,9 +317,11 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
     }
 
 
-def render_markdown(policy: str, summary: dict[str, Any], records: list[RunRecord]) -> str:
+def render_markdown(
+    policy: str, summary: dict[str, Any], records: list[RunRecord], variant: str = "a"
+) -> str:
     lines = [
-        f"# Eval Variante (a) – {policy}",
+        f"# Eval Variante ({variant}) – {policy}",
         "",
         f"Stand: {datetime.now():%Y-%m-%d %H:%M}",
         "",
@@ -316,7 +343,14 @@ def render_markdown(policy: str, summary: dict[str, Any], records: list[RunRecor
     return "\n".join(lines) + "\n"
 
 
-def make_policy(policy: str | None, model: str | None) -> tuple[Policy, ModelConfig | None]:
+def make_policy(
+    policy: str | None, model: str | None, variant: str = "a"
+) -> tuple[Policy | HybridAgent, ModelConfig | None]:
+    if variant == "b":
+        if policy == "rule":
+            return HybridAgent(TemplateNarrator(), RuleParser(), name="regelbasiert"), None
+        cfg = load_models()[model]
+        return HybridAgent(LLMNarrator(cfg), LLMParser(cfg), name=cfg.id), cfg
     if policy == "rule":
         return RuleBasedPolicy(), None
     cfg = load_models()[model]
@@ -324,7 +358,7 @@ def make_policy(policy: str | None, model: str | None) -> tuple[Policy, ModelCon
 
 
 def run_eval(
-    policy: Policy,
+    policy: Policy | HybridAgent,
     model_cfg: ModelConfig | None,
     scenarios: list[Scenario],
     repeats: int,
@@ -340,7 +374,9 @@ def run_eval(
         for r in records:
             f.write(json.dumps(asdict(r), ensure_ascii=False) + "\n")
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    (out_dir / "summary.md").write_text(render_markdown(policy.name, summary, records), encoding="utf-8")
+    (out_dir / "summary.md").write_text(
+        render_markdown(policy.name, summary, records, getattr(policy, "variant", "a")), encoding="utf-8"
+    )
     return summary
 
 
@@ -348,16 +384,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--policy", choices=["rule"], help="Regel-Referenz ohne LLM")
-    g.add_argument("--model", help="Modell-ID aus config/models.toml (Variante a)")
+    g.add_argument("--model", help="Modell-ID aus config/models.toml")
+    ap.add_argument("--variant", choices=["a", "b"], default="a", help="a = reines LLM, b = Hybrid")
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
     ap.add_argument("--only", nargs="*", help="nur diese Szenario-IDs")
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=str(ROOT / "results"))
     a = ap.parse_args()
-    policy, cfg = make_policy(a.policy, a.model)
+    policy, cfg = make_policy(a.policy, a.model, a.variant)
     scenarios = [s for s in load_scenarios(a.scenarios) if not a.only or s.id in a.only]
-    out_dir = Path(a.out) / f"{datetime.now():%Y%m%d-%H%M%S}_{policy.name.replace('/', '_')}"
+    out_dir = Path(a.out) / f"{datetime.now():%Y%m%d-%H%M%S}_{a.variant}_{policy.name.replace('/', '_')}"
     summary = run_eval(policy, cfg, scenarios, a.repeats, a.workers, out_dir)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f"\nErgebnisse: {out_dir}")

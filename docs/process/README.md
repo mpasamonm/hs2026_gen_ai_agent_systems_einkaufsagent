@@ -39,24 +39,24 @@ Stand 19.10.2026: bpmn-moddle 0 Warnungen, bpmnlint 0 Befunde, bpmn-js-Import 0 
 | Start, «Mandat festlegen» | Graph-Input `mandate` (Pydantic-validiert) | Mensch | KW42 |
 | «Kontext laden» | Node `load_context`: Stammdaten, heutige Konditionen, frühere Protokolle über den ERP-Adapter (Python-Schnittstelle über SQLite, ADR 0009) | Code | KW42 JSON-Stub, KW44 ERP-Adapter |
 | Join vor «Pakete berechnen» | implizit: mehrere Edges auf `offer_engine` | – | KW43 |
-| «Pakete berechnen (Code)» | Node `offer_engine`; Variante (c): Startpunkt aus der Paketwahl in früheren Protokollen | Code | KW43 |
-| «Angebot formulieren (LLM)» | Node `narrate`; sieht nur die Pakete, nie das Mandat | LLM | KW43 |
-| «Nachricht prüfen (Code)», «Mandat eingehalten?» | Node `mandate_guard` + Conditional Edge | Code | KW43 |
-| «Standardtext verwenden (Code)» | Node `template_message`; ab KW44 auch, wenn `narrate` nach den Retries scheitert | Code | KW43 |
+| «Pakete berechnen (Code)» | Node `offer_engine` (Pakete und Konzessionskurve aus `RuleBasedPolicy`); Variante (c): Startpunkt aus der Paketwahl in früheren Protokollen | Code | gebaut 19.10. |
+| «Angebot formulieren (LLM)» | Node `narrate` (`narrate.py`); sieht nur die Pakete und die Runde, nie das Mandat und nie den Lieferantentext | LLM | gebaut 19.10. |
+| «Nachricht prüfen (Code)», «Mandat eingehalten?» | Node `mandate_guard` + Conditional Edge (`hybrid.check_message`) | Code | gebaut 19.10. |
+| «Standardtext verwenden (Code)» | Node `template_message`; auch, wenn `narrate` nach den Retries scheitert | Code | gebaut 19.10. |
 | «Angebot senden, Antwort abwarten» | Node `send_and_wait`: Eval mit dem Simulator, Demo und Live-Runden mit einem Menschen im Terminal (ADR 0012) | Code | KW42, Mensch KW46 |
-| «Antwort extrahieren (LLM)» | Node `parse_response`: Paket, Gegenangebot, Aussagen mit Typ; Einkaufsrichtlinie ganz im Prompt. Austauschbar: Spike LLM gegen Entscheidungsmodell in KW44 (ADR 0011) | LLM | KW43 |
-| «Antwort bewerten (Code)», «Bewertung?» | Node `assess_response` + Conditional Edge: Einigung (inkl. AC_next), Eskalation nur nach ADR 0008 (scheitert `parse_response`, gilt die Antwort als nicht auswertbar), sonst weiter | Code | KW43 |
-| «Weiterverhandeln?» | Conditional Edge (Runde < max. Runden, Paket offen, keine endgültige Absage) | Code | KW42 ohne «Paket offen» |
+| «Antwort extrahieren (LLM)» | Node `parse_response` (`extract.py`): Antworttyp, Paket, Gegenangebot, Aussagen mit Typ und Grösse; Einkaufsrichtlinie (Auszug) ganz im Prompt. Austauschbar (`LLMParser`, `RuleParser`, später Entscheidungsmodell mit `confidence`, ADR 0011) | LLM | gebaut 19.10. |
+| «Antwort bewerten (Code)», «Bewertung?» | Node `assess_response` + Conditional Edge (`hybrid.assess_reply`): Einigung (inkl. AC_next), Eskalation nur nach ADR 0008 und 0013 (scheitert `parse_response`, gilt die Antwort als nicht auswertbar), sonst weiter | Code | gebaut 19.10. |
+| «Weiterverhandeln?» | Conditional Edge nach `assess_response` (Runde < max. Runden, keine endgültige Absage); «kein Paket offen» in `offer_engine` | Code | gebaut 19.10. |
 | «Eskalation aufbereiten (LLM)», «Eskalation entscheiden» | Node `escalate`: der Code gibt Richtlinie, Verlauf und frühere Protokolle mit, das LLM fasst zusammen (ohne Tool-Wahl); dann `interrupt()` | LLM + Mensch | KW46 |
 | «Freigabe zum Weiterverhandeln?» | Conditional Edge nach `Command(resume=...)` | Mensch | KW46 |
 | «Ergebnis und Protokoll erfassen» | Node `record_outcome` über den ERP-Adapter, auf allen Ausgängen; Protokoll vom Code (Startpakete, Reaktion und Paketwahl, Verlauf, Ergebnis, Hinweise); die Protokolle sind das Gedächtnis (c) | Code | KW44 |
-| «Ergebnis mitteilen» | Node `notify_supplier` (Vorlage) | Code | KW43 |
+| «Ergebnis mitteilen» | Node `notify_supplier` (Vorlage) | Code | gebaut 19.10. |
 | «Ergebnis?», Endereignisse | `END`; Ergebnis steht in `state.outcome` | – | KW42 |
 
-Variante (a) (`src/einkaufsagent/graph_a.py`) bündelt «Pakete», «Formulieren», «Extrahieren» und «Bewerten» in
+Variante (b) steht in `src/einkaufsagent/graph_b.py`. Variante (a) (`src/einkaufsagent/graph_a.py`) bündelt «Pakete», «Formulieren», «Extrahieren» und «Bewerten» in
 einem LLM-Node `negotiate`; das ist die Baseline der Ablation.
 
-## Fehlerbehandlung (ab KW44, Zeichnung in `_v4`)
+## Fehlerbehandlung (gebaut 19.10., Zeichnung in `_v4`)
 
 Retries mit Backoff übernimmt der Client (`max_retries=2`, Timeout 90 s). Scheitert ein LLM-Schritt danach, greifen die
 bestehenden Fail-safes: Ohne Text von `narrate` geht der Standardtext hinaus; ohne auswertbare Antwort von

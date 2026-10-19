@@ -4,8 +4,9 @@ Gruppenarbeit «Generative KI und Agentensysteme», FHNW Hochschule für Wirtsch
 Ein LangGraph-Agent verhandelt für die fiktive Musterhandel AG Zahlungsziel, Rabatt und Mengenzusage
 mit kleineren Lieferanten nach, strikt innerhalb eines Mandats des Einkaufs (ADR 0001).
 
-**Stand KW42 (12.10.2026):** Variante (a) läuft – reines LLM gegen einen regelbasierten, simulierten
-Lieferanten mit Rundenlimit, 10 Entwicklungsszenarien, Eval-Skript, Modell-Benchmark, LangSmith-Tracing.
+**Stand KW43 (19.10.2026):** Variante (a) (reines LLM) und Variante (b) (Hybrid: LLM formuliert und extrahiert,
+Code rechnet und entscheidet) laufen gegen einen regelbasierten, simulierten Lieferanten; 11 Entwicklungsszenarien,
+Eval, Benchmark, LangSmith-Tracing. Ablation mit `gpt-5.6-luna`: (a) 0.79 Erfolg, (b) 1.00 (ADR 0013).
 
 ## Schnellstart
 
@@ -17,6 +18,8 @@ uv run ea-run --scenario S04 --policy rule          # eine Verhandlung, Regel-Re
 uv run ea-check-models                    # Function Calling / JSON Schema pro Modell prüfen
 uv run ea-run --scenario S04 --model gpt-5.6-luna   # dieselbe Verhandlung mit LLM, erscheint in LangSmith
 uv run ea-eval --model gpt-5.6-luna --repeats 3     # alle Szenarien, Metriken nach Artefakt 4
+uv run ea-eval --variant b --policy rule            # Variante (b) offline (Vorlage + Regex-Parser)
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3   # Variante (b) mit LLM
 uv run ea-benchmark --repeats 3           # drei Modelle + Regel-Referenz, Vergleichstabelle
 ```
 
@@ -32,16 +35,19 @@ Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Ver
 | `docs/gesamtsystem.md` | Gesamtsystem und Begründungen: Grundlage für Präsentation, Demo und Prüfung |
 | `docs/sw4-artefakte.md` | SW4-Artefakte 1–4 (Use-Case, Prozess, Anforderungen, Erfolgskriterien) |
 | `docs/adr/` | Architekturentscheide (ADR), Index in `docs/adr/README.md` |
-| `docs/process/` | BPMN 2.0 des Soll-Prozesses (v2), Render, Validierungsskripte, Mapping BPMN → LangGraph |
+| `docs/process/` | BPMN 2.0 des Soll-Prozesses (`_v3`), Render, Validierungsskripte, Mapping BPMN → LangGraph |
 | `docs/eval-metriken.md` | Definition jeder Metrik und des Erfolgskriteriums |
-| `data/scenarios/dev.jsonl` | 10 Entwicklungsszenarien; `public` für den Agenten, `hidden` nur für den Simulator |
+| `data/scenarios/dev.jsonl` | 11 Entwicklungsszenarien; `public` für den Agenten, `hidden` nur für den Simulator |
 | `scripts/build_scenarios.py` | erzeugt `dev.jsonl` und prüft jedes erwartete Ergebnis gegen die ZOPA |
 | `config/models.toml` | Modellkandidaten im FHNW-LiteLLM (ADR 0004) |
 | `src/einkaufsagent/domain.py` | Konditionen, Mandat, Käufernutzen, Mandatsprüfung (deterministisch) |
 | `src/einkaufsagent/supplier_sim.py` | Lieferanten-Simulator mit verdeckten Parametern, ZOPA-Analyse |
 | `src/einkaufsagent/graph_a.py` | LangGraph-Graph Variante (a) |
 | `src/einkaufsagent/policies.py` | `LLMPolicy` (Variante a) und `RuleBasedPolicy` (Referenz ohne LLM) |
-| `src/einkaufsagent/prompts.py` | System-Prompt Variante (a) |
+| `src/einkaufsagent/graph_b.py` | LangGraph-Graph Variante (b) nach `_v3` |
+| `src/einkaufsagent/hybrid.py` | Code-Schritte von (b): Nachricht prüfen, Vorlagen, Antwort bewerten (ADR 0008) |
+| `src/einkaufsagent/extract.py`, `narrate.py` | austauschbare LLM-Schritte von (b): Antwort extrahieren, Angebot formulieren |
+| `src/einkaufsagent/prompts.py` | System-Prompt Variante (a), Prompts für `narrate` und `parse_response` |
 | `src/einkaufsagent/eval.py`, `benchmark.py`, `check_models.py`, `run.py` | CLIs |
 
 ## Grundsätze
@@ -51,4 +57,4 @@ Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Ver
 - **Verdeckte Lieferantenparameter erreichen den Agenten nie.** Der Simulator kommt per Closure in den
   Graphen; ein Canary-Test prüft State und Prompts (`tests/test_graph_and_isolation.py`).
 - **LLM schlägt vor, Code entscheidet** – ab Variante (b). Variante (a) ist bewusst die Baseline ohne
-  diese Trennung (ADR 0002).
+  diese Trennung (ADR 0002, 0013).

@@ -10,7 +10,6 @@ Beide sehen nur :class:`AgentView`, also öffentliche Daten und den Gesprächsve
 from __future__ import annotations
 
 import math
-import time
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -19,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from einkaufsagent.config import ModelConfig
 from einkaufsagent.domain import Context, Mandate, Terms, buyer_value_chf, check_terms
+from einkaufsagent.llm import invoke_structured
 from einkaufsagent.prompts import chf, render_system_prompt_a, render_turn_instruction
 
 
@@ -110,29 +110,18 @@ class LLMPolicy:
         return msgs
 
     def decide(self, view: AgentView) -> TurnResult:
-        msgs = self._messages(view)
-        res = TurnResult(turn=AgentTurn(action="walk_away", message="-"))
-        t0 = time.perf_counter()
-        for attempt in range(2):
-            out = self._llm.invoke(msgs)
-            raw = out.get("raw")
-            usage = getattr(raw, "usage_metadata", None) or {}
-            res.input_tokens += int(usage.get("input_tokens", 0))
-            res.output_tokens += int(usage.get("output_tokens", 0))
-            parsed: AgentTurn | None = out.get("parsed")
-            err = str(out.get("parsing_error")) if out.get("parsing_error") else None
-            if parsed is not None and err is None:
-                err = _semantic_error(parsed)
-            if err is None and parsed is not None:
-                res.turn = parsed
-                res.latency_s = time.perf_counter() - t0
-                return res
-            res.format_errors += 1
-            res.notes.append(err or "leere Ausgabe")
-            if attempt == 0:
-                msgs = [*msgs, HumanMessage(f"Deine Ausgabe war ungültig: {err}. Antworte erneut im Schema.")]
-        res.latency_s = time.perf_counter() - t0
-        raise FormatError("; ".join(res.notes), res)
+        call = invoke_structured(self._llm, self._messages(view), _semantic_error)
+        res = TurnResult(
+            turn=call.parsed or AgentTurn(action="walk_away", message="-"),
+            input_tokens=call.input_tokens,
+            output_tokens=call.output_tokens,
+            latency_s=call.latency_s,
+            format_errors=call.format_errors,
+            notes=call.notes,
+        )
+        if call.parsed is None:
+            raise FormatError("; ".join(call.notes), res)
+        return res
 
 
 class RuleBasedPolicy:
@@ -171,6 +160,14 @@ class RuleBasedPolicy:
                 out.append(t)
         return out
 
+    def acceptable(self, c: Terms, t: int, ctx: Context, m: Mandate) -> bool:
+        """AC_next: Gegenangebot im Mandat, ≥ Mindestnutzen und mindestens so viel wert wie das eigene Angebot
+        in Runde t; ab der letzten Runde genügt der Mindestnutzen. Auch Variante (b) entscheidet damit."""
+        if check_terms(c, ctx, m):
+            return False
+        vc = buyer_value_chf(c, ctx, m)
+        return vc >= m.min_value_chf and (vc >= self.value_at(t, ctx, m) or t >= m.max_rounds)
+
     def decide(self, view: AgentView) -> TurnResult:
         ctx, m, t = view.context, view.mandate, view.round_next
         # ADR 0008: Eine Forderung ausserhalb des Mandats zuerst ablehnen; erst die wiederholte Forderung eskalieren.
@@ -194,19 +191,16 @@ class RuleBasedPolicy:
         if (
             view.last_supplier_event in ("counter", "decline")
             and c is not None
-            and not check_terms(c, ctx, m)
+            and self.acceptable(c, t, ctx, m)
         ):
-            vc = buyer_value_chf(c, ctx, m)
-            last_chance = view.accept_only or t >= m.max_rounds
-            if vc >= m.min_value_chf and (vc >= self.value_at(t, ctx, m) or last_chance):
-                return TurnResult(
-                    AgentTurn(
-                        action="accept",
-                        accepted_terms=c,
-                        message=f"Einverstanden, wir nehmen Ihren Vorschlag an: {c.short()}.",
-                        rationale=f"AC_next: {chf(vc)} CHF ≥ eigenes nächstes Angebot",
-                    )
+            return TurnResult(
+                AgentTurn(
+                    action="accept",
+                    accepted_terms=c,
+                    message=f"Einverstanden, wir nehmen Ihren Vorschlag an: {c.short()}.",
+                    rationale=f"AC_next: {chf(buyer_value_chf(c, ctx, m))} CHF ≥ eigenes nächstes Angebot",
                 )
+            )
         pk = [] if view.accept_only else self.packages(self.value_at(t, ctx, m), ctx, m)
         if not pk:
             return TurnResult(

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from typing import Literal
 
 from pydantic import BaseModel
@@ -149,7 +150,7 @@ class SupplierSimulator:
     def respond_to_acceptance(self, t: int, terms: Terms) -> SupplierReply:
         """Eine Annahme gilt nur für das letzte Gegenangebot. Andere Werte sind ein neuer Vorschlag
         und kein Abschluss; so kann der Agent «accept» nicht als Gratis-Angebot nutzen."""
-        if self._last_counter is not None and _same(terms, self._last_counter):
+        if self._last_counter is not None and same_terms(terms, self._last_counter):
             agreed = self._last_counter
             self._last_counter = None
             return SupplierReply(
@@ -198,12 +199,33 @@ class SupplierSimulator:
         return counter
 
 
-def _same(a: Terms, b: Terms) -> bool:
+def same_terms(a: Terms, b: Terms) -> bool:
     return (
         a.payment_days == b.payment_days
         and abs(a.discount_pct - b.discount_pct) < 0.01
         and abs(a.volume_commit_pct - b.volume_commit_pct) < 0.01
         and abs(a.price_change_pct - b.price_change_pct) < 0.01
+    )
+
+
+# Gegenangebot im Vorlagentext («counter» und «decline»). Nutzen: Eval (verpasste Annahmen) und RuleParser (b).
+# Ein Mensch als Lieferant (KW46) schreibt frei; dort extrahiert nur das LLM.
+COUNTER_TEXT = re.compile(
+    r"(?:Möglich wäre|Unser Angebot war): Zahlungsziel (\d+) Tage, Rabatt ([\d.]+) %"
+    r"(?:, Mengenzusage ([\d.]+) % des Vorjahresvolumens)?(?:, Preisänderung ([+-][\d.]+) %)?"
+)
+
+
+def parse_counter(text: str) -> Terms | None:
+    m = COUNTER_TEXT.search(text)
+    if not m:
+        return None
+    days, disc, vol, price = m.groups()
+    return Terms(
+        payment_days=int(days),
+        discount_pct=float(disc),
+        volume_commit_pct=float(vol or 0),
+        price_change_pct=float(price or 0),
     )
 
 
