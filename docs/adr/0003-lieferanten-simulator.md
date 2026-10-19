@@ -1,6 +1,8 @@
 # ADR 0003 – Regelbasierter Lieferanten-Simulator mit verdeckten Parametern
 
-- **Status:** angenommen für KW42
+- **Status:** angenommen für KW42; seit 19.10.2026 Simulator für die ganze Eval. Der LLM-Simulator entfällt
+  (ADR 0009: Mensch als Lieferant in Demo und Live-Runden); das Testset entsteht nach ADR 0010 statt durch eine andere
+  Person
 - **Datum:** 05.10.2026
 - **Berührt:** D7 (Agent und Simulator aus unterschiedlichen Modellfamilien), Briefing-Architektur
   «Lieferanten-Simulatoren: LLM plus Parameter»

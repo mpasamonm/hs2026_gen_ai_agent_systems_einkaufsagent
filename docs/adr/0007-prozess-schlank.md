@@ -2,6 +2,9 @@
 
 - **Status:** angenommen am 11.10.2026 nach Team-Feedback, mit zwei Änderungen: RAG auch beim Extrahieren
   (unten) und Eskalationsregel nach ADR 0008
+- **Teilweise ersetzt am 19.10.2026 durch ADR 0009 (`_v3`):** kein RAG (kurze Richtlinie ganz im Prompt), keine
+  Tool-Wahl durch das LLM in der Eskalation, ERP-Adapter ohne MCP. Weiter gültig: ohne Timer und LLM-Strategie, ein
+  Gedächtnis, «unklar» deterministisch, kein 1:3.
 - **Datum:** 06.10.2026, angepasst 11.10.2026
 - **Artefakte:** `einkaufsagent-prozess_v2.bpmn` und `.png` im Root, Generator `docs/process/gen_bpmn_v2.py`
 - **Berührt:** ADR 0002 (Prozess v2, Datei `_v1`), ADR 0005 (ERP-light), ADR 0008, S09, CLAUDE.md §3

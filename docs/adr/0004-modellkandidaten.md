@@ -79,6 +79,14 @@ Erfolg Luna 0.73, gpt-oss 0.76, Mistral 0.79 (4 Verstösse, fällt weiter weg); 
 0.0035. Nach der Regel bleibt Luna das Arbeitsmodell; der Vorsprung von gpt-oss bei der Erfolgsquote liegt im
 Rauschen, und Function Calling geht nur mit Luna. Details in ADR 0008.
 
+**Nachtrag 19.10.2026: Proxy-Stand** (`/model/info`, LiteLLM 1.106.0; Details in ADR 0011). Neu: `azure_ai/claude-haiku-5-5`
+(Anthropic, 0.10/0.50, Function Calling und JSON Schema ok), `azure_ai/gpt-6-luna` (Chat und JSON Schema liefern 404),
+`gpt-5.4-mini-new`, `ibm/granite4.1:3b` (FHNW-Ollama, nur JSON Schema) sowie die Entscheidungsmodelle `tev1:0.8b`
+und `azure_ai/decision-1` (404). Nicht mehr verfügbar: `azure_ai/gpt-5.4-mini`, `azure_ai/kimi-k2.7-code`. Function
+Calling geht damit nicht mehr nur mit Luna. Das Arbeitsmodell bleibt `gpt-5.6-luna`: Ein Wechsel müsste den Benchmark
+wiederholen, und Claude Opus erzeugt die Testtexte (ADR 0010), deshalb wäre ein Anthropic-Agent befangen.
+`granite4.1:3b` kommt als zusätzliche Ablationszeile dazu (ADR 0011).
+
 ## Kippt, wenn
 
 `ea-check-models` zeigt, dass ein Kandidat weder Function Calling noch JSON Schema zuverlässig liefert;

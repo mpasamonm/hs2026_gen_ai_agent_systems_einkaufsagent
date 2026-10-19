@@ -4,6 +4,10 @@
 
 # SW4 Gruppenarbeit – Einkaufsagent
 
+> **Stand SW4 (06.10.2026), abgelöst.** Dieses Dokument wird nicht mehr nachgeführt. Gültig sind
+> `docs/gesamtsystem.md`, die ADRs in `docs/adr/` (u.a. ADR 0008 zur Eskalation, ADR 0009 zu `_v3`) und
+> `einkaufsagent-prozess_v3.bpmn`. Die Artefakte 2–4 beschreiben noch `_v1` und die alte Eskalationsregel.
+
 Oct 3, 2026 · @manuel
 
 ## Übersicht

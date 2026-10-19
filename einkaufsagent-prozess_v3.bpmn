@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_Einkaufsagent" targetNamespace="http://bpmn.io/schema/bpmn" exporter="gen_bpmn_v3.py" exporterVersion="3.0">
+  <bpmn:collaboration id="Collaboration_Einkaufsagent">
+    <bpmn:participant id="Participant_Musterhandel" name="Musterhandel AG (fiktiv): Konditionen-Nachverhandlung" processRef="Process_Einkaufsagent" />
+    <bpmn:participant id="Participant_Lieferant" name="Lieferant (Eval: simuliert, Demo: Mensch)" />
+    <bpmn:messageFlow id="MsgFlow_Angebot" name="Angebot (2–3 Pakete)" sourceRef="Task_SendWait" targetRef="Participant_Lieferant" />
+    <bpmn:messageFlow id="MsgFlow_Antwort" name="Antwort" sourceRef="Participant_Lieferant" targetRef="Task_SendWait" />
+    <bpmn:messageFlow id="MsgFlow_Ergebnis" name="Bestätigung oder Absage" sourceRef="Task_Notify" targetRef="Participant_Lieferant" />
+  </bpmn:collaboration>
+  <bpmn:dataStore id="DataStore_ERP" name="ERP-Adapter (Mock)" />
+  <bpmn:dataStore id="DataStore_Policy" name="Einkaufsrichtlinie" />
+  <bpmn:process id="Process_Einkaufsagent" name="Einkaufsagent" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Einkauf" name="Einkäuferin">
+        <bpmn:flowNodeRef>Start_Beauftragt</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Mandat</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EskEntscheid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Freigabe</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Agent" name="Einkaufsagent (LangGraph)">
+        <bpmn:flowNodeRef>Task_Kontext</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_JoinLoop</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Pakete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Formulieren</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Guard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Guard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Template</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_JoinSend</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SendWait</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Extract</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Assess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Bewertung</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EskPrep</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Weiter</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_JoinFinal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Record</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Notify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Ergebnis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Uebergabe</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Deal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_KeinDeal</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Beauftragt" name="Verhandlung beauftragt">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Mandat" name="Mandat festlegen">
+      <bpmn:documentation>Einkäuferin erfasst das Mandat als strukturierte Daten (Ziele, Grenzen, erlaubte Zugeständnisse, max. Runden). LangGraph: Graph-Input, Pydantic-validiert. Ab KW42.</bpmn:documentation>
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_Mandat">
+        <bpmn:targetRef>DO_Mandat</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_EskEntscheid" name="Eskalation entscheiden">
+      <bpmn:documentation>LangGraph: interrupt() im Node escalate; Resume per Command(resume={decision, new_mandate?}). Ab KW46; bis dahin endet jede Eskalation mit Übergabe.</bpmn:documentation>
+      <bpmn:incoming>Flow_18</bpmn:incoming>
+      <bpmn:outgoing>Flow_19</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_Freigabe" name="Freigabe zum Weiterverhandeln?">
+      <bpmn:incoming>Flow_19</bpmn:incoming>
+      <bpmn:outgoing>Flow_20</bpmn:outgoing>
+      <bpmn:outgoing>Flow_21</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Kontext" name="Kontext laden">
+      <bpmn:documentation>LangGraph: load_context. Stammdaten, heutige Konditionen und Protokolle früherer Verhandlungen über den ERP-Adapter (Python-Schnittstelle über SQLite, ohne MCP; ADR 0009). Bis KW43 JSON-Stub, ab KW44 ERP-Adapter.</bpmn:documentation>
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+      <bpmn:property id="Property_DIA_ERP" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DIA_ERP">
+        <bpmn:sourceRef>DS_ERP_Read</bpmn:sourceRef>
+        <bpmn:targetRef>Property_DIA_ERP</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_JoinLoop">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:incoming>Flow_20</bpmn:incoming>
+      <bpmn:incoming>Flow_22</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Pakete" name="Pakete berechnen (Code)">
+      <bpmn:documentation>LangGraph: offer_engine. 2–3 gleichwertige Pakete (MESO) entlang der Konzessionskurve; nur Werte im Mandat. Variante (c): Startpunkt aus der Paketwahl in früheren Protokollen. Ab KW43.</bpmn:documentation>
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:serviceTask id="Task_Formulieren" name="Angebot formulieren (LLM)">
+      <bpmn:documentation>LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Kein Richtlinientext an den Lieferanten (ADR 0007). Ab KW43.</bpmn:documentation>
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="Task_Guard" name="Nachricht prüfen (Code)">
+      <bpmn:documentation>LangGraph: mandate_guard. Regelliste: Zahlen im Text = Paketwerte, keine Zusagen ausserhalb Mandat, kein Walk-away-Leak, KI-Hinweis in der ersten Nachricht. Ab KW43; Basis für Safeguarding KW47.</bpmn:documentation>
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="GW_Guard" name="Mandat eingehalten?">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Template" name="Standardtext verwenden (Code)">
+      <bpmn:documentation>LangGraph: template_message. Fail-safe: Vorlage gibt die Pakete wörtlich wieder; Template-Rate ist Metrik.</bpmn:documentation>
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="GW_JoinSend">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_SendWait" name="Angebot senden, Antwort abwarten">
+      <bpmn:documentation>LangGraph: send_and_wait. Eval: simulierter Lieferant (regelbasiert); Demo und Live-Runden: Mensch als Lieferant im Terminal (ADR 0009). Ab KW42.</bpmn:documentation>
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:serviceTask id="Task_Extract" name="Antwort extrahieren (LLM)">
+      <bpmn:documentation>LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, Aussagen mit Typ (Befugnis-Behauptung, Information, Forderung, Bedingung). Die Einkaufsrichtlinie steht vollständig im Prompt (kurz, ohne RAG; ADR 0009). Lieferantentext ist untrusted input. Ab KW43.</bpmn:documentation>
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+      <bpmn:property id="Property_DIA_Richtlinie_Extract" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DIA_Richtlinie_Extract">
+        <bpmn:sourceRef>DS_Richtlinie</bpmn:sourceRef>
+        <bpmn:targetRef>Property_DIA_Richtlinie_Extract</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="Task_Assess" name="Antwort bewerten (Code)">
+      <bpmn:documentation>LangGraph: assess_response. Einigung, wenn das gewählte Paket einem gesendeten entspricht oder ein Gegenangebot im Mandat mindestens so viel wert ist wie das eigene nächste Paket (AC_next). Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt: Bedingung, die das Mandat nicht regelt, abgelehnte Forderung wiederholt, oder Antwort nicht auswertbar (Schema ungültig, Paket unbekannt). Behauptungen über Zusagen ändern das Mandat nie: zurückweisen, protokollieren, weiter (ADR 0008). Ab KW43.</bpmn:documentation>
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="GW_Bewertung" name="Bewertung?">
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+      <bpmn:outgoing>Flow_17</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_EskPrep" name="Eskalation aufbereiten (LLM)">
+      <bpmn:documentation>LangGraph: escalate (vor interrupt). Der Code gibt Einkaufsrichtlinie, bisherigen Verlauf und frühere Protokolle mit; das LLM wählt keine Tools (ADR 0009). Ergebnis: Anlass, betroffene Regeln, Gegenwert, Empfehlung (US4). Fehler sind hier billig, weil die Einkäuferin entscheidet. Ab KW46.</bpmn:documentation>
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_18</bpmn:outgoing>
+      <bpmn:property id="Property_DIA_Richtlinie" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DIA_Richtlinie">
+        <bpmn:sourceRef>DS_Richtlinie</bpmn:sourceRef>
+        <bpmn:targetRef>Property_DIA_Richtlinie</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_Weiter" name="Weiterverhandeln?">
+      <bpmn:incoming>Flow_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_22</bpmn:outgoing>
+      <bpmn:outgoing>Flow_23</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="GW_JoinFinal">
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:incoming>Flow_21</bpmn:incoming>
+      <bpmn:incoming>Flow_23</bpmn:incoming>
+      <bpmn:outgoing>Flow_24</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Record" name="Ergebnis und Protokoll erfassen">
+      <bpmn:documentation>LangGraph: record_outcome über den ERP-Adapter, auf allen Ausgängen: Konditionen bei Deal und ein Protokoll, das der Code aus den gespeicherten Runden erstellt (Startpakete, Reaktion und Paketwahl des Lieferanten, Verlauf, Ergebnis, Hinweise für die Einkäuferin). Die Protokolle sind das Lieferanten-Gedächtnis (c). Ab KW44.</bpmn:documentation>
+      <bpmn:incoming>Flow_24</bpmn:incoming>
+      <bpmn:outgoing>Flow_25</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DOA_ERP">
+        <bpmn:targetRef>DS_ERP_Write</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:sendTask id="Task_Notify" name="Ergebnis mitteilen">
+      <bpmn:documentation>LangGraph: notify_supplier. Vorlage: Bestätigung, Absage oder Hinweis auf Übernahme. Ab KW43.</bpmn:documentation>
+      <bpmn:incoming>Flow_25</bpmn:incoming>
+      <bpmn:outgoing>Flow_26</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:exclusiveGateway id="GW_Ergebnis" name="Ergebnis?">
+      <bpmn:incoming>Flow_26</bpmn:incoming>
+      <bpmn:outgoing>Flow_27</bpmn:outgoing>
+      <bpmn:outgoing>Flow_28</bpmn:outgoing>
+      <bpmn:outgoing>Flow_29</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Uebergabe" name="An Einkäuferin übergeben">
+      <bpmn:incoming>Flow_28</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Deal" name="Neue Konditionen vereinbart">
+      <bpmn:incoming>Flow_27</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_KeinDeal" name="Kein Deal">
+      <bpmn:incoming>Flow_29</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataObject id="DataObject_Mandat" />
+    <bpmn:dataObjectReference id="DO_Mandat" name="Mandat" dataObjectRef="DataObject_Mandat" />
+    <bpmn:dataStoreReference id="DS_ERP_Read" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Protokolle" dataStoreRef="DataStore_ERP" />
+    <bpmn:dataStoreReference id="DS_ERP_Write" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Protokolle" dataStoreRef="DataStore_ERP" />
+    <bpmn:dataStoreReference id="DS_Richtlinie" name="Einkaufsrichtlinie (im Prompt)" dataStoreRef="DataStore_Policy" />
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="Start_Beauftragt" targetRef="Task_Mandat" />
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_Mandat" targetRef="Task_Kontext" />
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_Kontext" targetRef="GW_JoinLoop" />
+    <bpmn:sequenceFlow id="Flow_04" sourceRef="GW_JoinLoop" targetRef="Task_Pakete" />
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_Pakete" targetRef="Task_Formulieren" />
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="Task_Formulieren" targetRef="Task_Guard" />
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_Guard" targetRef="GW_Guard" />
+    <bpmn:sequenceFlow id="Flow_08" name="ja" sourceRef="GW_Guard" targetRef="GW_JoinSend">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.guard_ok</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_09" name="nein" sourceRef="GW_Guard" targetRef="Task_Template">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not state.guard_ok</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_Template" targetRef="GW_JoinSend" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="GW_JoinSend" targetRef="Task_SendWait" />
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_SendWait" targetRef="Task_Extract" />
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_Extract" targetRef="Task_Assess" />
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_Assess" targetRef="GW_Bewertung" />
+    <bpmn:sequenceFlow id="Flow_15" name="Einigung" sourceRef="GW_Bewertung" targetRef="GW_JoinFinal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.assessment == &quot;agreement&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_16" name="Mandat reicht nicht oder unklar" sourceRef="GW_Bewertung" targetRef="Task_EskPrep">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.assessment == &quot;escalate&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_17" name="Gegenangebot ungenügend oder Ablehnung" sourceRef="GW_Bewertung" targetRef="GW_Weiter">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.assessment in (&quot;counter&quot;, &quot;reject&quot;)</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_18" sourceRef="Task_EskPrep" targetRef="Task_EskEntscheid" />
+    <bpmn:sequenceFlow id="Flow_19" sourceRef="Task_EskEntscheid" targetRef="GW_Freigabe" />
+    <bpmn:sequenceFlow id="Flow_20" name="ja (ggf. Mandat erweitert)" sourceRef="GW_Freigabe" targetRef="GW_JoinLoop">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.escalation_decision == &quot;continue&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_21" name="nein: abbrechen oder übernehmen" sourceRef="GW_Freigabe" targetRef="GW_JoinFinal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.escalation_decision in (&quot;abort&quot;, &quot;takeover&quot;)</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_22" name="ja: Runde &lt; max. Runden, Paket offen, keine endgültige Absage" sourceRef="GW_Weiter" targetRef="GW_JoinLoop">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.round &lt; state.mandate.max_rounds and state.packages_left &gt; 0 and not state.supplier_final</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_23" name="nein" sourceRef="GW_Weiter" targetRef="GW_JoinFinal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not (state.round &lt; state.mandate.max_rounds and state.packages_left &gt; 0 and not state.supplier_final)</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_24" sourceRef="GW_JoinFinal" targetRef="Task_Record" />
+    <bpmn:sequenceFlow id="Flow_25" sourceRef="Task_Record" targetRef="Task_Notify" />
+    <bpmn:sequenceFlow id="Flow_26" sourceRef="Task_Notify" targetRef="GW_Ergebnis" />
+    <bpmn:sequenceFlow id="Flow_27" name="Deal" sourceRef="GW_Ergebnis" targetRef="End_Deal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.outcome == &quot;deal&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_28" name="übergeben" sourceRef="GW_Ergebnis" targetRef="End_Uebergabe">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.outcome == &quot;handed_over&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_29" name="kein Deal" sourceRef="GW_Ergebnis" targetRef="End_KeinDeal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.outcome == &quot;no_deal&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:textAnnotation id="Annotation_Legende"><bpmn:text>Farben: orange = LLM (probabilistisch) · blau = Code (deterministisch) · grün = Mensch.
+Grundsatz: LLM extrahiert und formuliert, Code entscheidet über Zahlen und Mandat.
+Ablation: (a) ein LLM-Node übernimmt Pakete, Formulieren, Extrahieren und Bewerten, ohne Prüfung im Code;
+(b) wie gezeichnet; (c) zusätzlich nutzt «Pakete berechnen» die Paketwahl aus früheren Protokollen.
+ERP-Adapter ohne MCP, Richtlinie ohne RAG (ADR 0009). Eine Instanz pro Lieferant.</bpmn:text></bpmn:textAnnotation>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Einkaufsagent">
+      <bpmndi:BPMNShape id="Participant_Musterhandel_di" bpmnElement="Participant_Musterhandel" isHorizontal="true"><dc:Bounds x="150" y="60" width="2590" height="700" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Einkauf_di" bpmnElement="Lane_Einkauf" isHorizontal="true"><dc:Bounds x="180" y="60" width="2560" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Agent_di" bpmnElement="Lane_Agent" isHorizontal="true"><dc:Bounds x="180" y="260" width="2560" height="500" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Lieferant_di" bpmnElement="Participant_Lieferant" isHorizontal="true"><dc:Bounds x="150" y="820" width="2590" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Beauftragt_di" bpmnElement="Start_Beauftragt"><dc:Bounds x="232" y="142" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="205" y="185" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Mandat_di" bpmnElement="Task_Mandat" bioc:stroke="#2f6b3c" bioc:fill="#e2f0de" color:border-color="#2f6b3c" color:background-color="#e2f0de"><dc:Bounds x="310" y="120" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EskEntscheid_di" bpmnElement="Task_EskEntscheid" bioc:stroke="#2f6b3c" bioc:fill="#e2f0de" color:border-color="#2f6b3c" color:background-color="#e2f0de"><dc:Bounds x="1980" y="120" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Freigabe_di" bpmnElement="GW_Freigabe" isMarkerVisible="true"><dc:Bounds x="2145" y="135" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2198" y="112" width="130" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Kontext_di" bpmnElement="Task_Kontext" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="420" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_JoinLoop_di" bpmnElement="GW_JoinLoop" isMarkerVisible="true"><dc:Bounds x="565" y="465" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pakete_di" bpmnElement="Task_Pakete" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="660" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Formulieren_di" bpmnElement="Task_Formulieren" bioc:stroke="#b45f06" bioc:fill="#fce8d4" color:border-color="#b45f06" color:background-color="#fce8d4"><dc:Bounds x="810" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Guard_di" bpmnElement="Task_Guard" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="960" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Guard_di" bpmnElement="GW_Guard" isMarkerVisible="true"><dc:Bounds x="1105" y="465" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1090" y="428" width="80" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Template_di" bpmnElement="Task_Template" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="1190" y="600" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_JoinSend_di" bpmnElement="GW_JoinSend" isMarkerVisible="true"><dc:Bounds x="1325" y="465" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendWait_di" bpmnElement="Task_SendWait" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="1420" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Extract_di" bpmnElement="Task_Extract" bioc:stroke="#b45f06" bioc:fill="#fce8d4" color:border-color="#b45f06" color:background-color="#fce8d4"><dc:Bounds x="1570" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Assess_di" bpmnElement="Task_Assess" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="1720" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Bewertung_di" bpmnElement="GW_Bewertung" isMarkerVisible="true"><dc:Bounds x="1875" y="465" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1830" y="520" width="60" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EskPrep_di" bpmnElement="Task_EskPrep" bioc:stroke="#b45f06" bioc:fill="#fce8d4" color:border-color="#b45f06" color:background-color="#fce8d4"><dc:Bounds x="1980" y="330" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Weiter_di" bpmnElement="GW_Weiter" isMarkerVisible="true"><dc:Bounds x="1875" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1760" y="632" width="112" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_JoinFinal_di" bpmnElement="GW_JoinFinal" isMarkerVisible="true"><dc:Bounds x="2145" y="465" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Record_di" bpmnElement="Task_Record" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="2240" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Notify_di" bpmnElement="Task_Notify" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="2390" y="450" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_Ergebnis_di" bpmnElement="GW_Ergebnis" isMarkerVisible="true"><dc:Bounds x="2545" y="465" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2500" y="455" width="50" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Uebergabe_di" bpmnElement="End_Uebergabe"><dc:Bounds x="2652" y="352" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2635" y="395" width="70" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Deal_di" bpmnElement="End_Deal"><dc:Bounds x="2652" y="472" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2635" y="515" width="70" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_KeinDeal_di" bpmnElement="End_KeinDeal"><dc:Bounds x="2652" y="622" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2645" y="665" width="50" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DO_Mandat_di" bpmnElement="DO_Mandat"><dc:Bounds x="422" y="200" width="36" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="422" y="252" width="40" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DS_ERP_Read_di" bpmnElement="DS_ERP_Read"><dc:Bounds x="445" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="395" y="670" width="150" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DS_ERP_Write_di" bpmnElement="DS_ERP_Write"><dc:Bounds x="2265" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2215" y="670" width="150" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DS_Richtlinie_di" bpmnElement="DS_Richtlinie"><dc:Bounds x="1885" y="275" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1840" y="330" width="140" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_Legende_di" bpmnElement="Annotation_Legende"><dc:Bounds x="640" y="100" width="930" height="95" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01"><di:waypoint x="268" y="160" /><di:waypoint x="310" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02"><di:waypoint x="410" y="160" /><di:waypoint x="470" y="160" /><di:waypoint x="470" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03"><di:waypoint x="520" y="490" /><di:waypoint x="565" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04"><di:waypoint x="615" y="490" /><di:waypoint x="660" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05"><di:waypoint x="760" y="490" /><di:waypoint x="810" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06"><di:waypoint x="910" y="490" /><di:waypoint x="960" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07"><di:waypoint x="1060" y="490" /><di:waypoint x="1105" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08"><di:waypoint x="1155" y="490" /><di:waypoint x="1325" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="1170" y="470" width="14" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09"><di:waypoint x="1130" y="515" /><di:waypoint x="1130" y="640" /><di:waypoint x="1190" y="640" /><bpmndi:BPMNLabel><dc:Bounds x="1100" y="580" width="22" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1290" y="640" /><di:waypoint x="1350" y="640" /><di:waypoint x="1350" y="515" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1375" y="490" /><di:waypoint x="1420" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1520" y="490" /><di:waypoint x="1570" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="1670" y="490" /><di:waypoint x="1720" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1820" y="490" /><di:waypoint x="1875" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15"><di:waypoint x="1925" y="490" /><di:waypoint x="2145" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="1935" y="470" width="48" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16"><di:waypoint x="1900" y="465" /><di:waypoint x="1900" y="370" /><di:waypoint x="1980" y="370" /><bpmndi:BPMNLabel><dc:Bounds x="1800" y="395" width="95" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17"><di:waypoint x="1900" y="515" /><di:waypoint x="1900" y="615" /><bpmndi:BPMNLabel><dc:Bounds x="1908" y="545" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18"><di:waypoint x="2030" y="330" /><di:waypoint x="2030" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19"><di:waypoint x="2080" y="160" /><di:waypoint x="2145" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20"><di:waypoint x="2170" y="135" /><di:waypoint x="2170" y="90" /><di:waypoint x="590" y="90" /><di:waypoint x="590" y="465" /><bpmndi:BPMNLabel><dc:Bounds x="1990" y="72" width="170" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="2170" y="185" /><di:waypoint x="2170" y="465" /><bpmndi:BPMNLabel><dc:Bounds x="2178" y="270" width="95" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22"><di:waypoint x="1900" y="665" /><di:waypoint x="1900" y="720" /><di:waypoint x="590" y="720" /><di:waypoint x="590" y="515" /><bpmndi:BPMNLabel><dc:Bounds x="650" y="725" width="420" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23"><di:waypoint x="1925" y="640" /><di:waypoint x="2170" y="640" /><di:waypoint x="2170" y="515" /><bpmndi:BPMNLabel><dc:Bounds x="1990" y="620" width="22" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_24_di" bpmnElement="Flow_24"><di:waypoint x="2195" y="490" /><di:waypoint x="2240" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_25_di" bpmnElement="Flow_25"><di:waypoint x="2340" y="490" /><di:waypoint x="2390" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_26_di" bpmnElement="Flow_26"><di:waypoint x="2490" y="490" /><di:waypoint x="2545" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_27_di" bpmnElement="Flow_27"><di:waypoint x="2595" y="490" /><di:waypoint x="2652" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="2605" y="470" width="26" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_28_di" bpmnElement="Flow_28"><di:waypoint x="2570" y="465" /><di:waypoint x="2570" y="370" /><di:waypoint x="2652" y="370" /><bpmndi:BPMNLabel><dc:Bounds x="2580" y="350" width="52" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_29_di" bpmnElement="Flow_29"><di:waypoint x="2570" y="515" /><di:waypoint x="2570" y="640" /><di:waypoint x="2652" y="640" /><bpmndi:BPMNLabel><dc:Bounds x="2580" y="620" width="48" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_Angebot_di" bpmnElement="MsgFlow_Angebot"><di:waypoint x="1450" y="530" /><di:waypoint x="1450" y="820" /><bpmndi:BPMNLabel><dc:Bounds x="1310" y="795" width="135" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_Antwort_di" bpmnElement="MsgFlow_Antwort"><di:waypoint x="1490" y="820" /><di:waypoint x="1490" y="530" /><bpmndi:BPMNLabel><dc:Bounds x="1498" y="795" width="40" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_Ergebnis_di" bpmnElement="MsgFlow_Ergebnis"><di:waypoint x="2440" y="530" /><di:waypoint x="2440" y="820" /><bpmndi:BPMNLabel><dc:Bounds x="2448" y="795" width="150" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DOA_Mandat_di" bpmnElement="DOA_Mandat"><di:waypoint x="410" y="190" /><di:waypoint x="422" y="208" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DIA_ERP_di" bpmnElement="DIA_ERP"><di:waypoint x="470" y="615" /><di:waypoint x="470" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DIA_Richtlinie_di" bpmnElement="DIA_Richtlinie"><di:waypoint x="1935" y="300" /><di:waypoint x="2000" y="300" /><di:waypoint x="2000" y="330" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DIA_Richtlinie_Extract_di" bpmnElement="DIA_Richtlinie_Extract"><di:waypoint x="1885" y="300" /><di:waypoint x="1620" y="300" /><di:waypoint x="1620" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DOA_ERP_di" bpmnElement="DOA_ERP"><di:waypoint x="2290" y="530" /><di:waypoint x="2290" y="615" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

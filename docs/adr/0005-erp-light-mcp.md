@@ -2,6 +2,9 @@
 
 - **Status:** angenommen am 11.10.2026 (Team-Feedback: «ERP als kleiner MCP-Server, bin ich dabei»), mit den
   Prüfpunkten unten
+- **Teilweise ersetzt am 19.10.2026 durch ADR 0009:** kein MCP; der ERP-Adapter ist eine schlanke
+  Python-Schnittstelle über SQLite. Weiter gültig: drei Funktionen (Kontext, Ergebnis/Protokoll, Historie), SQLite
+  `:memory:`, nur `public`-Daten, Metrik «korrekt gebucht». `get_negotiation_history` ruft der Code, nicht das LLM.
 - **Datum:** 06.10.2026, angepasst 11.10.2026
 - **Ersetzt:** im Briefing die Zeile «ERP-Mock: eigener MCP-Server über SQLite – Lieferantenstamm,
   Preishistorie, Bestellung anlegen»

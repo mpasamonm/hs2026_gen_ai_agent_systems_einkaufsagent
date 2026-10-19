@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_Einkaufsagent" targetNamespace="http://bpmn.io/schema/bpmn" exporter="gen_bpmn_v2.py" exporterVersion="2.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_Einkaufsagent" targetNamespace="http://bpmn.io/schema/bpmn" exporter="gen_bpmn_v3.py" exporterVersion="3.0">
   <bpmn:collaboration id="Collaboration_Einkaufsagent">
     <bpmn:participant id="Participant_Musterhandel" name="Musterhandel AG (fiktiv): Konditionen-Nachverhandlung" processRef="Process_Einkaufsagent" />
-    <bpmn:participant id="Participant_Lieferant" name="Lieferant (im Projekt simuliert)" />
+    <bpmn:participant id="Participant_Lieferant" name="Lieferant (Eval: simuliert, Demo: Mensch)" />
     <bpmn:messageFlow id="MsgFlow_Angebot" name="Angebot (2–3 Pakete)" sourceRef="Task_SendWait" targetRef="Participant_Lieferant" />
     <bpmn:messageFlow id="MsgFlow_Antwort" name="Antwort" sourceRef="Participant_Lieferant" targetRef="Task_SendWait" />
     <bpmn:messageFlow id="MsgFlow_Ergebnis" name="Bestätigung oder Absage" sourceRef="Task_Notify" targetRef="Participant_Lieferant" />
@@ -62,8 +62,8 @@
       <bpmn:outgoing>Flow_20</bpmn:outgoing>
       <bpmn:outgoing>Flow_21</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_Kontext" name="Kontext laden (MCP)">
-      <bpmn:documentation>LangGraph: load_context. Stammdaten, heutige Konditionen und Verhandlungshistorie über den ERP-Adapter (MCP-Tool get_supplier_context). KW42 JSON-Stub, ab KW43 MCP (ADR 0005).</bpmn:documentation>
+    <bpmn:serviceTask id="Task_Kontext" name="Kontext laden">
+      <bpmn:documentation>LangGraph: load_context. Stammdaten, heutige Konditionen und Protokolle früherer Verhandlungen über den ERP-Adapter (Python-Schnittstelle über SQLite, ohne MCP; ADR 0009). Bis KW43 JSON-Stub, ab KW44 ERP-Adapter.</bpmn:documentation>
       <bpmn:incoming>Flow_02</bpmn:incoming>
       <bpmn:outgoing>Flow_03</bpmn:outgoing>
       <bpmn:property id="Property_DIA_ERP" name="__targetRef_placeholder" />
@@ -79,12 +79,12 @@
       <bpmn:outgoing>Flow_04</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:scriptTask id="Task_Pakete" name="Pakete berechnen (Code)">
-      <bpmn:documentation>LangGraph: offer_engine. 2–3 gleichwertige Pakete (MESO) entlang der Konzessionskurve; nur Werte im Mandat. Variante (c): Startpunkt aus der Verhandlungshistorie. Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: offer_engine. 2–3 gleichwertige Pakete (MESO) entlang der Konzessionskurve; nur Werte im Mandat. Variante (c): Startpunkt aus der Paketwahl in früheren Protokollen. Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_04</bpmn:incoming>
       <bpmn:outgoing>Flow_05</bpmn:outgoing>
     </bpmn:scriptTask>
     <bpmn:serviceTask id="Task_Formulieren" name="Angebot formulieren (LLM)">
-      <bpmn:documentation>LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Ohne RAG: kein Richtlinientext an den Lieferanten (ADR 0007). Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: narrate. Formuliert die Pakete der offer_engine; Zahlen kommen ausschliesslich aus dem State. Kein Richtlinientext an den Lieferanten (ADR 0007). Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_05</bpmn:incoming>
       <bpmn:outgoing>Flow_06</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -109,12 +109,12 @@
       <bpmn:outgoing>Flow_11</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:task id="Task_SendWait" name="Angebot senden, Antwort abwarten">
-      <bpmn:documentation>LangGraph: send_and_wait. Im Projekt: simulierter Lieferant (regelbasiert, ab KW46 zusätzlich LLM); in der Demo: Chat-Oberfläche. Ab KW42.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: send_and_wait. Eval: simulierter Lieferant (regelbasiert); Demo und Live-Runden: Mensch als Lieferant im Terminal (ADR 0009). Ab KW42.</bpmn:documentation>
       <bpmn:incoming>Flow_11</bpmn:incoming>
       <bpmn:outgoing>Flow_12</bpmn:outgoing>
     </bpmn:task>
     <bpmn:serviceTask id="Task_Extract" name="Antwort extrahieren (LLM)">
-      <bpmn:documentation>LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, Aussagen mit Typ (Befugnis-Behauptung, Information, Forderung, Bedingung). Ab KW44 mit passender Regel aus der Einkaufsrichtlinie (RAG, Retrieval fest im Node). Lieferantentext ist untrusted input. Ab KW43.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: parse_response. Strukturierte Ausgabe (Pydantic): Typ, gewähltes Paket, Gegenangebot, Aussagen mit Typ (Befugnis-Behauptung, Information, Forderung, Bedingung). Die Einkaufsrichtlinie steht vollständig im Prompt (kurz, ohne RAG; ADR 0009). Lieferantentext ist untrusted input. Ab KW43.</bpmn:documentation>
       <bpmn:incoming>Flow_12</bpmn:incoming>
       <bpmn:outgoing>Flow_13</bpmn:outgoing>
       <bpmn:property id="Property_DIA_Richtlinie_Extract" name="__targetRef_placeholder" />
@@ -134,8 +134,8 @@
       <bpmn:outgoing>Flow_16</bpmn:outgoing>
       <bpmn:outgoing>Flow_17</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_EskPrep" name="Eskalation aufbereiten (LLM + Tools)">
-      <bpmn:documentation>LangGraph: escalate (vor interrupt). LLM mit zwei Tools: Einkaufsrichtlinie (RAG, KW44) und Verhandlungshistorie (MCP). Ergebnis: Anlass, betroffene Regeln mit Quelle, Gegenwert, Empfehlung (US4). Fehler sind hier billig, weil die Einkäuferin entscheidet.</bpmn:documentation>
+    <bpmn:serviceTask id="Task_EskPrep" name="Eskalation aufbereiten (LLM)">
+      <bpmn:documentation>LangGraph: escalate (vor interrupt). Der Code gibt Einkaufsrichtlinie, bisherigen Verlauf und frühere Protokolle mit; das LLM wählt keine Tools (ADR 0009). Ergebnis: Anlass, betroffene Regeln, Gegenwert, Empfehlung (US4). Fehler sind hier billig, weil die Einkäuferin entscheidet. Ab KW46.</bpmn:documentation>
       <bpmn:incoming>Flow_16</bpmn:incoming>
       <bpmn:outgoing>Flow_18</bpmn:outgoing>
       <bpmn:property id="Property_DIA_Richtlinie" name="__targetRef_placeholder" />
@@ -155,8 +155,8 @@
       <bpmn:incoming>Flow_23</bpmn:incoming>
       <bpmn:outgoing>Flow_24</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_Record" name="Ergebnis im ERP erfassen (MCP)">
-      <bpmn:documentation>LangGraph: record_outcome (MCP-Tool record_outcome). Auf allen Ausgängen: Konditionen bei Deal, sonst Ergebnis und Protokoll. Die Historie ist das Lieferanten-Gedächtnis (Variante c, KW46). Ab KW43.</bpmn:documentation>
+    <bpmn:serviceTask id="Task_Record" name="Ergebnis und Protokoll erfassen">
+      <bpmn:documentation>LangGraph: record_outcome über den ERP-Adapter, auf allen Ausgängen: Konditionen bei Deal und ein Protokoll, das der Code aus den gespeicherten Runden erstellt (Startpakete, Reaktion und Paketwahl des Lieferanten, Verlauf, Ergebnis, Hinweise für die Einkäuferin). Die Protokolle sind das Lieferanten-Gedächtnis (c). Ab KW44.</bpmn:documentation>
       <bpmn:incoming>Flow_24</bpmn:incoming>
       <bpmn:outgoing>Flow_25</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DOA_ERP">
@@ -185,9 +185,9 @@
     </bpmn:endEvent>
     <bpmn:dataObject id="DataObject_Mandat" />
     <bpmn:dataObjectReference id="DO_Mandat" name="Mandat" dataObjectRef="DataObject_Mandat" />
-    <bpmn:dataStoreReference id="DS_ERP_Read" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Historie" dataStoreRef="DataStore_ERP" />
-    <bpmn:dataStoreReference id="DS_ERP_Write" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Historie" dataStoreRef="DataStore_ERP" />
-    <bpmn:dataStoreReference id="DS_Richtlinie" name="Einkaufsrichtlinie (RAG)" dataStoreRef="DataStore_Policy" />
+    <bpmn:dataStoreReference id="DS_ERP_Read" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Protokolle" dataStoreRef="DataStore_ERP" />
+    <bpmn:dataStoreReference id="DS_ERP_Write" name="ERP-Adapter (Mock): Stammdaten, Konditionen, Protokolle" dataStoreRef="DataStore_ERP" />
+    <bpmn:dataStoreReference id="DS_Richtlinie" name="Einkaufsrichtlinie (im Prompt)" dataStoreRef="DataStore_Policy" />
     <bpmn:sequenceFlow id="Flow_01" sourceRef="Start_Beauftragt" targetRef="Task_Mandat" />
     <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_Mandat" targetRef="Task_Kontext" />
     <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_Kontext" targetRef="GW_JoinLoop" />
@@ -244,7 +244,8 @@
     <bpmn:textAnnotation id="Annotation_Legende"><bpmn:text>Farben: orange = LLM (probabilistisch) · blau = Code (deterministisch) · grün = Mensch.
 Grundsatz: LLM extrahiert und formuliert, Code entscheidet über Zahlen und Mandat.
 Ablation: (a) ein LLM-Node übernimmt Pakete, Formulieren, Extrahieren und Bewerten, ohne Prüfung im Code;
-(b) wie gezeichnet; (c) zusätzlich nutzt «Pakete berechnen» die Historie. Eine Instanz pro Lieferant.</bpmn:text></bpmn:textAnnotation>
+(b) wie gezeichnet; (c) zusätzlich nutzt «Pakete berechnen» die Paketwahl aus früheren Protokollen.
+ERP-Adapter ohne MCP, Richtlinie ohne RAG (ADR 0009). Eine Instanz pro Lieferant.</bpmn:text></bpmn:textAnnotation>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Einkaufsagent">
@@ -281,7 +282,7 @@ Ablation: (a) ein LLM-Node übernimmt Pakete, Formulieren, Extrahieren und Bewer
       <bpmndi:BPMNShape id="DS_ERP_Read_di" bpmnElement="DS_ERP_Read"><dc:Bounds x="445" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="395" y="670" width="150" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DS_ERP_Write_di" bpmnElement="DS_ERP_Write"><dc:Bounds x="2265" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2215" y="670" width="150" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DS_Richtlinie_di" bpmnElement="DS_Richtlinie"><dc:Bounds x="1885" y="275" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1840" y="330" width="140" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Annotation_Legende_di" bpmnElement="Annotation_Legende"><dc:Bounds x="640" y="103" width="930" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_Legende_di" bpmnElement="Annotation_Legende"><dc:Bounds x="640" y="100" width="930" height="95" /></bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01"><di:waypoint x="268" y="160" /><di:waypoint x="310" y="160" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02"><di:waypoint x="410" y="160" /><di:waypoint x="470" y="160" /><di:waypoint x="470" y="450" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03"><di:waypoint x="520" y="490" /><di:waypoint x="565" y="490" /></bpmndi:BPMNEdge>

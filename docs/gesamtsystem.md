@@ -1,6 +1,6 @@
 # Einkaufsagent – Gesamtsystem und Begründungen
 
-Stand: 11.10.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
+Stand: 19.10.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
 Prüfung. Jede Person muss das Gesamtsystem erklären können (Projektbeschrieb, Anhang A). Ein schriftlicher Bericht
 ist laut Projektbeschrieb nicht verlangt; dieses Dokument ist das Projektartefakt «zur Nachvollziehbarkeit» und die
 Vorlage für die Folien.
@@ -21,8 +21,10 @@ die Prüfungsthemen aus dem Projektbeschrieb, die der Abschnitt abdeckt.
 | 3 Umsetzung | technische Umsetzung | Modellwahl, Architektur, technische Umsetzung, Daten und Werkzeuge |
 | 4 Evaluation | Evaluation | Evaluation |
 | 5 Erkenntnisse und Limitationen | Erkenntnisse und Limitationen | Limitationen |
-| 6 Demo | Demonstration | – |
+| 6 Demo und Abgabe | Demonstration | – |
 | 7 Verworfene Alternativen | Backup-Folie | alternative Lösungsansätze |
+| 8 Was wir gewählt haben und warum | Backup-Folie | Modell- und Methodenwahl, alternative Lösungsansätze |
+| 9 Abdeckung der Modulthemen | – | Evaluation, Limitationen |
 
 ## 1 Problem
 
@@ -96,18 +98,22 @@ Annahme entscheiden macht Code. Vorlage aus der Forschung: **OG-Narrator** (Xia 
 deterministischer Angebotsgenerator mit einem LLM als «Erzähler» hob die Abschlussquote des Käufers von 26,67 % auf
 88,88 %.
 
+Die Vorlesung sagt dasselbe über Tool-Calls: «Das Modell führt nichts aus. Es schlägt vor, euer Programm entscheidet
+und handelt.» (SW5, Folie 23)
+
 Belegt wird die These mit einer **Ablation** auf denselben Szenarien:
 
 | Variante | Inhalt | Stand |
 | --- | --- | --- |
 | (a) reines LLM | Ein LLM-Node entscheidet alles; Mandat nur im Prompt | läuft seit KW42 |
 | (b) Hybrid | Pakete, Prüfung und Bewertung im Code; LLM formuliert und extrahiert | KW43 |
-| (c) Hybrid mit Gedächtnis | (b), dazu nutzt «Pakete berechnen» die Verhandlungshistorie | KW46 |
+| (b) mit kleinem Modell | wie (b), mit dem offenen 3B-Modell `ibm/granite4.1:3b` aus dem FHNW-Proxy (ADR 0011) | KW44 |
+| (c) Hybrid mit Gedächtnis | (b), dazu startet «Pakete berechnen» bei der Paketwahl aus früheren Protokollen | KW46, klein und optional (ADR 0009) |
 
 ### 2.5 Vorbild: Pactum bei Walmart
 
 Walmart lässt einen Verhandlungs-Chatbot der Firma Pactum mit Long-Tail-Lieferanten verhandeln (Pilot 2020
-angekündigt, danach ausgeweitet).
+angekündigt, 2021 in Kanada durchgeführt, danach ausgeweitet).
 
 | | Walmart mit Pactum | Unser Projekt |
 | --- | --- | --- |
@@ -122,59 +128,85 @@ angekündigt, danach ausgeweitet).
 | Quelle | Einigung | Einsparung | Zahlungsziel | Lieferanten |
 | --- | --- | --- | --- | --- |
 | HBR, Pilot (2022) | 64 % (Ziel war 20 %) | 1,5 % | im Schnitt +35 Tage | rund 75 % verhandelten lieber mit dem Bot |
+| PON Harvard, Pilot Walmart Canada 2021 | 64 % von 89 Lieferanten, im Schnitt in 11 Tagen | 1,5 % | – | 83 % der Lieferanten mit Abschluss äusserten sich positiv |
 | Presseberichte 2023 | 68 % | rund 3 % | – | 83 % fanden den Bot einfach zu bedienen |
 | Pactum-Website (Okt. 2026) | 72 % | – | im Schnitt +35 Tage | – |
 
 Für Folien: den HBR-Pilot mit 64 % nennen, die späteren Werte als Entwicklung. Frühere Stände unserer Unterlagen
 schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.2026 korrigiert.
 
+**Der Pilot im Detail:** Anfang 2021, Walmart Canada (Walmart International), 89 Lieferanten von Betriebsmitteln wie
+Einkaufswagen; Einigung in im Schnitt 11 Tagen (PON). Die Dauer von rund drei Monaten nennen nur Sekundärquellen.
+
+**Was wir übernehmen und was nicht:** Übernommen: Jede Verhandlung wird protokolliert und ins System zurückgeschrieben
+(unser Protokoll, ADR 0009); viele Lieferanten als Kampagne (unsere Ergebnisfolie, ADR 0012). Nicht übernommen:
+weitere Konditionen wie Kündigungsrecht, Skonto und Rückvergütungen sowie Preisschätzungen aus Marktdaten (D6). Ob
+Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
+
 ## 3 Umsetzung
 
 ### 3.1 Prozess (BPMN)
 
-- **Gültig seit 11.10.2026:** `einkaufsagent-prozess_v2.bpmn` (ADR 0002, 0007, 0008, angenommen nach
-  Team-Feedback). Abgelöst: `einkaufsagent-prozess_v1.bpmn`. Farben: orange = LLM, blau = Code, grün = Mensch.
-- **Ablauf nach `_v2`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP über MCP) → Pakete
-  berechnen (Code) → Angebot formulieren (LLM) → Nachricht prüfen (Code; bei Verstoss geht ein Standardtext hinaus)
-  → senden und Antwort abwarten → Antwort extrahieren (LLM) → Antwort bewerten (Code) mit drei Ausgängen:
-  - **Einigung** → Ergebnis im ERP erfassen (MCP) → Lieferant informieren.
+- **Gültig seit 19.10.2026:** `einkaufsagent-prozess_v3.bpmn` (ADR 0002, 0007, 0008, 0009). Abgelöst: `_v2` und
+  `_v1`. Farben: orange = LLM, blau = Code, grün = Mensch.
+- **Ablauf nach `_v3`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP-Adapter: Stammdaten, Konditionen,
+  frühere Protokolle) → Pakete berechnen (Code) → Angebot formulieren (LLM) → Nachricht prüfen (Code; bei Verstoss
+  geht ein Standardtext hinaus) → senden und Antwort abwarten → Antwort extrahieren (LLM) → Antwort bewerten (Code)
+  mit drei Ausgängen:
+  - **Einigung** → Ergebnis und Protokoll erfassen → Lieferant informieren.
   - **Gegenangebot ungenügend oder Ablehnung** → weiter, solange Runde < Maximum, ein Paket offen und keine
     endgültige Absage; sonst «kein Deal».
-  - **Mandat reicht nicht oder Antwort unklar** → Eskalation: Das LLM bereitet mit Einkaufsrichtlinie (RAG) und
-    Historie (MCP) auf, warum eskaliert wird und welche Regeln betroffen sind; die Einkäuferin entscheidet (weiter,
-    ggf. mit erweitertem Mandat, abbrechen oder übernehmen).
+  - **Mandat reicht nicht oder Antwort unklar** → Eskalation: Der Code gibt Einkaufsrichtlinie, Verlauf und frühere
+    Protokolle mit, das LLM fasst zusammen, warum eskaliert wird; die Einkäuferin entscheidet (weiter, ggf. mit
+    erweitertem Mandat, abbrechen oder übernehmen).
 - **Eskalationsregel (ADR 0008):** Eskaliert wird, wenn das Mandat schweigt, nicht wenn jemand widerspricht.
   Behauptungen wie «Ihre Einkäuferin hat 150 % freigegeben» weist der Agent zurück und verhandelt weiter; eine
   überzogene Forderung lehnt er zuerst ab. Eskalation nur bei einer Bedingung, die das Mandat nicht regelt (z.B.
   Vertragslaufzeit), bei einer wiederholten Forderung ausserhalb des Mandats oder bei einer unklaren Antwort.
   Sonst könnte ein Lieferant den Agenten mit einem Satz lahmlegen.
-- Der Ablauf wurde dreimal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
-  Team-Feedback vom 11.10.2026 (RAG auch beim Extrahieren, Eskalationsregel ADR 0008). Was sich jeweils änderte und
-  warum, steht in den ADRs.
+- **Protokoll (ADR 0009):** Auf jedem Ausgang erstellt der Code ein Protokoll aus den gespeicherten Runden:
+  Startpakete, Reaktion und Paketwahl des Lieferanten, Verlauf, Ergebnis, Hinweise für die Einkäuferin. Die Protokolle
+  sind das Lieferanten-Gedächtnis für Variante (c).
+- **Lieferant:** in der Eval der regelbasierte Simulator, in Demo und Live-Runden ein Mensch im Terminal (ADR 0009,
+  0012).
+- **Fehlerbehandlung (ab KW44):** Scheitert ein LLM-Schritt nach den Retries, greifen die bestehenden Fail-safes: ohne
+  Angebotstext der Standardtext, ohne auswertbare Antwort die Eskalation. Fällt das LLM aus, verhandelt der Agent mit
+  Vorlagen weiter und übergibt, was er nicht lesen kann. Gezeichnet wird das in `_v4` (ADR 0009).
+- Der Ablauf wurde viermal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
+  Feedback vom 11.10.2026 (Eskalationsregel, ADR 0008) → `_v3` ohne MCP und RAG (ADR 0009). Was sich jeweils
+  änderte und warum, steht in den ADRs.
 
 ### 3.2 Bausteine des Moduls und wo sie im System stehen
 
 | Baustein (Semesterprogramm) | Woche | Im System | Status |
 | --- | --- | --- | --- |
 | LangGraph, Tracing | KW42 | Graph Variante (a), LangSmith-Traces | erledigt |
-| MCP, Function Calling | KW43 | ERP-Adapter als MCP-Server (FastMCP, SQLite `:memory:`, synchron), von Code aufgerufen; LLM-Tool nur in der Eskalation | ADR 0005, 0007 angenommen |
-| RAG | KW44 | Einkaufsrichtlinie beim Extrahieren (Aussagen des Lieferanten einordnen) und in der Eskalation (betroffene Regeln erklären); nicht im Angebotstext | ADR 0007 angenommen |
-| Memory | KW46 | Verhandlungshistorie im ERP-Adapter (langfristig); Konversation im Graph-State mit Checkpointer (kurzfristig) | ADR 0005, 0007 angenommen |
+| Tools, MCP, Function Calling | KW43 | Function Calling als Mechanismus der strukturierten Ausgabe; ERP-Adapter als Python-Schnittstelle, vom Code aufgerufen. Kein MCP und keine Tool-Wahl durch das LLM: ein einziger Client und eine eigene kleine Tabelle (SW6 Folie 26). Ausbau: nur lesender MCP-Server für einen zweiten Client | ADR 0009 |
+| Decision Models (SW6) | KW43 | Spike in KW44: Entscheidungsmodell `tev1:0.8b` gegen strukturierte LLM-Ausgabe für die Wahlfragen in `parse_response` | ADR 0011 |
+| RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response` und `escalate` | ADR 0009 |
+| Memory | KW46 | kurzfristig Graph-State mit Checkpointer; langfristig die Protokolle im ERP-Adapter (Gedächtnis für c, klein und optional) | ADR 0009 |
 | Human-in-the-loop | KW46 | Eskalation per `interrupt()`, Einkäuferin entscheidet | geplant |
-| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im System-Prompt, Angriffsszenarien | geplant |
-| Interface | KW47 | Chat-Oberfläche für die Demo | geplant |
+| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | geplant (ADR 0010) |
+| Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin; keine Web-App | ADR 0012 |
 
-### 3.3 Modellwahl (ADR 0004)
+### 3.3 Modellwahl (ADR 0004, 0011)
 
-- Kandidaten im FHNW-LiteLLM: `gpt-5.6-luna` (proprietär, günstig), `azure_ai/gpt-oss-120b` (offen),
-  `azure_ai/mistral-large-3` (offen, andere Familie), dazu eine Regel-Referenz ohne LLM als Untergrenze.
+- Kandidaten im FHNW-LiteLLM (Benchmark 06.10.2026): `gpt-5.6-luna` (proprietär, günstig), `azure_ai/gpt-oss-120b`
+  (offen), `azure_ai/mistral-large-3` (offen, andere Familie), dazu eine Regel-Referenz ohne LLM als Untergrenze.
 - **Entscheidungsregel:** Ein Kandidat mit Mandatsverstoss fällt weg; unter den übrigen gewinnt die tiefste
   «Kosten pro Erfolg».
 - **Ergebnis:** Arbeitsmodell `gpt-5.6-luna` (0.0028 USD pro Erfolg, 0 Verstösse). Mistral Large 3 fiel mit 4
   Verstössen weg; gpt-oss-120b war teurer pro Erfolg und nannte in 13 % der Läufe das Mandat. Die Nachmessung vom
   11.10.2026 ändert die Wahl nicht (ADR 0004, 0008).
-- Function Calling über den Proxy funktioniert nur mit Luna verlässlich; gpt-oss und Mistral liefern strukturierte
-  Ausgabe nur über JSON Schema.
+- **Proxy-Stand 19.10.2026:** neu u.a. `azure_ai/claude-haiku-5-5` (Function Calling ok), das offene
+  `ibm/granite4.1:3b` auf der Ollama-Instanz der FHNW und das Entscheidungsmodell `tev1:0.8b`; Jev ist nicht im Proxy.
+  Luna bleibt Arbeitsmodell: Ein Anthropic-Agent wäre befangen, weil Claude Opus die Testtexte schreibt (ADR 0010).
+- **Kleines Modell (ADR 0011):** `granite4.1:3b` läuft als zusätzliche Zeile in (a) und (b). Hypothese: Im Hybrid
+  genügt ein 3B-Modell, weil es nur noch kurze Texte liest und schreibt. Das wäre der Weg zu vertraulichen Konditionen
+  ohne Cloud-Anbieter.
+- **Entscheidungsmodelle (SW6, ADR 0011):** Sie liefern statt Text eine Wahl mit Wahrscheinlichkeit. Ob sie die
+  Wahlfragen in `parse_response` besser lösen als strukturierte LLM-Ausgabe, misst ein Spike in KW44 nach einer vorab
+  festgelegten Regel.
 - Apertus nur als Referenzzeile (D2); im LiteLLM gibt es kein Apertus-Chatmodell.
 
 ### 3.4 Technik (Stand KW42)
@@ -191,15 +223,21 @@ schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.20
 
 - **Szenarien:** 11 synthetische Entwicklungsszenarien in `data/scenarios/dev.jsonl`: 7 mit Deal (S09 mit Prompt
   Injection; dort ist nur ein Abschluss korrekt), 2 ohne Verhandlungsspielraum, 2 mit Eskalation (S08: wiederholte
-  Preisforderung, S11: Laufzeit-Bedingung, die das Mandat nicht regelt). Teil `public` sieht der Agent, Teil `hidden` nur der
-  Simulator. `scripts/build_scenarios.py` erzeugt sie und prüft jedes erwartete Ergebnis gegen den
+  Preisforderung, S11: Laufzeit-Bedingung, die das Mandat nicht regelt). Teil `public` sieht der Agent, Teil `hidden`
+  nur der Simulator. `scripts/build_scenarios.py` erzeugt sie und prüft jedes erwartete Ergebnis gegen den
   Verhandlungsspielraum (ZOPA, «zone of possible agreement»).
+- **Synthetische Daten (ADR 0010):** Testset (12–15 Szenarien), Umformulierungen der Simulator-Texte, Angriffstexte,
+  Einkaufsrichtlinie und Bias-Varianten entstehen nach dem Prinzip der Kernthese: Der Code zieht die Zahlen mit Seed
+  aus einem Raster und rechnet die Wahrheit (ZOPA, erwartetes Ergebnis), Claude Opus schreibt nur die Texte, der Code
+  prüft jede Zahl. Einmal erzeugt, liegen sie eingefroren im Repo, mit Modell, Datum und Prompt. Die Historie für (c)
+  entsteht per Self-Play ganz im Code.
 - **Lieferanten-Simulator** (ADR 0003): regelbasiert mit verdeckten Kostensätzen. Nachgiebigkeit über die Runden
   nach Faratin, Sierra und Jennings (1998), Geduld in Runden, Gegenangebot durch Kürzen des besten Pakets, optional
-  Preisforderung, Prompt Injection und Bedingung ausserhalb des Mandats. Gewählt, weil reproduzierbar, billig und mit bekannter Wahrheit. Ein
-  LLM-Lieferant aus einer anderen Modellfamilie folgt ab KW46 als Robustheitstest (D7).
-- **Werkzeuge:** FHNW-LiteLLM (Modellzugang), LangSmith EU (Tracing, Projekt `einkaufsagent`), privates
-  GitHub-Repository, bpmn.io für den Prozess.
+  Preisforderung, Prompt Injection und Bedingung ausserhalb des Mandats. Gewählt, weil reproduzierbar, billig und mit
+  bekannter Wahrheit. In Demo und Live-Runden spielt ein Mensch den Lieferanten; ein LLM-Lieferant entfällt (ADR 0009).
+- **Werkzeuge:** FHNW-LiteLLM (Modellzugang), LangSmith EU (Tracing, Projekt `einkaufsagent`), SQLite (ERP-Adapter,
+  ab KW44), privates GitHub-Repository, bpmn.io für den Prozess, Claude Code mit Claude Opus für die synthetischen
+  Texte.
 
 ## 4 Evaluation
 
@@ -232,9 +270,11 @@ schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.20
 - **Bezug zur Literatur:** In 9'840 Verhandlungen zwischen LLMs (Liang und Xu, arXiv 2608.07538) einigten sich die
   Agenten in 98,9 % der Fälle, brauchten aber im Schnitt 2,98 statt 1,25 Runden; die Verzögerung kostete 21–34 %
   des möglichen Überschusses. Die Aufteilung hing stärker vom Modellanbieter ab als von der Modellgrösse. Deshalb
-  messen wir Runden und nehmen für den LLM-Lieferanten eine andere Modellfamilie als für den Agenten.
-- **Geplant:** Ablation (a)/(b)/(c), zurückgehaltenes Testset von einer anderen Person, Angriffsszenarien,
-  LLM-Lieferant, rund 10 Live-Runden gegen Menschen.
+  messen wir Runden und lassen die Testtexte von einer anderen Modellfamilie schreiben als der des Agenten.
+- **Geplant (ADR 0010–0012):** Ablation (a) gegen (b) auf den 11 Szenarien und auf dem synthetischen Testset, je mit
+  Luna und mit `granite4.1:3b`; (c) klein und optional. Robustheit über Umformulierungen der Lieferantentexte
+  (kippt die Extraktion?), Angriffe mit Erfolgsquote und Fehlalarmen, Bias über ausgetauschte Lieferantennamen,
+  Spike LLM gegen Entscheidungsmodell, 5–10 Live-Runden mit Spielkarte, bewertet im Code.
 
 ## 5 Erkenntnisse und Limitationen
 
@@ -251,18 +291,43 @@ schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.20
 **Limitationen**
 - Simulierte Lieferanten mit Textvorlagen; der Simulator bewertet die Pakete, nicht den Text. Das bevorteilt
   Variante (a). Externe Validität ist die Hauptlimitation.
-- Szenarien und Regel-Referenz stammen aus derselben Hand; deshalb entwirft eine andere Person das Testset.
+- Szenarien und Regel-Referenz stammen aus derselben Hand. Das Testset schreibt deshalb ein Modell einer anderen
+  Familie (Claude Opus), nicht eine andere Person; der Code rechnet die Wahrheit. Synthetische Texte sind sauberer und
+  meist leichter als echte. Die Erzeugung über Claude Code ist nicht per Skript wiederholbar, deshalb sind die Daten
+  eingefroren (ADR 0010).
 - 11 Szenarien × 3 Wiederholungen: Ein Szenario entspricht 9 Prozentpunkten, zwei Läufe mit fast gleichem Prompt
   lagen bis zu 9 Prozentpunkte auseinander; Unterschiede unter etwa 20 Prozentpunkten nicht interpretieren. Die Mandate sind fast gleich, das Rundenlimit hat nie gegriffen.
-- Function Calling über den Proxy nur mit Luna verlässlich.
+- Das Modellangebot im Proxy ändert sich laufend (19.10.2026: Jev nicht verfügbar, `gpt-6-luna` und `decision-1`
+  mit Fehlern); Ergebnisse gelten für den gemessenen Stand.
+- Herstellerangaben zu Entscheidungsmodellen (Geschwindigkeit, Kalibrierung) sind kaum unabhängig geprüft; wir
+  verlassen uns nur auf die eigene Messung (ADR 0011).
 - Täuschung und Widersprüche zwischen Text und Paketen misst erst die Mandatsprüfung in (b) bzw. ein kalibrierter
   LLM-Judge (KW47).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
 
-## 6 Demo
+## 6 Demo und Abgabe
 
-Offen; Planung in `docs/plan.md` (nächster Schritt). Vorgesehen: eine Verhandlung in der Chat-Oberfläche mit
-Eskalation an die Einkäuferin (Interrupt) und Trace in LangSmith.
+**Demo (ADR 0012)**
+- **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten im Terminal und
+  versucht, den Agenten zu manipulieren. Die Ausgabe zeigt pro Runde, was das LLM vorschlägt und was der Code
+  entscheidet; blockt die Mandatsprüfung, ist das sichtbar. Fallback: Aufzeichnung desselben Ablaufs.
+- **Ergebnisfolie als Kampagne:** Das Testset läuft durch (a) und (b); die Folie zeigt Abschlussquote, Nutzen in CHF,
+  Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
+- **Live-Runden:** Die Person erhält eine Spielkarte mit ihren verdeckten Grenzen aus einem Szenario. Damit ist die
+  ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen ZOPA).
+
+**Abgabe (Anhang A):** Link auf die ausführbare Lösung (Repository mit Anleitung; ohne Cloud-Key läuft die
+Regel-Referenz offline), Projektartefakte (dieses Dokument, ADRs, BPMN, Eval-Ergebnisse) und die Präsentation als PDF.
+Abgabetermin und die genaue Form der «ausführbaren Lösung» sind mit den Dozierenden zu klären.
+
+**Ausbaumöglichkeiten**
+- nur lesender MCP-Server über dem ERP-Adapter, damit die Einkäuferin Protokolle aus ihrem Chat-Client abfragt
+  (ADR 0009);
+- Retrieval, sobald die Einkaufsrichtlinie lang wird oder mehrere Dokumente dazukommen (ADR 0009);
+- eigenes lokales Modell auf eigener GPU für vertrauliche Konditionen (ADR 0011);
+- Entscheidungsmodell mit eigener Kalibrierung auf eigenen Daten, falls der Spike knapp ausfällt (ADR 0011);
+- Kampagne als parallele Instanzen (`Send`) mit Dashboard nach dem Vorbild Walmart;
+- weitere Konditionen (Skonto, Rückvergütungen) erst mit echten Lieferantendaten.
 
 ## 7 Verworfene Alternativen
 
@@ -281,8 +346,88 @@ Eskalation an die Einkäuferin (Interrupt) und Trace in LangSmith.
 | LLM entscheidet über die Eskalation | Prompt Injection wirkt direkt auf den Router | 0008 |
 | LLM-Persona als Lieferant für die Eval | streut von Lauf zu Lauf, doppelte Kosten | 0003 |
 | Vollwertiger ERP-Mock | Aufwand ohne Beitrag zur Kernthese | 0005 |
-| Lokale Funktionen ohne MCP | verfehlt den Auftrag KW43 | 0005 |
+| MCP-Server als ERP-Adapter, vom Code aufgerufen | ein einziger Client; ein Protokollschritt ohne Nutzen, dazu async-Aufwand und Versionsfalle | 0009 |
 | Generischer SQL-MCP-Server, LLM schreibt SQL | LLM bestimmt Zahlen und Abfragen | 0005 |
+| RAG für die Einkaufsrichtlinie | die Richtlinie ist kurz und steht ganz im Prompt | 0009 |
+| LLM wählt in der Eskalation Tools (Richtlinie, Historie) | gleicher Inhalt wie «der Code gibt mit», aber mehr Fehlerbilder und Angriffsfläche | 0009 |
+| LLM-Lieferant aus anderer Modellfamilie (D7) | streut von Lauf zu Lauf, LLM gegen LLM; ein Mensch prüft realistischer | 0009 |
+| Testset von Hand oder durch eine andere Person | Aufwand; niemand hat geliefert | 0010 |
+| LLM erzeugt Testdaten inklusive erwartetem Ergebnis | falsche Labels, Modelle bevorzugen selbst erzeugte Daten | 0010 |
+| Eigenes Ollama auf eigener GPU | ohne GPU für die Dozierenden nicht nachvollziehbar | 0011 |
+| Jev (TypeSafe) | nicht im Proxy, eigener Key, Betrieb in den USA | 0011 |
+| Multi-Agent (z.B. Verhandler und Prüfer als eigene Agenten) | kein Koordinationsproblem; die Prüfung ist Code, ein zweiter Agent wäre mehr Angriffsfläche (OWASP ASI07) | – |
+| Trace in LangSmith als Hauptdemo | zeigt Technik statt Kernthese; bleibt Backup | 0012 |
+
+## 8 Was wir gewählt haben und warum
+
+Zum Üben der Prüfungsfragen «Modell- und Methodenwahl» und «alternative Lösungsansätze». Details in den ADRs.
+
+| Entscheid | Alternativen | Grund | Kippt, wenn | ADR |
+| --- | --- | --- | --- | --- |
+| Konditionen-Nachverhandlung im Long Tail | StandortScout, Invoice Guard, freies Feilschen | reales Problem, Wert in CHF messbar, wenig Risiko | das reine LLM verhandelt fast fehlerfrei | 0001, 0006 |
+| 2–3 gleichwertige Pakete (MESO) | ein Paket nach dem anderen, freies Feilschen | der Lieferant wählt, seine Wahl verrät Präferenzen, unsere Zugeständnisse bleiben verdeckt | Dozent verlangt freie Verhandlung | 0001, 0002 |
+| Hybrid: LLM extrahiert und formuliert, Code rechnet und entscheidet | reines LLM (a), LLM als Router | die Fehler von (a) liegen genau dort, wo (b) Code einsetzt; Prompt Injection erreicht keine Entscheidung | (b) schlägt (a) um weniger als 20 Prozentpunkte: These auf Sicherheit verengen | 0002, 0006 |
+| Eskalation nur, wenn das Mandat schweigt | jede Forderung eskalieren, LLM entscheidet, nie eskalieren | ein Satz des Lieferanten legt den Agenten nicht lahm | mehr als 10 % übersehene Bedingungen oder unnötige Eskalationen | 0008 |
+| Regelbasierter Simulator mit verdeckten Parametern | LLM-Persona, Menschen | reproduzierbar, billig, bekannte Wahrheit | der Agent nutzt die Textvorlagen aus | 0003 |
+| Arbeitsmodell `gpt-5.6-luna` | gpt-oss-120b, Mistral Large 3, Claude Haiku 5.5 | 0 Verstösse, tiefste Kosten pro Erfolg; Haiku wäre wegen der Testtexte befangen | ein neuer Benchmark zeigt ein anderes Ergebnis | 0004, 0011 |
+| Kein MCP; ERP-Adapter als Python-Schnittstelle | MCP vom Code gerufen, MCP mit Resources | ein einziger Client (SW6 Folie 26) | ein zweiter Client soll die Daten nutzen | 0009 |
+| Kein RAG; Richtlinie ganz im Prompt | RAG beim Extrahieren und in der Eskalation | die Richtlinie ist kurz | die Richtlinie wird lang | 0009 |
+| Keine Tool-Wahl durch das LLM | Tools in der Eskalation | übermässige Handlungsmacht (OWASP LLM03), mehr Fehlerbilder | Dozent verlangt Tool-Use als Kern | 0009 |
+| Protokoll vom Code als Gedächtnis | LLM-Zusammenfassung, LangGraph Store | nachvollziehbar, ein Speicher; Vorbild Walmart | – | 0009 |
+| Synthetische Daten: Code würfelt, LLM kleidet ein | Handarbeit, LLM erzeugt alles | Kernthese auch für die Daten, keine Handarbeit | ein Teammitglied liefert Szenarien | 0010 |
+| Kleines offenes Modell als Ablationszeile | nur Cloud, eigenes Ollama | prüft die stärkste Aussage der Kernthese | ein Lauf ohne Cloud-Key wird verlangt | 0011 |
+| Entscheidungsmodell erst nach Spike | ungeprüft einsetzen, ignorieren | Herstellerangaben sind kaum unabhängig belegt | Jev oder Microsoft-Decision-1 im Proxy | 0011 |
+| Mensch als Lieferant in Demo und Live-Runden, Bewertung im Code | LLM-Lieferant, Bewertung nach Eindruck | realistisch und objektiv | der Proxy ist unzuverlässig (dann Aufzeichnung) | 0009, 0012 |
+| Ein Agent statt Multi-Agent | Verhandler und Prüfer als eigene Agenten | kein Koordinationsproblem; die Prüfung ist Code | mehrere Verhandlungen müssen sich abstimmen | – |
+
+## 9 Abdeckung der Modulthemen
+
+Der Projektbeschrieb nennt als mögliche Evaluation «Qualität, Robustheit, Bias, Guardrails, Tool-Use oder andere
+relevante Eigenschaften» (Anhang A).
+
+| Thema | Abgedeckt (wo) | Lücke und Plan | Bewusst weggelassen (Grund) |
+| --- | --- | --- | --- |
+| Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`) | synthetisches Testset (KW45) | – |
+| Robustheit | Wiederholungen | Umformulierungen der Lieferantentexte, Kippen der Extraktion (KW44); Szenario mit bindendem Rundenlimit | – |
+| Sicherheit | Bauweise, siehe unten | Angriffsset mit Erfolgsquote und Fehlalarmen (KW45) | – |
+| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe | Fehlerpfade über die bestehenden Fail-safes (KW44, `_v4`) | eigener Retry-Graph |
+| Bias | – | Lieferantennamen und Herkunft tauschen, 3 Szenarien × 4 Varianten (KW45); in (b) muss das Ergebnis gleich bleiben, Unterschiede kämen aus der Extraktion | – |
+| Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
+| Guardrails | Mandatsprüfung im Code, Standardtext, Regeln im Prompt | Text gegen Pakete prüfen (KW43) | LLM-Judge (nur falls Zeit bleibt) |
+| Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
+| Memory | State; Protokolle als Gedächtnis für (c) | Checkpointer für `interrupt()` (KW46) | LangGraph Store (ein Speicher genügt) |
+| Human-in-the-loop | Eskalation an die Einkäuferin | `interrupt()` (KW46) | – |
+| Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8) |
+| Interface | – | Terminal für Lieferant und Einkäuferin (KW46) | Web-App |
+| Tracing | LangSmith EU | – | – |
+| MCP, RAG | – | MCP nur lesend als Ausbau | ADR 0009 |
+
+**Sicherheit gegen die OWASP Top 10 für LLM-Anwendungen (Fassung 2026)**
+
+| ID | Risiko | Bei uns |
+| --- | --- | --- |
+| LLM01 | Prompt Injection | `parse_response` liest den Lieferantentext ohne Befugnisse und liefert nur typisierte Felder; der Code entscheidet. Geprüft mit S09 und dem Angriffsset |
+| LLM02 | Sensitive Information Disclosure | `narrate` sieht das Mandat nie; ein Leak des Mindestnutzens ist damit ausgeschlossen statt nur verboten. `mandate_guard` prüft zusätzlich |
+| LLM03 | Excessive Agency | keine Tool-Wahl durch das LLM, der Code bucht; das Mandat begrenzt jeden Abschluss |
+| LLM04 | Supply Chain | Versionen gepinnt (`uv.lock`), keine fremden MCP-Server |
+| LLM05 | Data and Model Poisoning | kein Training; ins Gedächtnis kommen nur typisierte Felder aus dem Code (auch OWASP Agentic ASI06) |
+| LLM06 | Unbounded Consumption | Rundenlimit, begrenzte Retries, Timeout, Kosten pro Lauf als Metrik; ADR 0008 verhindert das Lahmlegen über Eskalationen |
+| LLM07 | Misinformation | Zahlen nur aus dem State; die Prüfung vergleicht den Text mit den Paketen |
+| LLM08 | Hidden Context Exposure | Prompts, die Text für den Lieferanten erzeugen, enthalten keine Grenzen; die Richtlinie steht nur in `parse_response` und `escalate`, deren Ausgabe der Lieferant nie sieht |
+| LLM09 | Vector and Embedding Weaknesses | nicht betroffen (kein RAG) |
+| LLM10 | Improper Output Handling | Pydantic-Schema, Mandatsprüfung, Standardtext als Fail-safe |
+
+Die Bauweise entspricht bekannten Entwurfsmustern gegen Prompt Injection (Beurer-Kellner et al. 2025):
+`parse_response` ist ein abgeschottetes LLM ohne Befugnisse wie im Dual-LLM-Muster (Willison 2023), nur ohne
+privilegiertes LLM; der Graph ist ein fester Plan, den der Lieferantentext nicht ändert (Plan-Then-Execute); `narrate`
+sieht nur die berechneten Pakete (Context-Minimization). CaMeL (Debenedetti et al. 2025) setzt Richtlinien ebenfalls bei
+jeder Aktion im Code durch.
+
+**Transparenz:** Der EU AI Act (Art. 50 Abs. 1) verlangt seit dem 2.8.2026, dass Personen wissen, wenn sie mit einer
+KI interagieren, auch im B2B-Verkehr, weil der Verkäufer eine natürliche Person ist. Ob das für eine Schweizer Firma
+gilt, hängt davon ab, ob die Ausgabe in der EU verwendet wird (unverified). Die Schweiz hat kein KI-Gesetz; eine
+Vernehmlassungsvorlage ist bis Ende 2026 angekündigt (unverified). Der KI-Hinweis in der ersten Nachricht deckt beides
+ab.
 
 ## Quellen
 
@@ -300,3 +445,10 @@ Eskalation an die Einkäuferin (Interrupt) und Trace in LangSmith.
   [HBR-Fallstudie «Pactum's AI in Contract Negotiations: Walmart and Maersk»](https://store.hbr.org/product/pactum-s-ai-in-contract-negotiations-walmart-and-maersk/TB0756).
   Die Pilotzahlen (64 %, 1,5 %, 35 Tage) stammen aus dem HBR-Artikel «How Walmart Automated Supplier
   Negotiations» (2022), hier über Sekundärquellen geprüft; vor der Präsentation im Original nachlesen.
+  Pilot Walmart Canada 2021: [PON, Chatbot Negotiations: What Can AI Do for You?](https://www.pon.harvard.edu/daily/negotiation-skills-daily/chatbot-negotiations-what-can-ai-do-for-you).
+- OWASP: [Top 10 for LLM Applications 2026](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/) (Aug. 2026);
+  [Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (Dez. 2025).
+- Willison, S. (2023). [The Dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/).
+- Debenedetti, E. et al. (2025). Defeating Prompt Injections by Design (CaMeL). arXiv:2503.18813.
+- Beurer-Kellner, L. et al. (2025). Design Patterns for Securing LLM Agents against Prompt Injections. arXiv:2506.08837.
+- Verordnung (EU) 2024/1689 (AI Act), Art. 50.
