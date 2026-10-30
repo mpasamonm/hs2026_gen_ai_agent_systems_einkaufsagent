@@ -21,6 +21,7 @@ uv run ea-eval --model gpt-5.6-luna --repeats 3     # alle Szenarien, Metriken n
 uv run ea-eval --variant b --policy rule            # Variante (b) offline (Vorlage + Regex-Parser)
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3   # Variante (b) mit LLM
 uv run ea-benchmark --repeats 3           # drei Modelle + Regel-Referenz, Vergleichstabelle
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Simulator mit Umformulierungen (ADR 0010)
 ```
 
 Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Verlauf pro Lauf,
@@ -38,6 +39,7 @@ Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Ver
 | `docs/process/` | BPMN 2.0 des Soll-Prozesses (`_v3`), Render, Validierungsskripte, Mapping BPMN → LangGraph |
 | `docs/eval-metriken.md` | Definition jeder Metrik und des Erfolgskriteriums |
 | `data/scenarios/dev.jsonl` | 11 Entwicklungsszenarien; `public` für den Agenten, `hidden` nur für den Simulator |
+| `data/paraphrases/` | eingefrorene Umformulierungen der Simulator-Vorlagen, Prompt und Stichprobe (ADR 0010) |
 | `scripts/build_scenarios.py` | erzeugt `dev.jsonl` und prüft jedes erwartete Ergebnis gegen die ZOPA |
 | `config/models.toml` | Modellkandidaten im FHNW-LiteLLM (ADR 0004) |
 | `src/einkaufsagent/domain.py` | Konditionen, Mandat, Käufernutzen, Mandatsprüfung (deterministisch) |
