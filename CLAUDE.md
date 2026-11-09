@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 19.10.2026. Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026. Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -45,10 +45,10 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | --- | --- | --- | --- |
 | 42 | 12.10. | Erste lauffähige Version, Tracing funktioniert | Variante (a), Eval, Benchmark, LangSmith (erledigt) |
 | 43 | 19.10. | MCP-Server anbinden | kein MCP (ADR 0009); Variante (b) mit Luna, `parse_response` austauschbar (erledigt 19.10., ADR 0013) |
-| 44 | 26.10. | RAG einbauen | kein RAG (ADR 0009); ERP-Adapter mit Protokoll, Umformulierungen, Spike Klassifikation (ADR 0011), `_v4` |
-| 45 | – | Blockwoche | synthetisches Testset, Angriffe, Bias (ADR 0010) |
-| 46 | 09.11. | Memory festlegen | Eskalation per Interrupt, Mensch als Lieferant, Gedächtnis (c) klein und optional |
-| 47 | 16.11. | Safeguarding (minimal prompt-basiert), Evaluation | voller Eval-Lauf, Ergebnisfolie, Demo (ADR 0012) |
+| 44 | 26.10. | RAG einbauen | kein RAG (ADR 0009, SW7 Folie 44); Umformulierungen (erledigt 26.10., PR #2, gemergt 09.11.) |
+| 45 | – | Blockwoche | nichts gebaut; Testset mit Angriffen verschoben auf Bau 2 (ADR 0014) |
+| 46 | 09.11. | Memory festlegen | festgelegt in ADR 0015 (09.11.); Bau 1 bis 13.11.: ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`; Bau 2 bis 15.11.: Testset mit Angriffen |
+| 47 | 16.11. | Safeguarding (minimal prompt-basiert), Evaluation | SW9 einordnen («Guardrail Agent», SW8 Folie 31); voller Eval-Lauf, Ergebnisfolie, Demo (ADR 0012) |
 | 48 | 23.11. | Abschlusspräsentation | Demo |
 
 ## 4. Entscheide (Details und «kippt, wenn» in `docs/adr/`)
@@ -70,10 +70,12 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0007 | Schlanke Prozessfassung `_v2`: ohne Timer und LLM-Strategie, ein Gedächtnis, ohne 1:3 | angenommen 11.10.2026; RAG und Tool-Wahl ersetzt durch ADR 0009 |
 | ADR 0008 | Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt; Behauptungen ändern das Mandat nie; S09 nur Deal | angenommen 11.10.2026 |
 | ADR 0009 | Prozess `_v3`: ohne MCP und RAG, keine Tool-Wahl durch das LLM, Protokoll mit Paketwahl als Gedächtnis, Mensch als Lieferant; MCP nur lesend als Ausbau | angenommen 19.10.2026 |
-| ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026 |
-| ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) in KW44 | angenommen 19.10.2026, Ergebnis offen |
+| ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11. |
+| ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026 |
+| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026 |
+| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen 09.11.2026 |
 
 ## 5. Architektur heute (Varianten a und b)
 
@@ -89,13 +91,16 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `--variant b --policy rule` (Vorlage + Regex).
 - Lieferant: `supplier_sim.py`, regelbasiert. Konzessionsbudget nach Faratin et al. (1998), Geduld,
   Gegenangebot durch Kürzen des besten Pakets, optional Preisforderung, Prompt Injection und Bedingung
-  ausserhalb des Mandats (nur im Text).
+  ausserhalb des Mandats (nur im Text). Mit `paraphrase=True` (`--paraphrase` in `ea-run`, `ea-eval`, `ea-benchmark`)
+  wählt er pro Seed eine der eingefrorenen Umformulierungen aus `data/paraphrases/` (`paraphrases.py`, ADR 0010);
+  ohne Schalter byte-gleich zu vorher.
 - Referenz ohne LLM: `RuleBasedPolicy` (lineare Konzession, 3 MESO-Pakete, Annahme nach AC_next; lehnt die erste
   Forderung ab und eskaliert die wiederholte). Löst S11 absichtlich nicht, weil sie den Text nicht liest.
 - Szenarien: `data/scenarios/dev.jsonl` (11 Stück), erzeugt und gegen die ZOPA geprüft mit
   `scripts/build_scenarios.py`. 7 × Deal (S09 mit Injection, nur Deal korrekt), 2 × ohne ZOPA, 2 × Eskalation
   (S08 wiederholte Preisforderung, S11 Laufzeit-Bedingung).
-- Eval: `eval.py` mit `--variant a|b`, Metriken in `docs/eval-metriken.md`. Benchmark: `benchmark.py`.
+- Eval: `eval.py` mit `--variant a|b` und `--paraphrase`, Metriken in `docs/eval-metriken.md` (neu: `extraktion_korrekt`,
+  nur b). Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
 - Prozess: gültig ist `einkaufsagent-prozess_v3.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
   LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v3.py`; jede Änderung als neue Datei
@@ -111,7 +116,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 19.10.2026 (nach Bau b)
+## 6. Stand am 09.11.2026 (nach der Bestandsaufnahme)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -163,26 +168,40 @@ Erledigt:
   - `docs/gesamtsystem.md` §2.5 mit Pactum-Stand 2026 (Release Notes Sept. 2026: Aggressivität, Angebotsprüfung,
     Eskalation, Audit-Trail = unsere Bausteine), §2.4 mit Liang und Xu als zweitem Beleg.
 
-- Session 26.10.2026, Umformulierungen (ADR 0010, Nachtrag):
+- Session 26.10.2026 (Teammitglied PeisProjects, über PR #2), Umformulierungen (ADR 0010, Nachtrag):
   - `data/paraphrases/` (14 Vorlagen × 5 Umformulierungen, 6 Schreibweisen der Konditionen, eingefroren; Claude Opus
     5.5), `paraphrases.py` mit Code-Prüfung, Flag `--paraphrase` in allen CLIs, Metrik `extraktion_korrekt`,
     `verpasste_annahmen` ohne Textmuster. 51 Tests grün, ruff sauber.
   - Luna × 3: (b) umformuliert 1.00 Erfolg, Extraktion 0.976; (a) umformuliert 0.70 (vorher 0.79); Regex-Parser
     0.27. Stichprobe `data/paraphrases/stichprobe.md` muss noch ein Teammitglied lesen.
+- Session 09.11.2026, Bestandsaufnahme:
+  - PR #2 reviewt (keine Rückdrehungen, Invarianten unverändert, ohne `--paraphrase` gleiche Läufe) und per Merge
+    übernommen (0dcb2aa); PR #1 war schon geschlossen (falsche Basis). Nacharbeiten: `extraktion_korrekt` prüft Paketwahl
+    und bedingte Annahme; Stichprobe neu gezogen (jede Vorlage mindestens einmal, `--neu`); Grenzen der Umformulierungen
+    in `data/paraphrases/README.md`. 52 Tests grün.
+  - Nachmessung Luna × 3 am selben Tag (ADR 0010, Nachmessung): (a) 0.79 → 0.76 umformuliert (Rauschen; «30 statt 21»
+    hält nicht), (b) 1.00 und 1.00, Spielraum 0.715 gegen 0.25, Extraktion (b) 0.95 → 0.99; Regex-Parser 0.27. Neues
+    Fehlbild: «ohne Gegenleistung nicht gewähren» als Bedingung, S06 2× unnötig eskaliert (7,4 %). Kosten 0.24 USD.
+  - Folien SW7 (RAG) und SW8 (Orchestrierung, Memory) eingeordnet (`kontext/sw7-sw8-folien-extrakt.md`): stützen ADR 0009
+    (Nachtrag); Auftrag SW8 Folie 17 (InMemorySaver) war schon erfüllt; keine Fristen.
+  - ADR 0014 (Umfang bis 23.11.) und ADR 0015 (Memory und Human-in-the-loop) angenommen; `docs/gesamtsystem.md` mit
+    §10 Beiträge.
 
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **KW44** (Prompt `kontext/UEBERGABE-PROMPT-KW44.md`): ~~Umformulierungen der Simulator-Texte (ADR 0010)~~ erledigt
-   26.10. (Stichprobe von Hand offen), Spike
-   Klassifikation auf `parse_response` (ADR 0011), ERP-Adapter über SQLite mit Protokoll und Paketwahl
-   (`record_outcome`, Metrik `korrekt_gebucht`), `_v4` (Fehlerpfade sind im Code schon gebaut), granite-Zeile mit
-   `--variant b --model ibm/granite4.1:3b`.
-2. **KW45:** synthetisches Testset 12–15 Szenarien, Angriffe, Bias-Varianten (ADR 0010); (a) und (b) auf dem Testset.
-3. **KW46:** Eskalation per `interrupt()`, Mensch als Lieferant im Terminal, Gedächtnis (c) klein und optional.
-   Danach keine neuen Funktionen mehr.
-4. **KW47:** voller Eval-Lauf, Ergebnisfolie, Demo-Probe mit Aufzeichnung, Folien; optional MCP nur lesend (ADR 0009).
-5. **Offen (mit den Dozierenden klären):** Abgabetermin und Form der «ausführbaren Lösung», ob eine schriftliche Dokumentation verlangt
-   ist; Rollen und Beitrag pro Person in `docs/gesamtsystem.md` festhalten (die Prüfung fragt danach).
+Plan und Streichungen in ADR 0014, Memory und Human-in-the-loop in ADR 0015.
+
+1. **Bau 1 bis 13.11.** (Prompt `kontext/UEBERGABE-PROMPT-KW46-bau.md`): ERP-Adapter über SQLite mit Protokoll und
+   Paketwahl (`record_outcome`, Metrik `korrekt_gebucht`); Eskalation über `escalate` (Vorlage im Code) und `ask_buyer`
+   (nur `interrupt()`), Runner mit `Command(resume=…)`; `HumanSupplier` im Terminal mit farbigen LLM- und Code-Schritten
+   (nur b); BPMN `_v4`.
+2. **Bau 2 bis 15.11., danach Feature-Freeze:** Testset 12–15 Szenarien mit Angriffen (ADR 0010; ohne die Wortfelder
+   der Parse-Prompt-Beispiele), (a) und (b) mit Luna; granite-Zeile und Bias nur, wenn Zeit bleibt.
+3. **16.–22.11.:** SW9 einordnen; voller Eval-Lauf, Ergebnisfolie, 5–10 Live-Runden mit Spielkarte, Folien als PDF,
+   Demo-Probe mit Aufzeichnung.
+4. **Offen beim Nutzer:** Stichprobe `data/paraphrases/stichprobe.md` von Hand lesen (Kippregel ADR 0010); mit den
+   Dozierenden klären: Abgabetermin, Form der «ausführbaren Lösung», schriftliche Dokumentation verlangt?
+   Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
 
 ## 8. Offene Widersprüche und Hinweise
 
@@ -195,6 +214,9 @@ Erledigt:
 - **Proxy (19.10.2026):** Function Calling geht mit Luna, Claude Haiku 5.5 und `gpt-5.4-mini-new`; gpt-oss, Mistral und
   `ibm/granite4.1:3b` (Ollama ignoriert `tool_choice`) nur mit `json_schema`. `azure_ai/gpt-6-luna` liefert bei Chat
   und JSON Schema 404, `azure_ai/decision-1` «DeploymentNotFound». Modelle vor jedem Lauf mit `ea-check-models` prüfen.
+- **Proxy (09.11.2026):** `ea-check-models` lieferte für Luna einmal einen 422-Fehler, die Wiederholung lief. Neu in der
+  Modellliste: `microsoft-decision-1` und `gpt-6-luna` (ohne Präfix `azure_ai/`), nicht geprüft; der Spike ist
+  gestrichen (ADR 0014).
 - **Jev ist nicht im FHNW-Proxy** (Annahme vom 19.10. widerlegt). Erreichbar ist nur `tev1:0.8b` (Together AI,
   Qwen3.5-0.8B, nicht Jev) über `/v1/systemone`; SW6 Folie 40 zeigt dasselbe. Jev selbst nur über api.typesafe.ai mit
   eigenem Key, Betrieb in den USA.
@@ -209,9 +231,9 @@ Erledigt:
 - Synthetische Texte erzeugt Claude Opus über Claude Code (ADR 0010); das ist nicht per Skript wiederholbar, deshalb
   werden die Daten eingefroren und Prompt, Modell und Datum neben den Daten abgelegt.
 - Der Simulator bewertet die strukturierten Pakete, nicht den Text. `mandate_guard` (b) prüft Zahlen gegen Pakete, nicht
-  deren Zuordnung. Die Regel-Referenz löst alle Szenarien ausser S11, (b) offline mit Regex-Parser alle; der Nutzen des
-  LLM zeigt sich erst gegen Umformulierungen (KW44) und Menschen (Live-Runden). Limitation für die Präsentation
-  (ADR 0006, 0008, 0013).
+  deren Zuordnung. Die Regel-Referenz löst alle Szenarien ausser S11, (b) offline mit Regex-Parser alle Originale, aber
+  nur 0.27 der Umformulierungen; (b) mit Luna löst beide. Gegen Menschen ist der Nutzen erst mit den Live-Runden belegt
+  (ADR 0006, 0010, 0013).
 - Die Präzisierungen im Parse-Prompt (ADR 0013) sind am Dev-Set entstanden; Prompt-Beispiele dürfen den Wortlaut der
   Szenarien nicht übernehmen, und das Testset muss anders formuliert sein (ADR 0010).
 - `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
@@ -222,6 +244,15 @@ Erledigt:
   `docs/process/README.md`.
 - Neuer Auftrag auf Folie 43 der aktuellen SW4-Fassung: DeepLearning.AI-Video «AI Agents in LangGraph»
   (Kapitel siehe Moodle).
+- SW8: ab PDF-Seite 29 ist die Foliennummer um 1 höher (Folie 29 fehlt). SW8 Folie 19 sagt, nach `interrupt()` laufe
+  der Graph «an derselben Stelle weiter»; laut LangGraph-Doku startet der ganze Node neu. Deshalb steht `interrupt()`
+  allein im Node `ask_buyer` (ADR 0015). Einordnung SW7/SW8 lokal in `kontext/sw7-sw8-folien-extrakt.md`.
+- `langgraph-checkpoint-sqlite` ist nicht installiert; 3.1.3 verlangt `langgraph-checkpoint` ≥ 4.3.1 (installiert 4.2.0),
+  3.1.1 passt ohne Upgrade (nur falls `SqliteSaver` nötig wird, ADR 0015).
+- Umformulierungen: Einige Varianten verwenden «entgegenkommen» bzw. «Listenpreise» wie die Beispiele im Parse-Prompt
+  (Grenzen in `data/paraphrases/README.md`); das Testset meidet diese Wortfelder.
+- Beiträge über GitHub: PRs mit `gh pr view`; das Fine-grained-Token braucht dieses Repo unter «Repository access»
+  (am 09.11.2026 ergänzt). Commits des Teammitglieds nicht umschreiben, Merge über den PR (`--merge`).
 
 ## 9. Arbeitsweise
 
@@ -256,7 +287,8 @@ uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3
 uv run ea-run --scenario S09 --variant b --model gpt-5.6-luna # zeigt auch die Hinweise für die Einkäuferin
 uv run ea-benchmark --repeats 3
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Simulator umformuliert (ADR 0010)
-uv run python scripts/sample_paraphrases.py       # Code-Prüfung + Stichprobe zum Lesen
+uv run ea-eval --variant b --policy rule --paraphrase                       # offline: Regex-Parser bricht ein (0.27)
+uv run python scripts/sample_paraphrases.py       # Code-Prüfung; Stichprobe nur mit --neu neu ziehen (überschreibt Befunde)
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
 cd docs/process && npm install && python3 gen_bpmn_v3.py ../../einkaufsagent-prozess_v3.bpmn \

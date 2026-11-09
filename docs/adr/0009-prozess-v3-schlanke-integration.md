@@ -64,3 +64,13 @@ Klassifikations-Spikes (ADR 0011) in einer Fassung.
   (SW6 Folien 16 und 26). Unser ERP-Adapter hat genau einen Client, unseren Code; deshalb eine Python-Schnittstelle, und
   MCP erst mit einem zweiten Client.» Und: «MCP ersetzt keinen Prompt. Die Richtlinie landet so oder so im Prompt; wir
   lassen den Code entscheiden, was hineinkommt, nicht das LLM.»
+
+## Nachtrag 09.11.2026: SW7 und SW8
+
+- SW7 Folie 44 verlangt: «Braucht euer Agent RAG? Entscheidet aktiv und notiert die Begründung». Die Begründung steht
+  hier. SW7 Folie 2 nennt eine strukturierte Datenbank als gleichrangige Wissensquelle neben RAG; die Folien 17–19
+  begründen Chunking und Retrieval mit grossen Textsammlungen (Token-Limit, Präzision). Beides stützt den Entscheid.
+- Das einzige Gegenargument, SW8 Folie 6 («Lange Kontexte lenken das Modell ab»), greift erst bei einer langen
+  Richtlinie; das ist schon die Kippregel oben.
+- Langzeitgedächtnis und Human-in-the-loop sind in ADR 0015 festgelegt, der Umfang bis zur Präsentation in ADR 0014
+  (MCP nur lesend gestrichen, bleibt Ausbau).

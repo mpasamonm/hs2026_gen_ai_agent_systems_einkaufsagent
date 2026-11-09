@@ -1,6 +1,7 @@
 # ADR 0011 – Kleines offenes Modell als Ablationszeile, Entscheidungsmodelle per Spike
 
-- **Status:** angenommen am 19.10.2026; Spike-Ergebnis folgt als Nachtrag in KW44
+- **Status:** angenommen am 19.10.2026; **Spike Klassifikation gestrichen am 09.11.2026 (ADR 0014)**; granite-Zeile
+  optional
 - **Datum:** 19.10.2026
 - **Berührt:** ADR 0004 (Modellkandidaten, Nachtrag Proxy-Stand), D2 (Apertus), ADR 0007 («unklar» deterministisch),
   ADR 0010 (Generator), SW6 Folien 30–40 (Decision Models)

@@ -1,6 +1,6 @@
 # Einkaufsagent – Gesamtsystem und Begründungen
 
-Stand: 19.10.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
+Stand: 09.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
 Prüfung. Jede Person muss das Gesamtsystem erklären können (Projektbeschrieb, Anhang A). Ein schriftlicher Bericht
 ist laut Projektbeschrieb nicht verlangt; dieses Dokument ist das Projektartefakt «zur Nachvollziehbarkeit» und die
 Vorlage für die Folien.
@@ -25,6 +25,7 @@ die Prüfungsthemen aus dem Projektbeschrieb, die der Abschnitt abdeckt.
 | 7 Verworfene Alternativen | Backup-Folie | alternative Lösungsansätze |
 | 8 Was wir gewählt haben und warum | Backup-Folie | Modell- und Methodenwahl, alternative Lösungsansätze |
 | 9 Abdeckung der Modulthemen | – | Evaluation, Limitationen |
+| 10 Beiträge | – | individueller Beitrag |
 
 ## 1 Problem
 
@@ -212,10 +213,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 | --- | --- | --- | --- |
 | LangGraph, Tracing | KW42 | Graph Variante (a), LangSmith-Traces | erledigt |
 | Tools, MCP, Function Calling | KW43 | Function Calling als Mechanismus der strukturierten Ausgabe; ERP-Adapter als Python-Schnittstelle, vom Code aufgerufen. Kein MCP und keine Tool-Wahl durch das LLM: ein einziger Client und eine eigene kleine Tabelle (SW6 Folie 26). Ausbau: nur lesender MCP-Server für einen zweiten Client | ADR 0009 |
-| Decision Models (SW6) | KW43 | Spike in KW44: Entscheidungsmodell `tev1:0.8b` gegen strukturierte LLM-Ausgabe für die Wahlfragen in `parse_response` | ADR 0011 |
-| RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response` und `escalate` | ADR 0009 |
-| Memory | KW46 | kurzfristig Graph-State mit Checkpointer; langfristig die Protokolle im ERP-Adapter (Gedächtnis für c, klein und optional) | ADR 0009 |
-| Human-in-the-loop | KW46 | Eskalation per `interrupt()`, Einkäuferin entscheidet | geplant |
+| Decision Models (SW6) | KW43 | `parse_response` ist austauschbar und nimmt eine Konfidenz an (< 0,7 → Eskalation); der Spike mit `tev1:0.8b` ist gestrichen, weil Luna auch umformulierte Antworten zu 95–98 % richtig liest | ADR 0011, 0014 |
+| RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response`; SW7 Folie 44 verlangt genau diesen aktiven Entscheid, Folie 2 nennt die strukturierte DB gleichrangig | ADR 0009 |
+| Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter, vom Code geschrieben, statt LangGraph Store. Gedächtnis (c) gestrichen | ADR 0015, 0014 |
+| Human-in-the-loop | KW46 | Eskalation über einen eigenen Node `ask_buyer` mit `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen» | entschieden (ADR 0015), Bau bis 13.11. |
 | Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Angriffe KW45 (ADR 0010) |
 | Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin; keine Web-App | ADR 0012 |
 
@@ -234,9 +235,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - **Kleines Modell (ADR 0011):** `granite4.1:3b` läuft als zusätzliche Zeile in (a) und (b). Hypothese: Im Hybrid
   genügt ein 3B-Modell, weil es nur noch kurze Texte liest und schreibt. Das wäre der Weg zu vertraulichen Konditionen
   ohne Cloud-Anbieter.
-- **Entscheidungsmodelle (SW6, ADR 0011):** Sie liefern statt Text eine Wahl mit Wahrscheinlichkeit. Ob sie die
-  Wahlfragen in `parse_response` besser lösen als strukturierte LLM-Ausgabe, misst ein Spike in KW44 nach einer vorab
-  festgelegten Regel.
+- **Entscheidungsmodelle (SW6, ADR 0011):** Sie liefern statt Text eine Wahl mit Wahrscheinlichkeit. Der geplante
+  Spike gegen strukturierte LLM-Ausgabe ist gestrichen (ADR 0014): Luna liest auch umformulierte Antworten zu 95–98 %
+  richtig, und `tev1:0.8b` wertete schon im Smoke-Test den Injection-Fall falsch. `parse_response` nimmt eine Konfidenz
+  an; ein Entscheidungsmodell bleibt Ausbau.
 - Apertus nur als Referenzzeile (D2); im LiteLLM gibt es kein Apertus-Chatmodell.
 
 ### 3.4 Technik (Stand KW43)
@@ -263,17 +265,19 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Preisforderung, S11: Laufzeit-Bedingung, die das Mandat nicht regelt). Teil `public` sieht der Agent, Teil `hidden`
   nur der Simulator. `scripts/build_scenarios.py` erzeugt sie und prüft jedes erwartete Ergebnis gegen den
   Verhandlungsspielraum (ZOPA, «zone of possible agreement»).
-- **Synthetische Daten (ADR 0010):** Testset (12–15 Szenarien), Umformulierungen der Simulator-Texte, Angriffstexte,
-  Einkaufsrichtlinie und Bias-Varianten entstehen nach dem Prinzip der Kernthese: Der Code zieht die Zahlen mit Seed
+- **Umformulierungen (ADR 0010, Nachtrag):** 14 Simulator-Vorlagen mit je 5 Umformulierungen und 5 Schreibweisen der
+  Konditionen, geschrieben von Claude Opus, eingefroren in `data/paraphrases/`; Schalter `--paraphrase`. Der Code prüft,
+  dass Platzhalter und Zahlen gleich bleiben. Eine Stichprobe von 20 Texten wird von Hand gelesen.
+- **Synthetische Daten (ADR 0010):** Testset (12–15 Szenarien), Angriffstexte, Einkaufsrichtlinie und Bias-Varianten
+  entstehen nach dem Prinzip der Kernthese: Der Code zieht die Zahlen mit Seed
   aus einem Raster und rechnet die Wahrheit (ZOPA, erwartetes Ergebnis), Claude Opus schreibt nur die Texte, der Code
-  prüft jede Zahl. Einmal erzeugt, liegen sie eingefroren im Repo, mit Modell, Datum und Prompt. Die Historie für (c)
-  entsteht per Self-Play ganz im Code.
+  prüft jede Zahl. Einmal erzeugt, liegen sie eingefroren im Repo, mit Modell, Datum und Prompt.
 - **Lieferanten-Simulator** (ADR 0003): regelbasiert mit verdeckten Kostensätzen. Nachgiebigkeit über die Runden
   nach Faratin, Sierra und Jennings (1998), Geduld in Runden, Gegenangebot durch Kürzen des besten Pakets, optional
   Preisforderung, Prompt Injection und Bedingung ausserhalb des Mandats. Gewählt, weil reproduzierbar, billig und mit
   bekannter Wahrheit. In Demo und Live-Runden spielt ein Mensch den Lieferanten; ein LLM-Lieferant entfällt (ADR 0009).
-- **Werkzeuge:** FHNW-LiteLLM (Modellzugang), LangSmith EU (Tracing, Projekt `einkaufsagent`), SQLite (ERP-Adapter,
-  ab KW44), privates GitHub-Repository, bpmn.io für den Prozess, Claude Code mit Claude Opus für die synthetischen
+- **Werkzeuge:** FHNW-LiteLLM (Modellzugang), LangSmith EU (Tracing, Projekt `einkaufsagent`), SQLite (ERP-Adapter
+  mit Protokoll, Bau bis 13.11.), privates GitHub-Repository, bpmn.io für den Prozess, Claude Code mit Claude Opus für die synthetischen
   Texte.
 
 ## 4 Evaluation
@@ -320,10 +324,21 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Die Kippregel aus ADR 0006 greift nicht (Spielraum +52 Punkte, Erfolg +21 Punkte). Template-Rate 0: Luna hielt sich
   immer an die Paketwerte. Die zwei Fehlerbilder der Vorläufe von (b) lagen beide im Extrahieren (S06 unnötig
   eskaliert, S08 Forderung übersehen) und endeten sicher, ohne Zusage ausserhalb des Mandats.
-- **Geplant (ADR 0010–0012):** Ablation auf dem synthetischen Testset, je mit Luna und mit `granite4.1:3b`; (c) klein
-  und optional. Robustheit über Umformulierungen der Lieferantentexte
-  (kippt die Extraktion?), Angriffe mit Erfolgsquote und Fehlalarmen, Bias über ausgetauschte Lieferantennamen,
-  Spike LLM gegen Entscheidungsmodell, 5–10 Live-Runden mit Spielkarte, bewertet im Code.
+- **Robustheit gegen Umformulierungen, 09.11.2026** (11 Szenarien × 3, `gpt-5.6-luna`, alle Läufe am selben Tag;
+  Umformulierungen von einem Teammitglied, Details und Ergebnisordner in ADR 0010, Nachmessung):
+
+| Variante | Erfolg Original | Erfolg umformuliert | Spielraum (beide) | Extraktion korrekt (Original → umformuliert) |
+| --- | --- | --- | --- | --- |
+| (a) reines LLM | 0.79 | 0.76 | 0.25 | – |
+| (b) Hybrid mit Luna | 1.00 | 1.00 | 0.715 | 0.95 → 0.99 |
+| (b) Hybrid mit Regex-Parser | 1.00 | 0.27 | – | 1.00 → 0.10 |
+
+  Der Regex-Parser bricht ein, das LLM in (b) nicht: Zum Lesen braucht es das LLM. (a) verliert nur 3 Punkte (Rauschen).
+  Neues Fehlbild in (b): «ohne Gegenleistung nicht gewähren» zweimal als Bedingung gelesen, S06 unnötig eskaliert
+  (7,4 %, unter der Schwelle von 10 %).
+- **Geplant (ADR 0010, 0012, 0014):** Ablation auf dem synthetischen Testset mit Angriffen (Erfolgsquote, Fehlalarme);
+  `korrekt_gebucht` mit dem ERP-Protokoll; 5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
+  `granite4.1:3b`, Bias über ausgetauschte Lieferantennamen. Gestrichen: Spike Entscheidungsmodell, Variante (c).
 
 ## 5 Erkenntnisse und Limitationen
 
@@ -333,7 +348,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Erfolg. Bei Luna ist es ein Qualitäts-, kein Sicherheitsgewinn: Luna hat auch allein keine Verstösse.
 - **Der Restfehler sitzt im Lesen, und er endet sicher.** Alle Fehlläufe von (b) entstanden in `parse_response`
   (Bedingung falsch gelesen, Forderung übersehen) und wurden zu einer unnötigen oder verpassten Eskalation, nie zu
-  einer Zusage ausserhalb des Mandats. Wie gut das Lesen ist, misst der Spike in KW44.
+  einer Zusage ausserhalb des Mandats. Auch gegen Umformulierungen liest Luna 95–99 % der Antworten richtig; ein
+  Regex-Parser fällt auf 10 % (ADR 0010, Nachmessung).
 - Das reine LLM hält mit Luna das Mandat ein, verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
   der Regel-Referenz und 83 % Angebotstexte ohne Konditionen. Sicherheit allein hängt vom Modell ab (Luna 0,
   Mistral 4 Verstösse).
@@ -356,9 +372,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   mit Fehlern); Ergebnisse gelten für den gemessenen Stand.
 - Herstellerangaben zu Entscheidungsmodellen (Geschwindigkeit, Kalibrierung) sind kaum unabhängig geprüft; wir
   verlassen uns nur auf die eigene Messung (ADR 0011).
-- Gegen Textvorlagen löst auch ein Regex-Parser alles; der Nutzen des LLM in (b) zeigt sich erst gegen Umformulierungen
-  (KW44) und Menschen. Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden; ob sie tragen, zeigt das
-  Testset (ADR 0013).
+- Gegen die Original-Vorlagen löst auch ein Regex-Parser alles. Gegen Umformulierungen fällt er auf 0.27, (b) mit Luna
+  bleibt bei 1.00; gegen Menschen ist der Nutzen erst in den Live-Runden belegt. Die Umformulierungen betreffen nur die
+  Simulator-Sätze, einige teilen Wörter mit den Beispielen im Parse-Prompt, und die Stichprobe ist noch nicht von Hand
+  gelesen (ADR 0010). Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden und tragen nur teilweise
+  (S06 umformuliert 2× unnötig eskaliert); das Testset prüft sie (ADR 0013).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
@@ -431,12 +449,13 @@ Zum Üben der Prüfungsfragen «Modell- und Methodenwahl» und «alternative Lö
 | Kein MCP; ERP-Adapter als Python-Schnittstelle | MCP vom Code gerufen, MCP mit Resources | ein einziger Client (SW6 Folie 26) | ein zweiter Client soll die Daten nutzen | 0009 |
 | Kein RAG; Richtlinie ganz im Prompt | RAG beim Extrahieren und in der Eskalation | die Richtlinie ist kurz | die Richtlinie wird lang | 0009 |
 | Keine Tool-Wahl durch das LLM | Tools in der Eskalation | übermässige Handlungsmacht (OWASP LLM03), mehr Fehlerbilder | Dozent verlangt Tool-Use als Kern | 0009 |
-| Protokoll vom Code als Gedächtnis | LLM-Zusammenfassung, LangGraph Store | nachvollziehbar, ein Speicher; Vorbild Walmart | – | 0009 |
+| Protokoll vom Code als Langzeitgedächtnis, State mit Checkpointer als Kurzzeitgedächtnis | LLM-Zusammenfassung, LangGraph Store, `SqliteSaver` | nachvollziehbar, ein Speicher; Vorbild Walmart | die Einkäuferin entscheidet nach einem Neustart (dann `SqliteSaver`) | 0009, 0015 |
+| Eskalation über eigenen Node mit `interrupt()` | `interrupt()` im aufbereitenden Node | der Node startet beim Fortsetzen neu (Doku; SW8 Folie 19 vereinfacht) | – | 0015 |
 | Synthetische Daten: Code würfelt, LLM kleidet ein | Handarbeit, LLM erzeugt alles | Kernthese auch für die Daten, keine Handarbeit | ein Teammitglied liefert Szenarien | 0010 |
 | Kleines offenes Modell als Ablationszeile | nur Cloud, eigenes Ollama | prüft die stärkste Aussage der Kernthese | ein Lauf ohne Cloud-Key wird verlangt | 0011 |
-| Entscheidungsmodell erst nach Spike | ungeprüft einsetzen, ignorieren | Herstellerangaben sind kaum unabhängig belegt | Jev oder Microsoft-Decision-1 im Proxy | 0011 |
+| Kein Entscheidungsmodell; Spike gestrichen | ungeprüft einsetzen, Spike durchführen | Luna liest auch Umformulierungen zu 95–98 % richtig; Herstellerangaben kaum unabhängig belegt | das Testset zeigt in (b) > 10 % Fehler beim Extrahieren | 0011, 0014 |
 | Mensch als Lieferant in Demo und Live-Runden, Bewertung im Code | LLM-Lieferant, Bewertung nach Eindruck | realistisch und objektiv | der Proxy ist unzuverlässig (dann Aufzeichnung) | 0009, 0012 |
-| Ein Agent statt Multi-Agent | Verhandler und Prüfer als eigene Agenten | kein Koordinationsproblem; die Prüfung ist Code | mehrere Verhandlungen müssen sich abstimmen | – |
+| Ein Agent statt Multi-Agent | Verhandler und Prüfer als eigene Agenten, Supervisor | kein Koordinationsproblem; die Prüfung ist Code (Maker-Checker, SW8 Folie 30); SW8 Folie 26: «All steps predetermined … Autonomy is in text generation» | mehrere Verhandlungen müssen sich abstimmen | – |
 
 ## 9 Abdeckung der Modulthemen
 
@@ -453,12 +472,12 @@ relevante Eigenschaften» (Anhang A).
 | Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
 | Guardrails | Mandatsprüfung im Code, Text gegen Pakete (`mandate_guard`), Standardtext, Regeln im Prompt; Template-Rate als Metrik | Zuordnung Zahl zu Paket | LLM-Judge (nur falls Zeit bleibt) |
 | Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
-| Memory | State; Protokolle als Gedächtnis für (c) | Checkpointer für `interrupt()` (KW46) | LangGraph Store (ein Speicher genügt) |
-| Human-in-the-loop | Eskalation an die Einkäuferin | `interrupt()` (KW46) | – |
-| Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8) |
-| Interface | – | Terminal für Lieferant und Einkäuferin (KW46) | Web-App |
+| Memory | State mit `InMemorySaver` | Protokoll im ERP-Adapter (Bau bis 13.11., ADR 0015) | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
+| Human-in-the-loop | Eskalation an die Einkäuferin | Node `ask_buyer` mit `interrupt()` (Bau bis 13.11., ADR 0015) | – |
+| Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8, SW8 Folien 24 und 26) |
+| Interface | – | Terminal für Lieferant und Einkäuferin (Bau bis 13.11.) | Web-App |
 | Tracing | LangSmith EU | – | – |
-| MCP, RAG | – | MCP nur lesend als Ausbau | ADR 0009 |
+| MCP, RAG | – | – | ADR 0009; MCP nur lesend als Ausbau, gestrichen bis 23.11. (ADR 0014) |
 
 **Sicherheit gegen die OWASP Top 10 für LLM-Anwendungen (Fassung 2026)**
 
@@ -486,6 +505,19 @@ KI interagieren, auch im B2B-Verkehr, weil der Verkäufer eine natürliche Perso
 gilt, hängt davon ab, ob die Ausgabe in der EU verwendet wird (unverified). Die Schweiz hat kein KI-Gesetz; eine
 Vernehmlassungsvorlage ist bis Ende 2026 angekündigt (unverified). Der KI-Hinweis in der ersten Nachricht deckt beides
 ab.
+
+## 10 Beiträge
+
+Aus der Git-Historie und den Pull Requests; ergänzen, sobald weitere Beiträge dazukommen. Die Prüfung fragt nach dem
+individuellen Beitrag.
+
+| Person (GitHub) | Beitrag | Belege |
+| --- | --- | --- |
+| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v3`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
+| PeisProjects | Umformulierungen der Simulator-Texte: Daten in `data/paraphrases/`, Prüfung im Code, Schalter `--paraphrase`, Metrik `extraktion_korrekt`, Messung vom 26.10.2026 (ADR 0010, Nachtrag) | PR #2, gemergt am 09.11.2026 |
+
+Rückmeldungen im Team: am 11.10.2026 zur Eskalation (eingeflossen in ADR 0008), am 12.10.2026 zur Speicherung der
+Paketwahl (eingeflossen ins Protokoll, ADR 0009).
 
 ## Quellen
 
