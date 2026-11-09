@@ -58,3 +58,14 @@ Aufzeichnung.
 - `docs/gesamtsystem.md` §3.2, §6 und §9 sowie CLAUDE.md §7 folgen diesem Plan.
 - Für die Präsentation: Gedächtnis (c), MCP nur lesend und ein Entscheidungsmodell mit Konfidenz sind Ausbaustufen mit
   Begründung, keine Lücken.
+
+## Nachtrag 09.11.2026: Abgabe am selben Tag, Arbeit auf die Abgabe hin
+
+Die Abgabe ist am 23.11.2026, am Tag der Präsentation: Link auf die ausführbare Lösung (bei uns das Repository),
+Projektartefakte und die Präsentation als PDF. Ab jetzt richtet sich die Arbeit nach diesen zwei Abgaben, nicht mehr
+nach den Wochenaufträgen des Semesterprogramms. Die Reihenfolge bleibt: Bau 1, Bau 2 (danach Feature-Freeze),
+Abgabe-Paket. Neu im Abgabe-Paket: README als Einstieg für die Dozierenden, die Ergebnisse der finalen Läufe versioniert
+unter `docs/ergebnisse/` (heute liegt `results/` nicht im Git), eine Prüfung, ob das Repo veröffentlicht werden könnte,
+und die Folien als Slides-Artifact mit PDF-Export. Über den Zugriff für die Dozierenden (öffentlich oder Einladung)
+entscheidet der Nutzer am Schluss.
+

@@ -392,9 +392,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - **Live-Runden:** Die Person erhält eine Spielkarte mit ihren verdeckten Grenzen aus einem Szenario. Damit ist die
   ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen ZOPA).
 
-**Abgabe (Anhang A):** Link auf die ausführbare Lösung (Repository mit Anleitung; ohne Cloud-Key läuft die
-Regel-Referenz offline), Projektartefakte (dieses Dokument, ADRs, BPMN, Eval-Ergebnisse) und die Präsentation als PDF.
-Abgabetermin und die genaue Form der «ausführbaren Lösung» sind mit den Dozierenden zu klären.
+**Abgabe am 23.11.2026 (Anhang A):** Link auf die ausführbare Lösung (dieses Repository mit Anleitung; ohne
+Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses
+Dokument, ADRs, BPMN, Eval-Ergebnisse unter `docs/ergebnisse/`) und die Präsentation als PDF. Der Zugriff für die
+Dozierenden wird vor der Abgabe eingerichtet.
 
 **Ausbaumöglichkeiten**
 - nur lesender MCP-Server über dem ERP-Adapter, damit die Einkäuferin Protokolle aus ihrem Chat-Client abfragt

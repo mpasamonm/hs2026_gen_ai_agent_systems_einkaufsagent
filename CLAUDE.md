@@ -34,8 +34,10 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   Evaluation, Erkenntnisse und Limitationen, möglichst mit Demo. Alle Mitglieder nehmen teil; die Dozierenden
   können individuelle Rückfragen stellen, auch zum eigenen Beitrag. Die Präsentation gehört zur Gruppenarbeit
   (erfüllt/nicht erfüllt) und gibt keine Punkte.
-- Abgabe: Link auf ausführbare Lösung, Projektartefakte, Präsentation als PDF. Abgabetermin in den
-  Unterlagen nicht genannt (bei den Dozierenden klären).
+- **Abgabe am 23.11.2026** (Termin vom Nutzer bestätigt, 09.11.2026): Link auf die ausführbare Lösung (bei uns das
+  Repository), die Projektartefakte zur Nachvollziehbarkeit und die Abschlusspräsentation, vorzugsweise als PDF.
+  Laut Projektbeschrieb kann die Lösung z.B. ein Code-Repository, ein ausführbares Notebook, eine LangGraph-Anwendung
+  oder ein Prototyp sein. Das Repo ist privat; wie die Dozierenden Zugriff bekommen, entscheidet der Nutzer am Schluss.
 - Pro-Code mit LangGraph; No- und Low-Code-Tools (n8n, Voiceflow) sind nicht erlaubt.
 - Dozent am 19.10.2026: MCP und RAG sind nicht Pflicht; die Technik muss zum Use-Case passen, bevorzugt werden eine
   sinnvolle Technologiewahl und genügende Tiefe. Der Semesterplan ist Input, keine Pflichtliste.
@@ -187,20 +189,26 @@ Erledigt:
   - ADR 0014 (Umfang bis 23.11.) und ADR 0015 (Memory und Human-in-the-loop) angenommen; `docs/gesamtsystem.md` mit
     §10 Beiträge.
 
-## 7. Nächste Schritte in dieser Reihenfolge
+## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
-Plan und Streichungen in ADR 0014, Memory und Human-in-the-loop in ADR 0015.
+Ab dem 09.11.2026 arbeiten wir direkt auf die Abgabe hin, nicht mehr in Wochenschritten nach dem Semesterprogramm.
+Plan und Streichungen in ADR 0014 (Nachtrag), Memory und Human-in-the-loop in ADR 0015. Jede Session endet mit einem
+Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-ABGABE-1.md`.
 
-1. **Bau 1 bis 13.11.** (Prompt `kontext/UEBERGABE-PROMPT-KW46-bau.md`): ERP-Adapter über SQLite mit Protokoll und
+1. **Bau 1: ERP-Adapter über SQLite mit Protokoll und
    Paketwahl (`record_outcome`, Metrik `korrekt_gebucht`); Eskalation über `escalate` (Vorlage im Code) und `ask_buyer`
    (nur `interrupt()`), Runner mit `Command(resume=…)`; `HumanSupplier` im Terminal mit farbigen LLM- und Code-Schritten
    (nur b); BPMN `_v4`.
-2. **Bau 2 bis 15.11., danach Feature-Freeze:** Testset 12–15 Szenarien mit Angriffen (ADR 0010; ohne die Wortfelder
+2. **Bau 2, danach Feature-Freeze (spätestens 15.11.):** Testset 12–15 Szenarien mit Angriffen (ADR 0010; ohne die Wortfelder
    der Parse-Prompt-Beispiele), (a) und (b) mit Luna; granite-Zeile und Bias nur, wenn Zeit bleibt.
-3. **16.–22.11.:** SW9 einordnen; voller Eval-Lauf, Ergebnisfolie, 5–10 Live-Runden mit Spielkarte, Folien als PDF,
-   Demo-Probe mit Aufzeichnung.
-4. **Offen beim Nutzer:** Stichprobe `data/paraphrases/stichprobe.md` von Hand lesen (Kippregel ADR 0010); mit den
-   Dozierenden klären: Abgabetermin, Form der «ausführbaren Lösung», schriftliche Dokumentation verlangt?
+3. **Abgabe-Paket:** README als Einstieg für die Dozierenden (Zweck, Start offline und mit Key, Demo-Befehl, wo was
+   liegt); Endergebnisse (`summary.md` der finalen Läufe) versioniert unter `docs/ergebnisse/`; Prüfung, ob das Repo
+   veröffentlicht werden könnte (keine Secrets, keine Kursunterlagen in der Historie); Folien als Slides-Artifact
+   (10 Min. inkl. Fragen, Aufbau nach `docs/gesamtsystem.md`), Export als PDF; Demo-Aufzeichnung als Fallback.
+4. **Beim Nutzer:** SW9 einordnen lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
+   Zugriff für die Dozierenden (öffentlich oder Einladung) erst am Schluss.
+5. **Offen beim Nutzer:** Stichprobe `data/paraphrases/stichprobe.md` von Hand lesen (Kippregel ADR 0010). Eine
+   schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
    Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
 
 ## 8. Offene Widersprüche und Hinweise
