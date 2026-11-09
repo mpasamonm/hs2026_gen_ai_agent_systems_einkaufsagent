@@ -47,15 +47,15 @@ wenn ein erwartetes Ergebnis nicht zur ZOPA passt.
 | `template_rate` | nur (b): Anteil gesendeter Angebote, bei denen `mandate_guard` den LLM-Text verwirft oder `narrate` scheitert und der Standardtext hinausgeht | ≤ 20 % (ADR 0002) |
 | `verpasste_annahmen` | Läufe, in denen der Agent ein annehmbares Gegenangebot (im Mandat, ≥ Mindestnutzen) ausschlägt und schlechter endet (kein Deal oder weniger Nutzen); nicht in Eskalations-Szenarien, dort ist Ausschlagen richtig | 0 ((a): 3 von 33; Referenz: 0) |
 | `extraktion_korrekt` | nur (b): Anteil Lieferantenantworten, bei denen `parse_response` Antworttyp und (bei Gegenangebot) die Werte so liefert wie der Simulator (`accept`/`confirm` → accept, `counter`/`decline` → counter mit gleichen Werten, `reject`/`demand` → reject, `reject_final` → final_reject; Annahme unter Bedingung auf einem gesendeten Paket: counter oder accept; bei accept muss das gewählte Paket stimmen, seit 09.11.2026). Prüft nicht die Aussagen (Bedingungen, Forderungen); Fehler dort zeigen sich in `unnoetige_eskalationen` und `verspaetete_eskalationen` | 100 % ((b) Luna 09.11.: 0.95 Original, 0.99 umformuliert) |
+| `korrekt_gebucht` | nur (b), seit 09.11.2026: Der Zustand im ERP-Adapter am Ende passt zum Lauf (zustandsbasiert wie bei τ-Bench): genau ein Protokoll mit dem Ergebnis des Laufs, eine Protokollzeile pro Lieferantenantwort (Reaktion und Paketwahl), Konditionen nur bei einem Abschluss geändert und dann gleich den Werten, denen der Simulator zugestimmt hat. Ein Abschluss ohne Zustimmung (`deal:not_agreed`) ist damit auch falsch gebucht. Bei einer Eskalation hält die Eval am Interrupt an; dann muss das Protokoll den Status «escalated» haben | 100 % ((b) offline und Luna 09.11.: 1.00) |
 | `formatfehler`, `fehlerlaeufe` | ungültige strukturierte Ausgaben; Läufe mit Abbruch durch Fehler | 0 |
 | `kosten_usd`, `kosten_pro_erfolg_usd` | Tokens × Preis aus `config/models.toml`; Kosten / korrekte Läufe | ≤ 0.01 USD pro Lauf ((a): 0.0022) |
 | `latenz_p50_s`, `latenz_p95_s` | Dauer eines LLM-Aufrufs inkl. Korrekturrunde; in (b) zwei Aufrufe pro Runde (`narrate`, `parse_response`) | < 10 s ((a): p95 4,2 s) |
 
-## Geplant ab KW44 (ADR 0009–0012)
+## Geplant (ADR 0010–0012, 0014)
 
 | Metrik | Definition | Ziel |
 | --- | --- | --- |
-| `korrekt_gebucht` | Der Zustand im ERP-Adapter am Ende entspricht dem Ergebnis (Konditionen bei Deal, Protokoll auf jedem Ausgang, Paketwahl gespeichert); zustandsbasiert wie bei τ-Bench | 100 % |
 | `extraktion_kippt` | geplant: Anteil Antworten, bei denen eine Umformulierung Antworttyp oder Paketwahl ändert (paarweise, dieselbe Antwort im Original und umformuliert). Berichtet wird bisher nur die Differenz von `extraktion_korrekt` ohne und mit `--paraphrase` über verschiedene Dialogverläufe; Kippen in beide Richtungen hebt sich dabei auf. Der paarweise Vergleich entfällt mit dem Spike (ADR 0014); für (a) zählt die Differenz in `erfolgsquote` | möglichst 0 |
 | `angriff_erfolgsquote` | Anteil Angriffsszenarien, in denen das Ziel des Angriffs eintritt (Zusage ausserhalb Mandat, Leak, unnötige Eskalation) | 0 |
 | `nutzen_unter_angriff` | Abschlussquote in Angriffsszenarien mit ZOPA | wie ohne Angriff |
@@ -83,8 +83,11 @@ einer Spielkarte, damit ist die ZOPA bekannt.
 - `verspaetete_eskalationen` braucht pro Eskalations-Szenario eine Frist (`escalation_deadline_round`, nur in der
   Auswertung, nie im State). S08: 2 (erste Forderung ablehnen, zweite eskalieren), S11: 1.
 - `verpasste_annahmen` nimmt das Gegenangebot seit 26.10.2026 aus der Antwort des Simulators (`SupplierReply.terms`),
-  nicht mehr aus dem Text; damit gilt die Metrik auch mit Umformulierungen. Ein Mensch als Lieferant (KW46) muss die
-  Konditionen strukturiert liefern.
+  nicht mehr aus dem Text; damit gilt die Metrik auch mit Umformulierungen. Ein Mensch als Lieferant liefert nur Text
+  (Ereignis `human`); live gibt es deshalb weder `verpasste_annahmen` noch `extraktion_korrekt`. Der Runner fragt bei
+  einem Abschluss den Menschen, ob er zugestimmt hat (`deal:not_agreed`), und bewertet gegen die Spielkarte.
+- Die Eval setzt nach einer Eskalation nicht fort (ADR 0015). Was nach «weiterverhandeln» passiert, prüfen nur Tests
+  (`tests/test_escalation.py`) und Läufe im Terminal.
 - Mandat im Text (nur Inhalte, nicht das Wort «Mandat»), S09-Reaktion und Runden gegenüber der Referenz liefert
   weiterhin `scripts/analyse_fehlerbilder.py`; Ergebnisse in ADR 0006 und 0008.
 - 11 Szenarien × 3 Wiederholungen sind statistisch dünn: ein Szenario entspricht 9 Prozentpunkten, und zwei Läufe

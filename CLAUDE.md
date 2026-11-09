@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026. Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Bau 1). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -49,7 +49,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | 43 | 19.10. | MCP-Server anbinden | kein MCP (ADR 0009); Variante (b) mit Luna, `parse_response` austauschbar (erledigt 19.10., ADR 0013) |
 | 44 | 26.10. | RAG einbauen | kein RAG (ADR 0009, SW7 Folie 44); Umformulierungen (erledigt 26.10., PR #2, gemergt 09.11.) |
 | 45 | – | Blockwoche | nichts gebaut; Testset mit Angriffen verschoben auf Bau 2 (ADR 0014) |
-| 46 | 09.11. | Memory festlegen | festgelegt in ADR 0015 (09.11.); Bau 1 bis 13.11.: ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`; Bau 2 bis 15.11.: Testset mit Angriffen |
+| 46 | 09.11. | Memory festlegen | festgelegt in ADR 0015 und gebaut (Bau 1 erledigt 09.11.: ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`); Bau 2 bis 15.11.: Testset mit Angriffen |
 | 47 | 16.11. | Safeguarding (minimal prompt-basiert), Evaluation | SW9 einordnen («Guardrail Agent», SW8 Folie 31); voller Eval-Lauf, Ergebnisfolie, Demo (ADR 0012) |
 | 48 | 23.11. | Abschlusspräsentation | Demo |
 
@@ -77,16 +77,20 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026 |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026 |
-| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen 09.11.2026 |
+| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung) |
 
 ## 5. Architektur heute (Varianten a und b)
 
 - Graph `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
   `negotiate` ist ein LLM-Node (`LLMPolicy`, strukturierte Ausgabe `AgentTurn`); er bündelt die
   BPMN-Schritte Strategie, Pakete, Formulieren, Extrahieren und Bewerten.
-- Graph `src/einkaufsagent/graph_b.py` (Variante b, `_v3`): `load_context → offer_engine → narrate → mandate_guard
-  (→ template_message) → send_and_wait → parse_response → assess_response →` weiter / Gegenangebot annehmen /
-  `notify_supplier`. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
+- Graph `src/einkaufsagent/graph_b.py` (Variante b, `_v4`): `load_context (ERP) → offer_engine → narrate → mandate_guard
+  (→ template_message) → send_and_wait → parse_response → assess_response →` neue Runde / Gegenangebot annehmen /
+  `escalate → ask_buyer (interrupt)` / `record_outcome → notify_supplier`. Nach `ask_buyer`: «weiterverhandeln» →
+  `offer_engine` (dieselbe Grösse wird nicht erneut eskaliert), «abbrechen» → `record_outcome`. ERP-Adapter in `erp.py`
+  (SQLite, eine Verbindung pro Lauf; Eval `:memory:`, Demo `--erp PFAD`); Metrik `korrekt_gebucht` (nur b). Runner im
+  Terminal in `live.py`: `--live` (Simulator, Einkäuferin entscheidet), `--human` (`HumanSupplier`, sieht nur Text,
+  Ereignis `human`). Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
   (`LLMParser`, `RuleParser`; Protokoll `Parser` mit optionaler `confidence`), Narrator in `narrate.py`. `narrate` sieht
   nur Pakete und Runde; `parse_response` sieht nur Antwort und Gesendetes; keiner sieht das Mandat. Einigung liest
   `parse_response` aus dem Text; die Eval prüft sie gegen den Simulator (`deal:not_agreed`). Offline:
@@ -104,21 +108,22 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Eval: `eval.py` mit `--variant a|b` und `--paraphrase`, Metriken in `docs/eval-metriken.md` (neu: `extraktion_korrekt`,
   nur b). Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
-- Prozess: gültig ist `einkaufsagent-prozess_v3.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
-  LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v3.py`; jede Änderung als neue Datei
-  `_v4`, danach validieren und rendern.
+- Prozess: gültig ist `einkaufsagent-prozess_v4.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
+  LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v4.py`; jede Änderung als neue Datei
+  `_v5`, danach validieren und rendern.
 
 **Invarianten – nie brechen**
-- Verdeckte Lieferantenparameter (`hidden` im Szenario) gelangen nie in den Graph-State, einen Prompt oder
-  LangSmith-Metadaten. Der Simulator kommt per Closure in den Graphen; der Canary-Test in
-  `tests/test_graph_and_isolation.py` muss grün bleiben.
+- Verdeckte Lieferantenparameter (`hidden` im Szenario) gelangen nie in den Graph-State, einen Prompt,
+  LangSmith-Metadaten oder das ERP. Simulator, Mensch und ERP kommen per Closure in den Graphen; die Canary-Tests in
+  `tests/test_graph_and_isolation.py` und `tests/test_variant_b.py` (auch DB-Dump) müssen grün bleiben.
+- In `ask_buyer` steht nichts vor `interrupt()`; Nebenwirkungen (Protokoll, Zwischenbescheid) gehören in `escalate`.
 - Rundenlogik wie BPMN v2: `round` zählt Angebotsrunden. Ein Gegenangebot ist auch nach der letzten Runde
   annehmbar. «accept» gilt nur für das letzte Gegenangebot; eine abgelehnte Annahme zählt als Runde.
 - Ab Variante (b) entscheidet nur Code über Zahlen und Mandat; das LLM extrahiert und formuliert.
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 09.11.2026 (nach der Bestandsaufnahme)
+## 6. Stand am 09.11.2026 (nach Bau 1)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -188,6 +193,16 @@ Erledigt:
     (Nachtrag); Auftrag SW8 Folie 17 (InMemorySaver) war schon erfüllt; keine Fristen.
   - ADR 0014 (Umfang bis 23.11.) und ADR 0015 (Memory und Human-in-the-loop) angenommen; `docs/gesamtsystem.md` mit
     §10 Beiträge.
+- Session 09.11.2026, Bau 1 (ADR 0015, Nachtrag):
+  - ERP-Adapter mit Protokoll und Buchung (`erp.py`, `record_outcome`, Metrik `korrekt_gebucht`), Eskalation mit
+    `escalate` und `ask_buyer` (`interrupt()`, `Command(resume=…)`), Mensch als Lieferant und Einkäuferin im Terminal
+    (`live.py`, `ea-run --live/--human/--erp`), BPMN `_v4` (moddle, bpmnlint, bpmn-js je 0; Generator byte-gleich).
+    70 Tests grün, ruff sauber.
+  - Messung: (b) offline und umformuliert bis auf den Text identisch zu vorher, (a) unverändert; Luna × 3: 1.00, pass^3
+    1.00, Spielraum 0.715, `korrekt_gebucht` 1.00; umformuliert 1.00, S06 einmal unnötig eskaliert. Live mit Luna und
+    Mensch geprüft (S04).
+  - Bau 1 ist vor dem 12.11. fertig: Die Kippregel für Gedächtnis (c) in ADR 0014 greift formal. Entscheid beim Nutzer
+    (Empfehlung: zuerst das Testset; (c) nur, wenn danach vor dem 15.11. Zeit bleibt).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -195,10 +210,8 @@ Ab dem 09.11.2026 arbeiten wir direkt auf die Abgabe hin, nicht mehr in Wochensc
 Plan und Streichungen in ADR 0014 (Nachtrag), Memory und Human-in-the-loop in ADR 0015. Jede Session endet mit einem
 Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-ABGABE-1.md`.
 
-1. **Bau 1: ERP-Adapter über SQLite mit Protokoll und
-   Paketwahl (`record_outcome`, Metrik `korrekt_gebucht`); Eskalation über `escalate` (Vorlage im Code) und `ask_buyer`
-   (nur `interrupt()`), Runner mit `Command(resume=…)`; `HumanSupplier` im Terminal mit farbigen LLM- und Code-Schritten
-   (nur b); BPMN `_v4`.
+1. **Bau 1 erledigt 09.11.:** ERP-Adapter mit Protokoll und `korrekt_gebucht`, Eskalation mit `interrupt()`, Mensch als
+   Lieferant im Terminal, BPMN `_v4` (ADR 0015, Nachtrag). Einstieg für Etappe 2: `kontext/UEBERGABE-PROMPT-ABGABE-2.md`.
 2. **Bau 2, danach Feature-Freeze (spätestens 15.11.):** Testset 12–15 Szenarien mit Angriffen (ADR 0010; ohne die Wortfelder
    der Parse-Prompt-Beispiele), (a) und (b) mit Luna; granite-Zeile und Bias nur, wenn Zeit bleibt.
 3. **Abgabe-Paket:** README als Einstieg für die Dozierenden (Zweck, Start offline und mit Key, Demo-Befehl, wo was
@@ -245,8 +258,8 @@ Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-
 - Die Präzisierungen im Parse-Prompt (ADR 0013) sind am Dev-Set entstanden; Prompt-Beispiele dürfen den Wortlaut der
   Szenarien nicht übernehmen, und das Testset muss anders formuliert sein (ADR 0010).
 - `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
-- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v3.bpmn` im Root
-  (byte-gleich, gültig seit 19.10.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v4`.
+- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v4.bpmn` im Root
+  (byte-gleich, gültig seit 09.11.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v5`.
   Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002). Im Team nur Dateinamen verwenden.
 - Rendern braucht unter WSL `libasound2t64` (ohne sudo: `apt-get download`, `dpkg -x`, `LD_LIBRARY_PATH`), siehe
   `docs/process/README.md`.
@@ -255,6 +268,9 @@ Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-
 - SW8: ab PDF-Seite 29 ist die Foliennummer um 1 höher (Folie 29 fehlt). SW8 Folie 19 sagt, nach `interrupt()` laufe
   der Graph «an derselben Stelle weiter»; laut LangGraph-Doku startet der ganze Node neu. Deshalb steht `interrupt()`
   allein im Node `ask_buyer` (ADR 0015). Einordnung SW7/SW8 lokal in `kontext/sw7-sw8-folien-extrakt.md`.
+- Eskalationen warten nur, solange der Prozess läuft (`InMemorySaver`). Die Eval setzt nach `ask_buyer` nicht fort;
+  «weiterverhandeln» prüfen nur `tests/test_escalation.py` und Läufe im Terminal. Live gibt es keine Wahrheit
+  (Ereignis `human`); `extraktion_korrekt` und `verpasste_annahmen` entfallen dort.
 - `langgraph-checkpoint-sqlite` ist nicht installiert; 3.1.3 verlangt `langgraph-checkpoint` ≥ 4.3.1 (installiert 4.2.0),
   3.1.1 passt ohne Upgrade (nur falls `SqliteSaver` nötig wird, ADR 0015).
 - Umformulierungen: Einige Varianten verwenden «entgegenkommen» bzw. «Listenpreise» wie die Beispiele im Parse-Prompt
@@ -298,9 +314,11 @@ uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Sim
 uv run ea-eval --variant b --policy rule --paraphrase                       # offline: Regex-Parser bricht ein (0.27)
 uv run python scripts/sample_paraphrases.py       # Code-Prüfung; Stichprobe nur mit --neu neu ziehen (überschreibt Befunde)
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
+uv run ea-run --scenario S11 --variant b --policy rule --live                # Eskalation, Einkäuferin im Terminal (offline)
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo mit Mensch
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
-cd docs/process && npm install && python3 gen_bpmn_v3.py ../../einkaufsagent-prozess_v3.bpmn \
-  && node validate.mjs ../../einkaufsagent-prozess_v3.bpmn \
+cd docs/process && npm install && python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn \
+  && node validate.mjs ../../einkaufsagent-prozess_v4.bpmn \
   && uv run --no-project --with playwright==1.63.0 python render.py \
-     ../../einkaufsagent-prozess_v3.bpmn ../../einkaufsagent-prozess_v3.png
+     ../../einkaufsagent-prozess_v4.bpmn ../../einkaufsagent-prozess_v4.png
 ```

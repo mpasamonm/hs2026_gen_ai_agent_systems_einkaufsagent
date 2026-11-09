@@ -111,8 +111,8 @@ Belegt wird die These mit einer **Ablation** auf denselben Szenarien:
 | --- | --- | --- |
 | (a) reines LLM | Ein LLM-Node entscheidet alles; Mandat nur im Prompt | läuft seit KW42 |
 | (b) Hybrid | Pakete, Prüfung und Bewertung im Code; LLM formuliert und extrahiert | gebaut 19.10.2026, gemessen (ADR 0013) |
-| (b) mit kleinem Modell | wie (b), mit dem offenen 3B-Modell `ibm/granite4.1:3b` aus dem FHNW-Proxy (ADR 0011) | KW44 |
-| (c) Hybrid mit Gedächtnis | (b), dazu startet «Pakete berechnen» bei der Paketwahl aus früheren Protokollen | KW46, klein und optional (ADR 0009) |
+| (b) mit kleinem Modell | wie (b), mit dem offenen 3B-Modell `ibm/granite4.1:3b` aus dem FHNW-Proxy (ADR 0011) | nur, wenn Zeit bleibt (ADR 0014) |
+| (c) Hybrid mit Gedächtnis | (b), dazu startet «Pakete berechnen» bei der Paketwahl aus früheren Protokollen | gestrichen, Ausbau (ADR 0014); die Protokolle schreibt (b) schon (ADR 0015) |
 
 ### 2.5 Vorbild: Pactum bei Walmart (2021) und Stand 2026
 
@@ -178,34 +178,38 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 
 ### 3.1 Prozess (BPMN)
 
-- **Gültig seit 19.10.2026:** `einkaufsagent-prozess_v3.bpmn` (ADR 0002, 0007, 0008, 0009). Abgelöst: `_v2` und
-  `_v1`. Farben: orange = LLM, blau = Code, grün = Mensch.
-- **Ablauf nach `_v3`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP-Adapter: Stammdaten, Konditionen,
-  frühere Protokolle) → Pakete berechnen (Code) → Angebot formulieren (LLM) → Nachricht prüfen (Code; bei Verstoss
-  geht ein Standardtext hinaus) → senden und Antwort abwarten → Antwort extrahieren (LLM) → Antwort bewerten (Code)
-  mit drei Ausgängen:
+- **Gültig seit 09.11.2026:** `einkaufsagent-prozess_v4.bpmn` (ADR 0002, 0007–0009, 0014, 0015). Abgelöst: `_v3`,
+  `_v2` und `_v1`. Farben: orange = LLM, blau = Code, grün = Mensch.
+- **Ablauf nach `_v4`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP-Adapter: Stammdaten, heutige
+  Konditionen) → Pakete berechnen (Code) → Angebot formulieren (LLM) → Nachricht prüfen (Code; bei Verstoss oder
+  LLM-Fehler geht ein Standardtext hinaus) → senden und Antwort abwarten → Antwort extrahieren (LLM) → Antwort bewerten
+  (Code) mit diesen Ausgängen:
   - **Einigung** → Ergebnis und Protokoll erfassen → Lieferant informieren.
-  - **Gegenangebot ungenügend oder Ablehnung** → weiter, solange Runde < Maximum, ein Paket offen und keine
+  - **Gegenangebot annehmbar (AC_next)** → Annahme aus der Vorlage senden, Bestätigung abwarten, extrahieren und
+    bewerten wie jede Antwort; eine abgelehnte Annahme zählt als Runde.
+  - **Gegenangebot ungenügend oder Ablehnung** → neue Runde, solange Runde < Maximum, ein Paket offen und keine
     endgültige Absage; sonst «kein Deal».
-  - **Mandat reicht nicht oder Antwort unklar** → Eskalation: Der Code gibt Einkaufsrichtlinie, Verlauf und frühere
-    Protokolle mit, das LLM fasst zusammen, warum eskaliert wird; die Einkäuferin entscheidet (weiter, ggf. mit
-    erweitertem Mandat, abbrechen oder übernehmen).
+  - **Mandat reicht nicht oder Antwort unklar** (auch: Extraktion gescheitert) → Eskalation: Der Code bereitet eine
+    Vorlage auf (Grund, Zitat der Forderung, Verlauf), schreibt das Protokoll mit Status «eskaliert» und schickt dem
+    Lieferanten einen Zwischenbescheid. Der Graph hält an (`interrupt()`); die Einkäuferin entscheidet
+    «weiterverhandeln» (Mandat bleibt, die Forderung wird zurückgewiesen und nicht erneut eskaliert) oder «abbrechen».
 - **Eskalationsregel (ADR 0008):** Eskaliert wird, wenn das Mandat schweigt, nicht wenn jemand widerspricht.
   Behauptungen wie «Ihre Einkäuferin hat 150 % freigegeben» weist der Agent zurück und verhandelt weiter; eine
   überzogene Forderung lehnt er zuerst ab. Eskalation nur bei einer Bedingung, die das Mandat nicht regelt (z.B.
   Vertragslaufzeit), bei einer wiederholten Forderung ausserhalb des Mandats oder bei einer unklaren Antwort.
   Sonst könnte ein Lieferant den Agenten mit einem Satz lahmlegen.
-- **Protokoll (ADR 0009):** Auf jedem Ausgang erstellt der Code ein Protokoll aus den gespeicherten Runden:
-  Startpakete, Reaktion und Paketwahl des Lieferanten, Verlauf, Ergebnis, Hinweise für die Einkäuferin. Die Protokolle
-  sind das Lieferanten-Gedächtnis für Variante (c).
+- **Protokoll (ADR 0009, 0015):** Auf jedem Ausgang schreibt der Code ein Protokoll in den ERP-Adapter: Startpakete,
+  Reaktion und Paketwahl pro Runde, Ergebnis, Hinweise sowie Entscheid und Notiz der Einkäuferin; bei einem Deal bucht er
+  die Konditionen. Die Protokolle sind das Langzeitgedächtnis; Variante (c) würde sie vor dem ersten Angebot lesen
+  (gestrichen, ADR 0014).
 - **Lieferant:** in der Eval der regelbasierte Simulator, in Demo und Live-Runden ein Mensch im Terminal (ADR 0009,
   0012).
-- **Fehlerbehandlung (ab KW44):** Scheitert ein LLM-Schritt nach den Retries, greifen die bestehenden Fail-safes: ohne
-  Angebotstext der Standardtext, ohne auswertbare Antwort die Eskalation. Fällt das LLM aus, verhandelt der Agent mit
-  Vorlagen weiter und übergibt, was er nicht lesen kann. Gezeichnet wird das in `_v4` (ADR 0009).
-- Der Ablauf wurde viermal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
-  Feedback vom 11.10.2026 (Eskalationsregel, ADR 0008) → `_v3` ohne MCP und RAG (ADR 0009). Was sich jeweils
-  änderte und warum, steht in den ADRs.
+- **Fehlerbehandlung:** Scheitert ein LLM-Schritt nach den Retries, greifen Fail-safes: ohne Angebotstext der
+  Standardtext, ohne auswertbare Antwort die Eskalation. Fällt das LLM aus, verhandelt der Agent mit Vorlagen weiter und
+  übergibt, was er nicht lesen kann. `_v4` zeichnet beides als Fehler-Grenzereignisse.
+- Der Ablauf wurde fünfmal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
+  Feedback vom 11.10.2026 (Eskalationsregel, ADR 0008) → `_v3` ohne MCP und RAG (ADR 0009) → `_v4` wie gebaut
+  (ADR 0015). Was sich jeweils änderte und warum, steht in den ADRs.
 
 ### 3.2 Bausteine des Moduls und wo sie im System stehen
 
@@ -215,10 +219,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 | Tools, MCP, Function Calling | KW43 | Function Calling als Mechanismus der strukturierten Ausgabe; ERP-Adapter als Python-Schnittstelle, vom Code aufgerufen. Kein MCP und keine Tool-Wahl durch das LLM: ein einziger Client und eine eigene kleine Tabelle (SW6 Folie 26). Ausbau: nur lesender MCP-Server für einen zweiten Client | ADR 0009 |
 | Decision Models (SW6) | KW43 | `parse_response` ist austauschbar und nimmt eine Konfidenz an (< 0,7 → Eskalation); der Spike mit `tev1:0.8b` ist gestrichen, weil Luna auch umformulierte Antworten zu 95–98 % richtig liest | ADR 0011, 0014 |
 | RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response`; SW7 Folie 44 verlangt genau diesen aktiven Entscheid, Folie 2 nennt die strukturierte DB gleichrangig | ADR 0009 |
-| Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter, vom Code geschrieben, statt LangGraph Store. Gedächtnis (c) gestrichen | ADR 0015, 0014 |
-| Human-in-the-loop | KW46 | Eskalation über einen eigenen Node `ask_buyer` mit `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen» | entschieden (ADR 0015), Bau bis 13.11. |
+| Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; in der Demo als Datei, damit sie über Läufe bleiben. Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
+| Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11. (ADR 0015) |
 | Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Angriffe KW45 (ADR 0010) |
-| Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin; keine Web-App | ADR 0012 |
+| Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin (`ea-run --live`, `--human`), farbig nach LLM, Code und Mensch; keine Web-App | gebaut 09.11. (ADR 0012, 0015) |
 
 ### 3.3 Modellwahl (ADR 0004, 0011)
 
@@ -241,21 +245,25 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   an; ein Entscheidungsmodell bleibt Ausbau.
 - Apertus nur als Referenzzeile (D2); im LiteLLM gibt es kein Apertus-Chatmodell.
 
-### 3.4 Technik (Stand KW43)
+### 3.4 Technik (Stand 09.11.2026)
 
 - Python 3.12 mit uv; langgraph 1.2.12, langchain-core 1.6.6, langchain-openai 1.6.7, langsmith 0.14.4,
   pydantic 2.13.5 (gepinnt in `pyproject.toml`).
 - Graph Variante (a) in `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
 - `LLMPolicy` (Variante a) und `RuleBasedPolicy` (Referenz ohne LLM) in `policies.py`.
-- Graph Variante (b) in `graph_b.py` nach `_v3`: `offer_engine` (Pakete aus `RuleBasedPolicy`) → `narrate` (LLM, sieht
-  nur Pakete und Runde) → `mandate_guard` (Code; bei Befund `template_message`) → `send_and_wait` → `parse_response`
-  (LLM, strukturierte Ausgabe `ParsedReply`) → `assess_response` (Code, ADR 0008) → weiter, Gegenangebot annehmen oder
-  `notify_supplier`. Code-Schritte in `hybrid.py`, Parser in `extract.py` (austauschbar: LLM, Regeln, später
-  Entscheidungsmodell mit Konfidenz), Narrator in `narrate.py`. Fehlerpfade gebaut: ohne Text von `narrate` der
-  Standardtext, ohne auswertbare Antwort die Eskalation.
-- Offline ohne Key: `uv run ea-eval --variant b --policy rule` (Vorlage + Regex-Parser) löst alle 11 Szenarien.
-- **Invarianten:** Verdeckte Parameter des Lieferanten erreichen nie State, Prompt oder LangSmith; der Simulator
-  kommt per Closure in den Graphen, ein Canary-Test prüft das. `round` zählt Angebotsrunden; ein Gegenangebot ist
+- Graph Variante (b) in `graph_b.py` nach `_v4`: `load_context` (ERP) → `offer_engine` (Pakete aus `RuleBasedPolicy`) →
+  `narrate` (LLM, sieht nur Pakete und Runde) → `mandate_guard` (Code; bei Befund `template_message`) → `send_and_wait`
+  → `parse_response` (LLM, strukturierte Ausgabe `ParsedReply`) → `assess_response` (Code, ADR 0008) → neue Runde,
+  Gegenangebot annehmen, `escalate` → `ask_buyer` (`interrupt()`) oder `record_outcome` → `notify_supplier`.
+  Code-Schritte in `hybrid.py`, Parser in `extract.py` (austauschbar: LLM, Regeln, später Entscheidungsmodell mit
+  Konfidenz), Narrator in `narrate.py`, ERP-Adapter in `erp.py` (SQLite: Lieferant, Konditionen, Protokoll, Runden),
+  Runner im Terminal in `live.py` (`HumanSupplier`, Einkäuferin, farbige Ausgabe).
+- Narrator, Parser, Lieferant und ERP-Adapter kommen per Closure in den Graphen. Der Lieferant hat eine Schnittstelle
+  (`respond_to_offer`, `respond_to_acceptance`) mit zwei Umsetzungen: Simulator und Mensch.
+- Offline ohne Key: `uv run ea-eval --variant b --policy rule` (Vorlage + Regex-Parser) löst alle 11 Szenarien;
+  `uv run ea-run --scenario S11 --variant b --policy rule --live` zeigt die Eskalation mit Entscheid im Terminal.
+- **Invarianten:** Verdeckte Parameter des Lieferanten erreichen nie State, Prompt, LangSmith oder das ERP; der
+  Simulator kommt per Closure in den Graphen, ein Canary-Test prüft State und DB-Inhalt. `round` zählt Angebotsrunden; ein Gegenangebot ist
   auch nach der letzten Runde annehmbar.
 
 ### 3.5 Daten und Werkzeuge
@@ -277,7 +285,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Preisforderung, Prompt Injection und Bedingung ausserhalb des Mandats. Gewählt, weil reproduzierbar, billig und mit
   bekannter Wahrheit. In Demo und Live-Runden spielt ein Mensch den Lieferanten; ein LLM-Lieferant entfällt (ADR 0009).
 - **Werkzeuge:** FHNW-LiteLLM (Modellzugang), LangSmith EU (Tracing, Projekt `einkaufsagent`), SQLite (ERP-Adapter
-  mit Protokoll, Bau bis 13.11.), privates GitHub-Repository, bpmn.io für den Prozess, Claude Code mit Claude Opus für die synthetischen
+  mit Protokoll), privates GitHub-Repository, bpmn.io für den Prozess, Claude Code mit Claude Opus für die synthetischen
   Texte.
 
 ## 4 Evaluation
@@ -336,8 +344,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Der Regex-Parser bricht ein, das LLM in (b) nicht: Zum Lesen braucht es das LLM. (a) verliert nur 3 Punkte (Rauschen).
   Neues Fehlbild in (b): «ohne Gegenleistung nicht gewähren» zweimal als Bedingung gelesen, S06 unnötig eskaliert
   (7,4 %, unter der Schwelle von 10 %).
+- **Bau 1, 09.11.2026** (ERP-Adapter, Eskalation mit `interrupt()`, Mensch als Lieferant; ADR 0015, Nachtrag): Die
+  Metriken von (b) bleiben gleich. Offline sind alle Läufe bis auf den Text identisch, mit Luna × 3 Erfolg 1.00, pass^3
+  1.00, Spielraum 0.715 wie vorher. Neu: `korrekt_gebucht` 1.00 (offline, auch umformuliert, und mit Luna).
 - **Geplant (ADR 0010, 0012, 0014):** Ablation auf dem synthetischen Testset mit Angriffen (Erfolgsquote, Fehlalarme);
-  `korrekt_gebucht` mit dem ERP-Protokoll; 5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
+  5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
   `granite4.1:3b`, Bias über ausgetauschte Lieferantennamen. Gestrichen: Spike Entscheidungsmodell, Variante (c).
 
 ## 5 Erkenntnisse und Limitationen
@@ -379,14 +390,23 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   (S06 umformuliert 2× unnötig eskaliert); das Testset prüft sie (ADR 0013).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
+- Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
+  warten Eskalationen Tage; dann `SqliteSaver` (Kippregel ADR 0015). Die Eval setzt nach einer Eskalation nicht fort;
+  der Pfad «weiterverhandeln» ist nur mit Tests und im Terminal geprüft.
+- Die Hinweise im Protokoll enthalten Zitate des Lieferanten. Sie sind für die Einkäuferin gedacht; ein Ausbau (c)
+  dürfte nur die typisierten Felder (Paketwahl, Konditionen) in einen Prompt geben (OWASP ASI06).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
 
 ## 6 Demo und Abgabe
 
 **Demo (ADR 0012)**
 - **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten im Terminal und
-  versucht, den Agenten zu manipulieren. Die Ausgabe zeigt pro Runde, was das LLM vorschlägt und was der Code
-  entscheidet; blockt die Mandatsprüfung, ist das sichtbar. Fallback: Aufzeichnung desselben Ablaufs.
+  versucht, den Agenten zu manipulieren:
+  `uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite`. Die Ausgabe
+  zeigt pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau); bei einer Eskalation
+  entscheidet die Einkäuferin im selben Terminal (grün). Ein zweiter Lauf mit derselben Datei zeigt das frühere
+  Protokoll (Langzeitgedächtnis). Fallback ohne zweite Person: `--live` mit dem Simulator, zum Beispiel S11 oder S08;
+  bei unzuverlässigem Proxy eine Aufzeichnung.
 - **Ergebnisfolie als Kampagne:** Das Testset läuft durch (a) und (b); die Folie zeigt Abschlussquote, Nutzen in CHF,
   Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
 - **Live-Runden:** Die Person erhält eine Spielkarte mit ihren verdeckten Grenzen aus einem Szenario. Damit ist die
@@ -468,15 +488,15 @@ relevante Eigenschaften» (Anhang A).
 | Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`) | synthetisches Testset (KW45) | – |
 | Robustheit | Wiederholungen | Umformulierungen der Lieferantentexte, Kippen der Extraktion (KW44); Szenario mit bindendem Rundenlimit | – |
 | Sicherheit | Bauweise, siehe unten | Angriffsset mit Erfolgsquote und Fehlalarmen (KW45) | – |
-| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet | Zeichnung in `_v4` (KW44) | eigener Retry-Graph |
+| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet und in `_v4` gezeichnet | – | eigener Retry-Graph |
 | Bias | – | Lieferantennamen und Herkunft tauschen, 3 Szenarien × 4 Varianten (KW45); in (b) muss das Ergebnis gleich bleiben, Unterschiede kämen aus der Extraktion | – |
 | Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
 | Guardrails | Mandatsprüfung im Code, Text gegen Pakete (`mandate_guard`), Standardtext, Regeln im Prompt; Template-Rate als Metrik | Zuordnung Zahl zu Paket | LLM-Judge (nur falls Zeit bleibt) |
 | Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
-| Memory | State mit `InMemorySaver` | Protokoll im ERP-Adapter (Bau bis 13.11., ADR 0015) | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
-| Human-in-the-loop | Eskalation an die Einkäuferin | Node `ask_buyer` mit `interrupt()` (Bau bis 13.11., ADR 0015) | – |
+| Memory | State mit `InMemorySaver`; Protokolle im ERP-Adapter, Metrik `korrekt_gebucht` (ADR 0015) | `SqliteSaver`, falls Eskalationen einen Neustart überdauern sollen | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
+| Human-in-the-loop | `escalate` und `ask_buyer` mit `interrupt()`, `Command(resume=…)` im Terminal (ADR 0015) | – | Mandatsänderung durch die Einkäuferin im laufenden Graphen (neues Mandat = neue Verhandlung) |
 | Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8, SW8 Folien 24 und 26) |
-| Interface | – | Terminal für Lieferant und Einkäuferin (Bau bis 13.11.) | Web-App |
+| Interface | Terminal für Lieferant und Einkäuferin, farbig nach LLM, Code, Mensch (`live.py`) | – | Web-App |
 | Tracing | LangSmith EU | – | – |
 | MCP, RAG | – | – | ADR 0009; MCP nur lesend als Ausbau, gestrichen bis 23.11. (ADR 0014) |
 
@@ -491,7 +511,7 @@ relevante Eigenschaften» (Anhang A).
 | LLM05 | Data and Model Poisoning | kein Training; ins Gedächtnis kommen nur typisierte Felder aus dem Code (auch OWASP Agentic ASI06) |
 | LLM06 | Unbounded Consumption | Rundenlimit, begrenzte Retries, Timeout, Kosten pro Lauf als Metrik; ADR 0008 verhindert das Lahmlegen über Eskalationen |
 | LLM07 | Misinformation | Zahlen nur aus dem State; die Prüfung vergleicht den Text mit den Paketen |
-| LLM08 | Hidden Context Exposure | Prompts, die Text für den Lieferanten erzeugen, enthalten keine Grenzen; die Richtlinie steht nur in `parse_response` und `escalate`, deren Ausgabe der Lieferant nie sieht |
+| LLM08 | Hidden Context Exposure | Prompts, die Text für den Lieferanten erzeugen, enthalten keine Grenzen; die Richtlinie steht nur in `parse_response`, dessen Ausgabe der Lieferant nie sieht; die Eskalation ist eine Vorlage im Code |
 | LLM09 | Vector and Embedding Weaknesses | nicht betroffen (kein RAG) |
 | LLM10 | Improper Output Handling | Pydantic-Schema, Mandatsprüfung, Standardtext als Fail-safe |
 
@@ -514,7 +534,7 @@ individuellen Beitrag.
 
 | Person (GitHub) | Beitrag | Belege |
 | --- | --- | --- |
-| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v3`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
+| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v4`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ERP-Adapter mit Protokoll, Eskalation mit `interrupt()`, Mensch als Lieferant im Terminal, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
 | PeisProjects | Umformulierungen der Simulator-Texte: Daten in `data/paraphrases/`, Prüfung im Code, Schalter `--paraphrase`, Metrik `extraktion_korrekt`, Messung vom 26.10.2026 (ADR 0010, Nachtrag) | PR #2, gemergt am 09.11.2026 |
 
 Rückmeldungen im Team: am 11.10.2026 zur Eskalation (eingeflossen in ADR 0008), am 12.10.2026 zur Speicherung der
