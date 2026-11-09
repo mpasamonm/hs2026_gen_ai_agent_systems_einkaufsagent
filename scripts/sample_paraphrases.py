@@ -1,11 +1,14 @@
 """Stichprobe von 20 Umformulierungen zum Lesen von Hand (ADR 0010, Schritt 3) und Code-Prüfung.
 
-Run: uv run python scripts/sample_paraphrases.py
+Run: uv run python scripts/sample_paraphrases.py [--neu]
 Schreibt data/paraphrases/stichprobe.md: Original und Umformulierung nebeneinander, mit festen Beispielwerten.
+Jede Vorlage kommt mindestens einmal vor, der Rest ist zufällig. Eine bestehende Datei bleibt stehen (sie enthält
+die Befunde von Hand); überschrieben wird nur mit ``--neu``.
 Kippt (ADR 0010), wenn mehr als 2 von 20 Zeilen Bedeutung oder Ereignis ändern.
 """
 
 import random
+import sys
 
 from einkaufsagent import paraphrases
 from einkaufsagent.config import ROOT
@@ -25,9 +28,15 @@ def main() -> None:
     problems = paraphrases.validate()
     print("Code-Prüfung:", problems or "bestanden")
     data = paraphrases.load()
+    out = ROOT / "data" / "paraphrases" / "stichprobe.md"
+    if out.exists() and "--neu" not in sys.argv:
+        print(f"Stichprobe besteht schon, nicht überschrieben: {out}")
+        return
     rng = random.Random(2026)
-    pairs = [(k, i) for k in data["templates"] for i in range(1, paraphrases.VARIANTS)]
-    sample = sorted(rng.sample(pairs, 20))
+    keys = list(data["templates"])
+    first = [(k, rng.randrange(1, paraphrases.VARIANTS)) for k in keys]  # jede Vorlage einmal
+    rest = [(k, i) for k in keys for i in range(1, paraphrases.VARIANTS) if (k, i) not in first]
+    sample = sorted(first + rng.sample(rest, 20 - len(first)))
     rows = [
         "# Stichprobe Umformulierungen (ADR 0010)",
         "",
@@ -44,8 +53,7 @@ def main() -> None:
             terms=paraphrases.fmt_terms(TERMS, data["terms"][style]), **KW
         )
         rows.append(f"| {n} | {key}[{i}] | {orig.strip()} | {para.strip()} | |")
-    out = ROOT / "data" / "paraphrases" / "stichprobe.md"
-    out.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    out.write_text("\n".join(rows) + "\n", encoding="utf-8", newline="\n")
     print(f"Stichprobe: {out}")
 
 

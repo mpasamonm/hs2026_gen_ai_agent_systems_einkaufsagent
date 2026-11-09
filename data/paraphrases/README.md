@@ -10,7 +10,7 @@ Evals).
 | Umfang | 14 Vorlagen × (Original + 5 Umformulierungen), dazu 6 Schreibweisen der Konditionen |
 | Auswahl | `SupplierSimulator(..., paraphrase=True)` bzw. `--paraphrase` in `ea-run`, `ea-eval`, `ea-benchmark`; eigener Zufallsgenerator mit dem Seed des Szenarios |
 | Code-Prüfung | `paraphrases.validate()` (Test `tests/test_paraphrases.py`) |
-| Stichprobe | `stichprobe.md`, erzeugt mit `python scripts/sample_paraphrases.py` |
+| Stichprobe | `stichprobe.md`, erzeugt mit `uv run python scripts/sample_paraphrases.py --neu` (jede Vorlage mindestens einmal; ohne `--neu` bleibt eine bestehende Datei stehen) |
 
 ## Was umformuliert ist und was nicht
 
@@ -26,6 +26,8 @@ Evals).
 
 ## Prompt (sinngemäss, in der Session gestellt)
 
+Der Wortlaut wurde nicht gespeichert; ADR 0010 (Schritt 4) verlangt ihn neben den Daten. Nachgefragt am 09.11.2026.
+
 > Du schreibst Umformulierungen für einen regelbasierten Lieferanten-Simulator. Zu jeder Vorlage genau 5 Varianten auf
 > Deutsch (Schweizer Rechtschreibung, «ss»), Ton eines kleinen Lieferanten im Geschäftsbrief. Pflicht: dieselbe
 > Bedeutung und dasselbe Ereignis (annehmen, Gegenangebot, ablehnen und gesprächsbereit bleiben, Gespräch beenden,
@@ -40,5 +42,16 @@ Evals).
    Beispielwerten stehen genau die Zahlen des Originals im Text. Test: gleiche Ereignisse und Konditionen mit und ohne
    Umformulierung in allen 11 Szenarien.
 2. **Von Hand:** 20 Zeilen in `stichprobe.md`. Kippregel: mehr als 2 Fehler → Prompt verschärfen und neu erzeugen,
-   bevor die Daten gelten. Stand: vom Generator selbst gelesen, 0 Befunde; **die Lesung durch ein Teammitglied steht
-   noch aus** (Spalte «ok?» ausfüllen).
+   bevor die Daten gelten. Die erste Stichprobe (26.10.2026) deckte 3 der 14 Vorlagen nicht ab (`counter`,
+   `accept_label`, `conditional_single`) und war nur vom Generator gelesen; am 09.11.2026 neu gezogen, jede Vorlage
+   mindestens einmal. **Die Lesung von Hand steht aus** (Spalte «ok?» ausfüllen, Person und Datum hier eintragen).
+
+## Grenzen
+
+- `reject_no_room` (Index 2 und 4), `counter` (Index 3) und `last_offer` (Index 2) verwenden «entgegenkommen»; das Wort
+  steht auch im Beispiel des Parse-Prompts («ohne Entgegenkommen geht das nicht»), das am Dev-Set entstanden ist
+  (ADR 0013). Ebenso nennt die Schreibweise 4 der Konditionen «auf die Listenpreise» (Prompt-Beispiel: «höhere
+  Listenpreise»). Für diese Varianten ist die Messung vermutlich zu günstig. Das Testset (KW45) meidet beide Wortfelder.
+- Die Schreibweisen 1 und 5 der Konditionen ergeben in einigen Vorlagen ungrammatische Sätze («mit ein Zahlungsziel»).
+- Die Variante hängt am Seed des Szenarios und ist in allen Wiederholungen gleich; `pass^3` misst damit Streuung des
+  Modells, nicht sprachliche Vielfalt.
