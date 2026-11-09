@@ -214,12 +214,12 @@ class RecordingSupplier:
         self._sim = sim
         self.replies: list[SupplierReply] = []
 
-    def respond_to_offer(self, t: int, packages: list[Terms]) -> SupplierReply:
-        self.replies.append(r := self._sim.respond_to_offer(t, packages))
+    def respond_to_offer(self, t: int, packages: list[Terms], text: str = "") -> SupplierReply:
+        self.replies.append(r := self._sim.respond_to_offer(t, packages, text))
         return r
 
-    def respond_to_acceptance(self, t: int, terms: Terms) -> SupplierReply:
-        self.replies.append(r := self._sim.respond_to_acceptance(t, terms))
+    def respond_to_acceptance(self, t: int, terms: Terms, text: str = "") -> SupplierReply:
+        self.replies.append(r := self._sim.respond_to_acceptance(t, terms, text))
         return r
 
 

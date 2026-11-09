@@ -27,6 +27,20 @@ DEMAND_REJECTION = {
     "volume_commit": "Eine höhere Mengenzusage kann ich im Rahmen meines Auftrags nicht anbieten.",
 }
 GENERIC_REJECTION = "Darauf kann ich im Rahmen meines Auftrags nicht eingehen."
+BUYER_REJECTION = "Nach Rücksprache mit unserer Einkäuferin: Darauf können wir nicht eingehen."
+UNCLEAR_RETRY = "Ihre letzte Antwort konnte ich nicht eindeutig zuordnen; hier nochmals unsere Vorschläge."
+ESCALATION_HOLD = (
+    "Danke für Ihre Nachricht. Diesen Punkt kann ich nicht selbst entscheiden; ich gebe ihn an unsere "
+    "Einkäuferin weiter, sie meldet sich bei Ihnen."
+)
+ESCALATION_REASONS = {
+    "condition_outside_mandate": "Bedingung auf einer Grösse, die das Mandat nicht regelt (ADR 0008, Regel 1)",
+    "repeated_demand": "Forderung ausserhalb des Mandats nach der Ablehnung wiederholt (ADR 0008, Regel 2)",
+    "unparseable": "Antwort nicht auswertbar (ADR 0008, Regel 3)",
+    "unclear": "Antwort unklar, Konfidenz unter der Schwelle (ADR 0008, Regel 3)",
+    "unknown_package": "Paketwahl passt zu keinem gesendeten Paket (ADR 0008, Regel 3)",
+}
+BUYER_OPTIONS = ("weiterverhandeln", "abbrechen")
 
 
 # --- Vorlagen ------------------------------------------------------------------------------------------------
@@ -49,12 +63,32 @@ def notify_text(outcome: str, deal_terms: Terms | None) -> str:
             f"Vielen Dank. Wir halten die neuen Konditionen fest: {deal_terms.short()}. "
             "Unser Einkauf bestätigt Ihnen die Vereinbarung schriftlich."
         )
-    if outcome == "escalated":
-        return (
-            "Danke für Ihre Nachricht. Diesen Punkt kann ich nicht selbst entscheiden; ich gebe ihn an unsere "
-            "Einkäuferin weiter, sie meldet sich bei Ihnen."
-        )
+    if outcome == "escalated":  # die Einkäuferin hat nach der Eskalation abgebrochen
+        return "Nach Rücksprache mit unserer Einkäuferin belassen wir es bei den heutigen Konditionen."
     return "Danke für das Gespräch. Wir belassen es bei den heutigen Konditionen."
+
+
+def escalation_brief(
+    supplier_name: str,
+    round_: int,
+    max_rounds: int,
+    reason: str,
+    notes: list[str],
+    last_reply: str,
+    history: list[str],
+) -> dict:
+    """BPMN «Eskalation aufbereiten»: Vorlage für die Einkäuferin (Code, ohne LLM; ADR 0014). JSON-serialisierbar,
+    weil der Checkpointer den Interrupt speichert."""
+    return {
+        "lieferant": supplier_name,
+        "runde": f"{round_} von {max_rounds}",
+        "grund": ESCALATION_REASONS.get(reason, reason),
+        "hinweise": notes,
+        "letzte_antwort": last_reply,
+        "verlauf": history,
+        "mandat": "unverändert; Behauptungen des Lieferanten ändern es nie (ADR 0008)",
+        "optionen": list(BUYER_OPTIONS),
+    }
 
 
 # --- Nachricht prüfen ----------------------------------------------------------------------------------------
@@ -134,6 +168,7 @@ class Assessment:
     rejections: list[str] = field(default_factory=list)  # Vorlagensätze vor der nächsten Nachricht
     rejected: list[str] = field(default_factory=list)  # Grössen, deren Forderung jetzt abgelehnt ist
     notes: list[str] = field(default_factory=list)  # für das Protokoll der Einkäuferin
+    quantity: str | None = None  # bei Eskalation: betroffene Grösse (für den Entscheid der Einkäuferin)
 
 
 def assess_reply(
@@ -144,10 +179,16 @@ def assess_reply(
     ctx: Context,
     m: Mandate,
     engine: RuleBasedPolicy,
+    buyer_rejected: list[str] | None = None,
 ) -> Assessment:
     """Eskaliert nur nach ADR 0008: nicht auswertbar oder unklar, Bedingung auf einer Grösse ausserhalb des Mandats,
     wiederholte Forderung ausserhalb des Mandats. Behauptungen ändern nichts; sie werden per Vorlage zurückgewiesen.
-    Eine Forderung, die sich auf eine angebliche Freigabe stützt, zählt als Behauptung (ADR 0013)."""
+    Eine Forderung, die sich auf eine angebliche Freigabe stützt, zählt als Behauptung (ADR 0013).
+
+    ``buyer_rejected``: Grössen, bei denen die Einkäuferin nach einer Eskalation «weiterverhandeln» entschieden hat.
+    Eine Forderung oder Bedingung darauf wird per Vorlage zurückgewiesen und nicht erneut eskaliert (ADR 0015);
+    eine Annahme unter dieser Bedingung ist kein Abschluss."""
+    buyer_rejected = buyer_rejected or []
     p = parse.parsed
     if p is None:
         return Assessment(
@@ -163,17 +204,25 @@ def assess_reply(
     if claims:
         rejections.append(CLAIM_REJECTION)
         notes += [f"Behauptung zurückgewiesen: «{s.quote}»" for s in claims]
+    by_buyer = [s for s in p.statements if s.kind in ("demand", "condition") and s.quantity in buyer_rejected]
+    if by_buyer:
+        rejections.append(BUYER_REJECTION)
+        notes += [f"erneut zurückgewiesen (Entscheid der Einkäuferin): «{s.quote}»" for s in by_buyer]
     for s in p.statements:
-        if s.kind == "condition" and s.quantity not in KNOWN_QUANTITIES:
+        if s.kind == "condition" and s.quantity not in KNOWN_QUANTITIES and s.quantity not in buyer_rejected:
             notes.append(f"Bedingung ausserhalb des Mandats: «{s.quote}»")
-            return Assessment("escalate", "condition_outside_mandate", round_, notes=notes)
+            return Assessment(
+                "escalate", "condition_outside_mandate", round_, notes=notes, quantity=s.quantity
+            )
     if not claims:
         for s in p.statements:
-            if s.kind not in ("demand", "condition") or not outside_mandate(s, ctx, m):
+            if s.kind not in ("demand", "condition") or s.quantity in buyer_rejected:
+                continue
+            if not outside_mandate(s, ctx, m):
                 continue
             if s.quantity in rejected_before:
                 notes.append(f"Forderung nach Ablehnung wiederholt: «{s.quote}»")
-                return Assessment("escalate", "repeated_demand", round_, notes=notes)
+                return Assessment("escalate", "repeated_demand", round_, notes=notes, quantity=s.quantity)
             if s.quantity not in rejected:
                 rejected.append(s.quantity)
                 rejections.append(DEMAND_REJECTION.get(s.quantity, GENERIC_REJECTION))
@@ -183,7 +232,8 @@ def assess_reply(
     def done(decision, reason, rnd, terms=None) -> Assessment:
         return Assessment(decision, reason, rnd, terms, rejections, rejected, notes)
 
-    if p.reply_type == "accept" and not rejected:
+    blocked = bool(rejected or by_buyer)  # eine Annahme unter abgelehnter Forderung ist kein Abschluss
+    if p.reply_type == "accept" and not blocked:
         if sent.kind == "accept":
             return done("deal", "agent_accept", round_, sent.packages[0])
         idx = LABELS.find(p.chosen_package) if p.chosen_package else (0 if len(sent.packages) == 1 else -1)
@@ -197,7 +247,7 @@ def assess_reply(
     if rnd > m.max_rounds:
         return done("no_deal", "round_limit", rnd)
     c = p.counter_terms
-    if p.reply_type == "counter" and c is not None and not rejected and engine.acceptable(c, rnd + 1, ctx, m):
+    if p.reply_type == "counter" and c is not None and not blocked and engine.acceptable(c, rnd + 1, ctx, m):
         return done("accept_counter", "ac_next", rnd, c)
     if rnd >= m.max_rounds:
         return done("no_deal", "round_limit", rnd)

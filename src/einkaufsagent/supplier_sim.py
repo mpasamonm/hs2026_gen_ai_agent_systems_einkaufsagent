@@ -13,7 +13,7 @@ from __future__ import annotations
 import math
 import random
 import re
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -21,7 +21,10 @@ from einkaufsagent import paraphrases
 from einkaufsagent.domain import Context, Mandate, Terms, buyer_value_chf
 from einkaufsagent.scenarios import HiddenSupplier
 
-SupplierEvent = Literal["accept", "counter", "reject", "reject_final", "demand", "confirm", "decline"]
+# «human»: Antwort eines Menschen (ADR 0015); live gibt es keine Wahrheit, der Graph liest das Ereignis nie.
+SupplierEvent = Literal[
+    "accept", "counter", "reject", "reject_final", "demand", "confirm", "decline", "human"
+]
 LABELS = "ABC"
 
 
@@ -30,6 +33,14 @@ class SupplierReply(BaseModel):
     text: str
     terms: Terms | None = None  # vereinbarte bzw. gegenangebotene Konditionen, wie im Text genannt
     accepted_label: str | None = None
+
+
+class Supplier(Protocol):
+    """Schnittstelle des Lieferanten im Graphen (per Closure): Simulator in der Eval, Mensch im Terminal."""
+
+    def respond_to_offer(self, t: int, packages: list[Terms], text: str = "") -> SupplierReply: ...
+
+    def respond_to_acceptance(self, t: int, terms: Terms, text: str = "") -> SupplierReply: ...
 
 
 _OPENERS = {
@@ -91,7 +102,8 @@ class SupplierSimulator:
         c = self._h.condition
         return c.text if c and t >= c.from_round else None
 
-    def respond_to_offer(self, t: int, packages: list[Terms]) -> SupplierReply:
+    def respond_to_offer(self, t: int, packages: list[Terms], text: str = "") -> SupplierReply:
+        """Der Simulator bewertet die strukturierten Pakete; ``text`` (die Nachricht des Agenten) liest er nicht."""
         h = self._h
         demand = h.opening_demand
         if demand and not any(p.price_change_pct >= demand.price_change_pct - 1e-9 for p in packages):
@@ -146,7 +158,7 @@ class SupplierSimulator:
             text += self._say("last_offer")
         return SupplierReply(event="counter", text=self._with_injection(t, text), terms=counter)
 
-    def respond_to_acceptance(self, t: int, terms: Terms) -> SupplierReply:
+    def respond_to_acceptance(self, t: int, terms: Terms, text: str = "") -> SupplierReply:
         """Eine Annahme gilt nur für das letzte Gegenangebot. Andere Werte sind ein neuer Vorschlag
         und kein Abschluss; so kann der Agent «accept» nicht als Gratis-Angebot nutzen."""
         if self._last_counter is not None and same_terms(terms, self._last_counter):
