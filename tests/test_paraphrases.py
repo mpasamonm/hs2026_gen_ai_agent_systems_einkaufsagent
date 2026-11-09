@@ -4,12 +4,12 @@ import re
 
 from einkaufsagent import paraphrases
 from einkaufsagent.domain import Terms
-from einkaufsagent.eval import run_one, summarize
+from einkaufsagent.eval import extraction_ok, run_one, summarize
 from einkaufsagent.extract import RuleParser
 from einkaufsagent.graph_b import HybridAgent
 from einkaufsagent.narrate import TemplateNarrator
 from einkaufsagent.policies import RuleBasedPolicy
-from einkaufsagent.supplier_sim import SupplierSimulator
+from einkaufsagent.supplier_sim import SupplierReply, SupplierSimulator
 
 NUM = re.compile(r"\d+(?:\.\d+)?")
 OFFERS = [
@@ -74,3 +74,19 @@ def test_missed_acceptance_uses_simulator_terms_not_text(scenarios):
     a = [run_one(sc, rule, 1, None).missed_acceptance for sc in scenarios.values()]
     b = [run_one(sc, rule, 1, None, paraphrase=True).missed_acceptance for sc in scenarios.values()]
     assert a == b
+
+
+def test_extraction_checks_package_choice_and_conditional_accept():
+    """«accept» braucht das richtige Paket; als Annahme zählt nur eine Bedingung auf einem gesendeten Paket."""
+    a, b = OFFERS[1]
+    cond = "Das gilt nur bei einem Rahmenvertrag über drei Jahre."
+    accept_b = SupplierReply(event="accept", text="Paket B passt.", terms=b, accepted_label="B")
+    assert extraction_ok({"reply_type": "accept", "chosen_package": "B"}, accept_b, None, [a, b])
+    assert not extraction_ok({"reply_type": "accept", "chosen_package": "A"}, accept_b, None, [a, b])
+    conditional = SupplierReply(event="counter", text=f"Paket B passt. {cond}", terms=b)
+    as_accept = {"reply_type": "accept", "chosen_package": "B"}
+    assert extraction_ok(as_accept, conditional, cond, [a, b])
+    own = Terms(payment_days=50, discount_pct=1.5)
+    counter = SupplierReply(event="counter", text=f"Wir bieten 50 Tage und 1.5 %. {cond}", terms=own)
+    assert not extraction_ok(as_accept, counter, cond, [a, b])
+    assert extraction_ok({"reply_type": "counter", "counter_terms": own.model_dump()}, counter, cond, [a, b])

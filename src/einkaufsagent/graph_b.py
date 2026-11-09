@@ -169,9 +169,9 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
             "output_tokens": res.output_tokens,
             "latency_s": round(res.latency_s, 3),
             "format_errors": res.format_errors,
-            "reply_type": res.parsed.reply_type
-            if res.parsed
-            else None,  # Metrik extraktion_korrekt (ADR 0010)
+            # nur für die Metrik extraktion_korrekt (ADR 0010); kein Node liest diese Felder
+            "reply_type": res.parsed.reply_type if res.parsed else None,
+            "chosen_package": res.parsed.chosen_package if res.parsed else None,
             "counter_terms": res.parsed.counter_terms.model_dump()
             if res.parsed and res.parsed.counter_terms
             else None,

@@ -42,6 +42,7 @@ from einkaufsagent.narrate import LLMNarrator, TemplateNarrator
 from einkaufsagent.policies import LLMPolicy, Policy, RuleBasedPolicy
 from einkaufsagent.scenarios import Scenario, load_scenarios
 from einkaufsagent.supplier_sim import (
+    LABELS,
     SupplierReply,
     SupplierSimulator,
     analyse_zopa,
@@ -155,17 +156,27 @@ _EXPECTED_REPLY = {
 }
 
 
-def extraction_ok(log: dict, reply: SupplierReply, condition: str | None) -> bool:
+def extraction_ok(
+    log: dict, reply: SupplierReply, condition: str | None, sent: list[Terms] | None = None
+) -> bool:
     """Stimmt die Extraktion von (b) mit der Wahrheit des Simulators überein? Bei einer Annahme unter Bedingung
-    gelten «counter» und «accept»; entscheidend ist dort die Bedingung, die ``assess_response`` prüft."""
+    (gesendetes Paket plus Bedingung) gelten «counter» und «accept»; entscheidend ist dort die Bedingung, die
+    ``assess_response`` prüft. Ein echtes Gegenangebot mit angehängter Bedingung bleibt «counter». Bei «accept»
+    muss das gewählte Paket stimmen, sofern mehrere gesendet wurden."""
+    sent = sent or []
+    hit = next(
+        (i for i, p in enumerate(sent) if reply.terms is not None and same_terms(reply.terms, p)), None
+    )
     allowed = set(_EXPECTED_REPLY[reply.event])
-    if reply.event == "counter" and condition and condition in reply.text:
+    if reply.event == "counter" and condition and condition in reply.text and hit is not None:
         allowed.add("accept")
     if log.get("reply_type") not in allowed:
         return False
     if log["reply_type"] == "counter" and reply.terms is not None:
         got = log.get("counter_terms")
         return got is not None and same_terms(Terms.model_validate(got), reply.terms)
+    if log["reply_type"] == "accept" and hit is not None and len(sent) > 1:
+        return log.get("chosen_package") == LABELS[hit]
     return True
 
 
@@ -272,8 +283,10 @@ def run_one(
     outcome = final.get("outcome") or "error"
     parse_logs = [t for t in turns if t.get("node") == "parse_response"]
     cond_text = sc.hidden.condition.text if sc.hidden.condition else None
+    sent_per_round = [[Terms.model_validate(p) for p in o["packages"]] for o in final.get("offers", [])]
     parse_checks = [
-        extraction_ok(lg, r, cond_text) for lg, r in zip(parse_logs, supplier.replies, strict=False)
+        extraction_ok(lg, r, cond_text, sent)
+        for lg, r, sent in zip(parse_logs, supplier.replies, sent_per_round, strict=False)
     ]
     return RunRecord(
         scenario_id=sc.id,
