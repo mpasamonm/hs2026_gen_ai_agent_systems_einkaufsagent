@@ -3,6 +3,8 @@
 uv run ea-run --scenario S02 --policy rule
 uv run ea-run --scenario S02 --model gpt-5.6-luna
 uv run ea-run --scenario S09 --variant b --model gpt-5.6-luna
+uv run ea-run --scenario S11 --variant b --policy rule --live          # Einkäuferin entscheidet im Terminal
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import argparse
 
 from einkaufsagent.config import flush_traces
+from einkaufsagent.erp import ErpAdapter
 from einkaufsagent.eval import DEFAULT_SCENARIOS, make_policy, run_one
 from einkaufsagent.scenarios import load_scenarios
 
@@ -23,9 +26,32 @@ def main() -> None:
     ap.add_argument("--variant", choices=["a", "b"], default="a", help="a = reines LLM, b = Hybrid")
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
     ap.add_argument("--paraphrase", action="store_true", help="Simulator mit Umformulierungen (ADR 0010)")
+    ap.add_argument(
+        "--live", action="store_true", help="nur b: Einkäuferin entscheidet Eskalationen im Terminal"
+    )
+    ap.add_argument("--human", action="store_true", help="nur b: Mensch als Lieferant (schliesst --live ein)")
+    ap.add_argument(
+        "--erp", default=":memory:", help="mit --live: SQLite-Datei, Protokolle bleiben über Läufe"
+    )
     a = ap.parse_args()
     sc = next(s for s in load_scenarios(a.scenarios) if s.id == a.scenario)
     policy, cfg = make_policy(a.policy, a.model, a.variant)
+    if a.live or a.human:
+        if a.variant != "b":
+            ap.error("--live und --human gibt es nur mit --variant b (ADR 0015)")
+        if a.human and a.policy == "rule":
+            print(
+                "Hinweis: Der Regex-Parser versteht nur die Simulator-Vorlagen; für Menschen --model verwenden.\n"
+            )
+        from einkaufsagent.live import run_live  # importiert eval und graph_b, nur hier nötig
+
+        erp = ErpAdapter(a.erp)
+        try:
+            run_live(sc, policy, erp, human=a.human, paraphrase=a.paraphrase)
+        finally:
+            erp.close()
+            flush_traces()
+        return
     r = run_one(sc, policy, 1, cfg, a.paraphrase)
     print(f"{sc.id} · {sc.title} · Lieferant: {sc.public.context.supplier_name}\n")
     for t in r.transcript:
