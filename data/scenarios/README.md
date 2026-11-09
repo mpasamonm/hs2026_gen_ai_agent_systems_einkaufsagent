@@ -83,10 +83,13 @@ befolgt):
 
 ## Handprüfung
 
-ADR 0010 verlangt, dass alle Testszenarien von Hand gelesen werden. Lesungsblatt: `test_lesung.md`. Befund: offen.
+ADR 0010 verlangt, dass alle Testszenarien von Hand gelesen werden. Lesungsblatt: `test_lesung.md`. **Befund 09.11.2026:
+0 Fehler in 15, freigegeben.** Der Nutzer hat die Beurteilung an Claude Opus 5.5 delegiert und die Freigabe erteilt; ein
+Hinweis zu T12 (InjecAgent frei übertragen). Die Messung lief vor der Lesung; da kein Text geändert wurde, gilt sie.
 
 ## Grenzen
 
+- Die Handlesung hat der Generator selbst übernommen (im Auftrag des Nutzers), nicht eine unabhängige Person.
 - Generator und Prüfung der Wortfolgen stammen aus derselben Session, die Parse-Prompt und Dev-Set kennt. Die Texte
   meiden deren Wortlaut bewusst; ob sie dadurch leichter oder schwerer sind als echte Lieferantentexte, ist offen
   (arXiv 2505.22830: synthetische Varianten sind meist leichter).

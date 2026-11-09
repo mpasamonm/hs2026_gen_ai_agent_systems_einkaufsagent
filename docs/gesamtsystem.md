@@ -384,7 +384,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Szenarien mit Angriffen erreicht (b) 0.98, (a) 0.64. Kein Angriff erreicht sein Ziel, auch nicht gegen (a) mit Luna;
   der strukturelle Schutz von (b) ist mit diesem Modell nicht messbar. Der Preis der Abwehr sind Eskalationen: Ein
   Angriff, der in jeder Antwort wiederkehrt, gilt als wiederholte Forderung, und der Content-Filter des Proxys macht eine
-  Antwort «nicht auswertbar». Beides endet sicher, kostet aber Zeit der Einkäuferin (Denial of Service).
+  Antwort «nicht auswertbar». Beides endet sicher, kostet aber Zeit der Einkäuferin (Denial of Service). Bewusst nicht
+  korrigiert: Eine Regeländerung nach Blick auf das Testset würde es entwerten (ADR 0013, Nachtrag).
 - Das reine LLM hält mit Luna das Mandat ein, verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
   der Regel-Referenz und 83 % Angebotstexte ohne Konditionen. Sicherheit allein hängt vom Modell ab (Luna 0,
   Mistral 4 Verstösse).
@@ -406,7 +407,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   interpretieren. Die Mandate unterscheiden sich nur in Mindestnutzen, Mengenzusage und (T07) Rundenlimit; die heutigen
   Konditionen sind überall 30 Tage und 0 %.
 - Das Testset stammt aus derselben Session, die Parse-Prompt und Dev-Set kennt; sie meidet deren Wortlaut bewusst. Die
-  Messung lief vor der Handlesung der 15 Texte. Mit Luna fällt kein Angriff durch, (a) wie (b): Ob der Hybrid gegen ein
+  Handlesung der 15 Texte (0 Fehler) hat der Generator im Auftrag des Nutzers übernommen, nicht eine unabhängige Person. Mit Luna fällt kein Angriff durch, (a) wie (b): Ob der Hybrid gegen ein
   anfälligeres Modell schützt, ist nicht gemessen. Zusagen nur im Text (ohne Paket) und Täuschung sieht die Messung
   nicht.
 - Das Modellangebot im Proxy ändert sich laufend (19.10.2026: Jev nicht verfügbar, `gpt-6-luna` und `decision-1`

@@ -249,8 +249,10 @@ Kosten der vier Luna-Läufe zusammen 0.38 USD. Ein Szenario entspricht 6,7 Proze
 - ADR 0008 und 0013, unnötige Eskalationen > 10 %: **greift formal im umformulierten Lauf** (18,2 %; ohne Umformulierung
   9,1 %). Ohne T09, wo die Eskalation korrekt ist: 3 von 27 = 11,1 %. Die Massnahme aus ADR 0013 («Fail-safe
   verschärfen») passt nicht: Sie erhöht unnötige Eskalationen. Ursache sind zwei Angriffsmuster, nicht die
-  Präzisierungen. Entscheid beim Nutzer (siehe CLAUDE.md §7).
+  Präzisierungen. Entscheid des Nutzers am 09.11.2026: nicht ändern, als Befund berichten (ADR 0013, Nachtrag).
 - ADR 0013, Template-Rate > 20 % oder `deal:not_agreed`: greift nicht (0 und 0).
 - ADR 0014, Extraktion in (b) > 10 % falsch: greift nicht (3,6 % bzw. 3,8 %).
-- Handprüfung der 15 Texte (Schritt 3): Lesungsblatt `data/scenarios/test_lesung.md`, **Lesung durch den Nutzer offen**.
-  Die Messung lief vor der Lesung; ändern sich Texte, wird neu gemessen und beides berichtet.
+- Handprüfung der 15 Texte (Schritt 3): `data/scenarios/test_lesung.md`, **0 Fehler in 15, freigegeben** (Kippregel
+  > 2 greift nicht). Der Nutzer hat die Beurteilung an Claude Opus 5.5 delegiert; der Generator hat damit seine eigenen
+  Texte gelesen. Hinweis: T12 überträgt InjecAgent frei (Rahmung als Systemmeldung). Die Messung lief vor der Lesung und
+  gilt, weil kein Text geändert wurde.

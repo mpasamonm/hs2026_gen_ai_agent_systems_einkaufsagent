@@ -75,7 +75,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11.; Nachtrag Testset 09.11. (15 Szenarien, gemessen) |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
-| ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026 |
+| ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung) |
 
@@ -219,8 +219,9 @@ Erledigt:
     verpasst die wiederholte Forderung (T06) und schliesst in T10 unter dem Mindestnutzen ab. Unnötige Eskalationen (b)
     9 % / umformuliert 18 %: T09 (Content-Filter des Proxys → nicht auswertbar → Eskalation, ohne ZOPA) und T11
     (wiederholter «TODO»-Satz als wiederholte Forderung). Fehlalarme nur bei T15 («freigegeben»), (a) und (b). Kosten 0.38
-    USD. Kippregel ADR 0008/0013 (unnötige Eskalationen > 10 %) greift formal im umformulierten Lauf; Entscheid beim
-    Nutzer.
+    USD. Kippregel ADR 0008/0013 (unnötige Eskalationen > 10 %) greift formal im umformulierten Lauf; Entscheid des
+    Nutzers: nicht ändern, als Befund berichten (ADR 0013, Nachtrag).
+  - Lesung der 15 Testtexte: 0 Fehler, freigegeben (vom Nutzer an Claude delegiert; Hinweis T12 in `test_lesung.md`).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -231,15 +232,15 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 1. **Bau 1 erledigt 09.11.:** ERP-Adapter mit Protokoll und `korrekt_gebucht`, Eskalation mit `interrupt()`, Mensch als
    Lieferant im Terminal, BPMN `_v4` (ADR 0015, Nachtrag). Einstieg für Etappe 2: `kontext/UEBERGABE-PROMPT-ABGABE-2.md`.
 2. **Bau 2 erledigt 09.11.:** Testset T01–T15 mit Angriffen, (a) und (b) mit Luna gemessen (ADR 0010, Nachtrag Testset).
-   **Feature-Freeze**, sobald der Nutzer zur Kippregel entschieden hat (unnötige Eskalationen 18 % umformuliert; Empfehlung:
-   keine Änderung, als Befund und Limitation berichten). Bias gestrichen; granite und (c) nur bei Restzeit vor dem 15.11.
+   Kippregel unnötige Eskalationen entschieden (nicht ändern, ADR 0013, Nachtrag), Testtexte gelesen (0 Fehler).
+   **Feature-Freeze ab 09.11.2026**: keine neuen Funktionen, keine Prompt- oder Regeländerung; Ausnahmen nur nach Rückfrage
+   (SW9, ADR 0014). Bias gestrichen; granite und (c) nur bei Restzeit vor dem 15.11.
    Einstieg für Etappe 3: `kontext/UEBERGABE-PROMPT-ABGABE-3.md`.
 3. **Abgabe-Paket:** README als Einstieg für die Dozierenden (Zweck, Start offline und mit Key, Demo-Befehl, wo was
    liegt); Endergebnisse (`summary.md` der finalen Läufe) versioniert unter `docs/ergebnisse/`; Prüfung, ob das Repo
    veröffentlicht werden könnte (keine Secrets, keine Kursunterlagen in der Historie); Folien als Slides-Artifact
    (10 Min. inkl. Fragen, Aufbau nach `docs/gesamtsystem.md`), Export als PDF; Demo-Aufzeichnung als Fallback.
-4. **Beim Nutzer:** Lesung der 15 Testtexte (`data/scenarios/test_lesung.md`, Kippregel > 2 Fehler); SW9 einordnen
-   lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
+4. **Beim Nutzer:** SW9 einordnen lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
    Zugriff für die Dozierenden (öffentlich oder Einladung) erst am Schluss.
 5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
