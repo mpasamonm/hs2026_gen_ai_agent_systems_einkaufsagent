@@ -5,12 +5,15 @@
                                │                                                                     ▼
                                └──── weiter ◄──── assess_response ◄──────────────────────── parse_response
                                                    │  └─ Gegenangebot annehmen (AC_next) → send_and_wait
-                                                   └─ Einigung / kein Deal / Eskalation → notify_supplier → END
+                                                   └─ Einigung / kein Deal / Eskalation
+                                                        → record_outcome → notify_supplier → END
 
 LLM-Nodes: ``narrate`` (sieht nur die Pakete) und ``parse_response`` (sieht nur die Antwort und was gesendet wurde).
 Alle Entscheide über Zahlen und Mandat fallen in Code-Nodes. Rundenlogik wie Variante (a): ``round`` zählt
 Angebotsrunden, ein Gegenangebot ist auch nach der letzten Runde annehmbar, eine abgelehnte Annahme zählt als Runde.
-Narrator, Parser und Simulator kommen per Closure in den Graphen; die verdeckten Parameter sind nie im State.
+Narrator, Parser, Simulator und ERP-Adapter kommen per Closure in den Graphen; die verdeckten Parameter sind nie im
+State. ``load_context`` liest Stammdaten und heutige Konditionen aus dem ERP, ``record_outcome`` schreibt auf jedem
+Ausgang das Protokoll und bucht einen Abschluss (ADR 0015).
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from einkaufsagent.domain import Context, Mandate, Terms
+from einkaufsagent.erp import ErpAdapter, Exchange
 from einkaufsagent.extract import ParsedReply, Parser, ParseResult, Sent
 from einkaufsagent.hybrid import accept_text, assess_reply, check_message, notify_text, template_offer
 from einkaufsagent.narrate import Narrator
@@ -45,7 +49,9 @@ class HybridAgent:
 
 class HybridState(TypedDict, total=False):
     scenario_id: str
-    context: dict[str, Any]
+    negotiation_id: str  # Schlüssel des Protokolls im ERP (= thread_id)
+    supplier_id: str
+    context: dict[str, Any]  # aus dem ERP (load_context)
     mandate: dict[str, Any]
     transcript: Annotated[list[dict[str, Any]], operator.add]  # «event» beim Lieferanten nur für die Eval
     round: int
@@ -70,16 +76,33 @@ def _terms(ps: list[dict[str, Any]]) -> list[Terms]:
     return [Terms.model_validate(p) for p in ps]
 
 
-def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
+def exchanges(state: HybridState) -> list[Exchange]:
+    """Gesendete Nachrichten mit der extrahierten Reaktion, in Reihenfolge (eine Antwort pro Nachricht)."""
+    parses = [t for t in state.get("turns", []) if t.get("node") == "parse_response"]
+    return [
+        Exchange(
+            round=o["round"],
+            sent_kind=o["action"],
+            packages=o["packages"],
+            reply_type=lg.get("reply_type"),
+            chosen_package=lg.get("chosen_package"),
+            counter_terms=lg.get("counter_terms"),
+        )
+        for o, lg in zip(state.get("offers", []), parses, strict=False)
+    ]
+
+
+def build_graph(agent: HybridAgent, supplier: SupplierSimulator, erp: ErpAdapter):
     engine = agent.engine
 
     def _cm(state: HybridState) -> tuple[Context, Mandate]:
         return Context.model_validate(state["context"]), Mandate.model_validate(state["mandate"])
 
     def load_context(state: HybridState) -> dict:
-        # KW43: Kontext aus dem Szenario (JSON-Stub). KW44: ERP-Adapter über SQLite (ADR 0009).
-        _cm(state)
+        ctx = erp.load_context(state["supplier_id"])
+        Mandate.model_validate(state["mandate"])
         return {
+            "context": ctx.model_dump(),
             "round": 0,
             "pending": None,
             "draft": None,
@@ -209,6 +232,20 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
             update["pending"] = {"kind": "accept", "packages": [a.terms.model_dump()]}
         return update
 
+    def record_outcome(state: HybridState) -> dict:
+        deal = Terms.model_validate(state["deal_terms"]) if state.get("deal_terms") else None
+        erp.record_outcome(
+            negotiation_id=state["negotiation_id"],
+            supplier_id=state["supplier_id"],
+            status=state["outcome"],
+            end_reason=state.get("end_reason") or "",
+            rounds=state["round"],
+            exchanges=exchanges(state),
+            deal_terms=deal,
+            notes=state.get("notes", []),
+        )
+        return {}
+
     def notify_supplier(state: HybridState) -> dict:
         outcome = state["outcome"]
         deal = Terms.model_validate(state["deal_terms"]) if state.get("deal_terms") else None
@@ -221,15 +258,15 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
         text = notify_text(outcome, deal)
         return {"transcript": [{"role": "agent", "round": state["round"], "action": action, "text": text}]}
 
-    def after_offer_engine(state: HybridState) -> Literal["narrate", "notify_supplier"]:
-        return "notify_supplier" if state.get("outcome") else "narrate"
+    def after_offer_engine(state: HybridState) -> Literal["narrate", "record_outcome"]:
+        return "record_outcome" if state.get("outcome") else "narrate"
 
     def after_guard(state: HybridState) -> Literal["template_message", "send_and_wait"]:
         return "template_message" if state.get("template_reason") else "send_and_wait"
 
-    def after_assess(state: HybridState) -> Literal["notify_supplier", "send_and_wait", "offer_engine"]:
+    def after_assess(state: HybridState) -> Literal["record_outcome", "send_and_wait", "offer_engine"]:
         if state.get("outcome"):
-            return "notify_supplier"
+            return "record_outcome"
         return "send_and_wait" if state.get("pending") else "offer_engine"
 
     g = StateGraph(HybridState)
@@ -242,6 +279,7 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
         ("send_and_wait", send_and_wait),
         ("parse_response", parse_response),
         ("assess_response", assess_response),
+        ("record_outcome", record_outcome),
         ("notify_supplier", notify_supplier),
     ]:
         g.add_node(name, fn)
@@ -254,5 +292,6 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
     g.add_edge("send_and_wait", "parse_response")
     g.add_edge("parse_response", "assess_response")
     g.add_conditional_edges("assess_response", after_assess)
+    g.add_edge("record_outcome", "notify_supplier")
     g.add_edge("notify_supplier", END)
     return g.compile(checkpointer=InMemorySaver())

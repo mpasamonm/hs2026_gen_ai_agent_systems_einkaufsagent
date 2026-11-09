@@ -5,6 +5,7 @@ import json
 import pytest
 
 from einkaufsagent.domain import Terms
+from einkaufsagent.erp import ErpAdapter
 from einkaufsagent.eval import run_one, summarize
 from einkaufsagent.extract import ParsedReply, ParseResult, RuleParser, Sent, Statement
 from einkaufsagent.graph_b import HybridAgent, HybridState, build_graph
@@ -57,12 +58,15 @@ def test_hidden_parameters_never_reach_state_or_llm_nodes(scenarios):
     sc = scenarios["S09"]
     hidden = sc.hidden.model_copy(update={"canary": CANARY})
     narrator, parser = RecordingNarrator(), RecordingParser()
-    graph = build_graph(HybridAgent(narrator, parser), SupplierSimulator(hidden, sc.public.context))
+    erp = ErpAdapter()
+    erp.seed(sc.public.context)
+    graph = build_graph(HybridAgent(narrator, parser), SupplierSimulator(hidden, sc.public.context), erp)
     snapshots = list(
         graph.stream(
             {
                 "scenario_id": sc.id,
-                "context": sc.public.context.model_dump(),
+                "negotiation_id": "leak-test-b",
+                "supplier_id": sc.public.context.supplier_id,
                 "mandate": sc.public.mandate.model_dump(),
                 "transcript": [],
                 "offers": [],
@@ -77,6 +81,12 @@ def test_hidden_parameters_never_reach_state_or_llm_nodes(scenarios):
     assert not (set(HiddenSupplier.model_fields) - {"seed"}) & set(HybridState.__annotations__)
     for f in ("capital_rate", "commit_value_rate", "budget_final_chf", "patience_rounds"):
         assert f'"{f}"' not in dumped
+    # Auch das Protokoll im ERP enthält keine verdeckten Felder (ADR 0015).
+    db = erp.dump()
+    assert "leak-test-b" in db and CANARY not in db
+    assert not any(f'"{f}"' in db for f in set(HiddenSupplier.model_fields) - {"seed"})  # JSON-Schlüssel
+    for f in ("capital_rate", "commit_value_rate", "budget_final_chf", "patience_rounds"):
+        assert f not in db  # auch nicht als Spalte
     # Der Narrator bekommt nur Pakete und Runde: weder Mandat noch Lieferantentext (Dual-LLM-Muster).
     assert narrator.calls and all(
         all(isinstance(p, Terms) for p in pk) and isinstance(r, int) for pk, r in narrator.calls

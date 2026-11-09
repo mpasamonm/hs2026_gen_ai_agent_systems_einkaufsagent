@@ -34,6 +34,7 @@ from einkaufsagent.domain import (
     discloses_ai,
     mentions_walk_away,
 )
+from einkaufsagent.erp import ErpAdapter
 from einkaufsagent.extract import LLMParser, RuleParser
 from einkaufsagent.graph_a import build_graph
 from einkaufsagent.graph_b import HybridAgent
@@ -93,6 +94,7 @@ class RunRecord:
     parses: int = 0  # nur (b): ausgewertete Lieferantenantworten
     parses_ok: int = 0  # nur (b): davon Antworttyp und Gegenangebot wie beim Simulator
     parse_mismatches: list[str] = field(default_factory=list)  # nur (b): «R2:demand→counter»
+    booked_ok: bool | None = None  # nur (b): ERP-Zustand am Ende passt zum Lauf (korrekt_gebucht, ADR 0015)
 
 
 def is_correct(expected: str, outcome: str, violations: list[str]) -> bool:
@@ -180,6 +182,31 @@ def extraction_ok(
     return True
 
 
+def booking_ok(
+    erp: ErpAdapter, negotiation_id: str, ctx: Context, outcome: str, replies: list[SupplierReply]
+) -> bool:
+    """Zustandsbasiert wie bei τ-Bench: genau ein Protokoll mit dem Ergebnis des Laufs, eine Protokollzeile pro
+    Lieferantenantwort (Reaktion und Paketwahl), Konditionen nur bei einem Abschluss geändert und dann gleich den
+    Werten, denen der Simulator zugestimmt hat. Ein Abschluss ohne Zustimmung ist damit auch falsch gebucht."""
+    mine = [p for p in erp.protocols(ctx.supplier_id) if p["negotiation_id"] == negotiation_id]
+    if len(mine) != 1:
+        return False
+    p = mine[0]
+    if p["status"] != outcome or len(p["exchanges"]) != len(replies):
+        return False
+    booked = erp.current_terms(ctx.supplier_id)
+    if outcome == "deal":
+        last = replies[-1] if replies else None
+        if last is None or last.event not in ("accept", "confirm") or last.terms is None:
+            return False
+        return (
+            same_terms(booked, last.terms)
+            and p["deal_terms"] is not None
+            and same_terms(Terms.model_validate(p["deal_terms"]), last.terms)
+        )
+    return p["deal_terms"] is None and same_terms(booked, ctx.current_terms)
+
+
 class RecordingSupplier:
     """Hält die Antworten des Simulators für die Eval fest (Wahrheit: hat der Lieferant wirklich zugestimmt?)."""
 
@@ -207,8 +234,14 @@ def run_one(
     # verdeckte Parameter bleiben hier
     supplier = RecordingSupplier(SupplierSimulator(sc.hidden, ctx, paraphrase=paraphrase))
     variant = getattr(policy, "variant", "a")
-    graph = build_graph_b(policy, supplier) if variant == "b" else build_graph(policy, supplier)
     run_id = str(uuid.uuid4())
+    erp = None
+    if variant == "b":
+        erp = ErpAdapter()  # eine Verbindung pro Lauf, :memory: (hermetisch)
+        erp.seed(ctx)
+        graph = build_graph_b(policy, supplier, erp)
+    else:
+        graph = build_graph(policy, supplier)
     config = {
         "configurable": {"thread_id": run_id},
         "recursion_limit": 100,
@@ -226,17 +259,20 @@ def run_one(
     t0 = time.perf_counter()
     error = None
     try:
-        final = graph.invoke(
-            {
-                "scenario_id": sc.id,
-                "context": ctx.model_dump(),
-                "mandate": m.model_dump(),
-                "transcript": [],
-                "offers": [],
-                "turns": [],
-            },
-            config,
+        start = {
+            "scenario_id": sc.id,
+            "mandate": m.model_dump(),
+            "transcript": [],
+            "offers": [],
+            "turns": [],
+        }
+        # (b) lädt den Kontext im Node load_context aus dem ERP, (a) bekommt ihn als Input
+        start |= (
+            {"negotiation_id": run_id, "supplier_id": ctx.supplier_id}
+            if erp
+            else {"context": ctx.model_dump()}
         )
+        final = graph.invoke(start, config)
     except Exception as e:  # API-Fehler etc. zählen als Fehllauf, die Eval läuft weiter
         final = {
             "outcome": "error",
@@ -248,6 +284,10 @@ def run_one(
         }
         error = repr(e)
     wall = time.perf_counter() - t0
+    booked = None
+    if erp is not None:
+        booked = booking_ok(erp, run_id, ctx, final.get("outcome") or "error", supplier.replies)
+        erp.close()
 
     violations: list[str] = []
     for o in final.get("offers", []):
@@ -331,6 +371,7 @@ def run_one(
             for lg, r, ok in zip(parse_logs, supplier.replies, parse_checks, strict=False)
             if not ok
         ],
+        booked_ok=booked,
     )
 
 
@@ -382,6 +423,7 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
         "extraktion_korrekt": round(sum(r.parses_ok for r in records) / n_parses, 3)
         if (n_parses := sum(r.parses for r in records))
         else None,
+        "korrekt_gebucht": _rate([r.booked_ok for r in records if r.booked_ok is not None]),
         "formatfehler": sum(r.format_errors for r in records),
         "fehlerlaeufe": sum(r.outcome == "error" for r in records),
         "tokens_input": sum(r.input_tokens for r in records),
