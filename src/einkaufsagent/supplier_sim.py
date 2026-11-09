@@ -106,6 +106,8 @@ class SupplierSimulator:
         """Der Simulator bewertet die strukturierten Pakete; ``text`` (die Nachricht des Agenten) liest er nicht."""
         h = self._h
         demand = h.opening_demand
+        if demand and demand.once and t > 1:
+            demand = None  # einmalige Forderung (ADR 0008, Kategorie 2): ab Runde 2 normal verhandeln
         if demand and not any(p.price_change_pct >= demand.price_change_pct - 1e-9 for p in packages):
             if t == 1:
                 pct = f"{demand.price_change_pct:g}"

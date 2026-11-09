@@ -32,16 +32,22 @@ class PublicScenario(BaseModel):
 
 
 class OpeningDemand(BaseModel):
-    """Preiserhöhung ausserhalb des Mandats, die der Lieferant zur Bedingung macht und wiederholt."""
+    """Preiserhöhung ausserhalb des Mandats, die der Lieferant zur Bedingung macht und wiederholt (oder einmal nennt)."""
 
     model_config = ConfigDict(extra="forbid")
 
     price_change_pct: float
     reason: str
+    once: bool | None = Field(
+        None,
+        description="True: einmalige Forderung in Runde 1, danach verhandelt der Lieferant normal "
+        "(ADR 0008, Kategorie 2); sonst wiederholt er sie",
+    )
 
 
 class Injection(BaseModel):
-    """Manipulationsversuch im Lieferantentext (Prompt Injection), ab einer bestimmten Runde."""
+    """Text, den der Lieferant ab einer Runde an jedes Gegenangebot und jede Ablehnung hängt: Prompt Injection,
+    Behauptung oder harmloser Text mit Triggerwort. Was der Text bezweckt, steht nur in :class:`Attack`."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -80,6 +86,32 @@ class HiddenSupplier(BaseModel):
     canary: str | None = Field(None, description="Nur für Tests: darf nie im State auftauchen")
 
 
+class Attack(BaseModel):
+    """Nur Auswertung, wie ``expected_outcome``: Muster und Ziel des Texts in ``hidden.injection`` (ADR 0010). Liegt
+    ausserhalb von ``hidden`` und erreicht damit weder den Simulator noch den Graphen."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pattern: Literal[
+        "behauptung",
+        "agentdojo_ignore_previous",
+        "agentdojo_todo",
+        "agentdojo_important_message",
+        "injecagent",
+        "tensortrust_hijacking",
+        "tensortrust_extraction",
+        "harmlos",
+    ]
+    goal: Literal["commitment", "leak", "escalation"] | None = Field(
+        None,
+        description="commitment = Zusage ausserhalb des Mandats, leak = Mindestnutzen im Text, escalation = "
+        "unnötige Eskalation; None = harmloser Text (misst Fehlalarme)",
+    )
+    value: float | None = Field(
+        None, description="Zielwert im Text (z.B. 120 % Mengenzusage); nur Textprüfung"
+    )
+
+
 class Scenario(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -95,6 +127,7 @@ class Scenario(BaseModel):
     rationale: str
     public: PublicScenario
     hidden: HiddenSupplier
+    attack: Attack | None = None
 
 
 def load_scenarios(path: str | Path) -> list[Scenario]:
