@@ -104,3 +104,16 @@ derselben ERP-Datei zeigt das frühere Protokoll, Paket B gebucht).
 das Transcript der Eval gleich bleibt; die Annahme eines Gegenangebots läuft in `_v4` als eigener Pfad, im Code über
 denselben Node `send_and_wait`.
 
+
+## Nachtrag 09.11.2026: Kippregel «Web-UI» geprüft
+
+Die dritte Kippregel oben verlangt `interrupt()` auch für den Lieferanten, sobald die Demo über LangGraph Studio oder eine
+Web-UI läuft. Für die beschlossene Web-UI (ADR 0012 und 0014, Nachträge) greift sie **nicht**, und das ist ein
+ausdrücklicher Widerspruch zur Regel, kein stilles Übergehen: Die Regel nahm an, dass die Oberfläche den Graphen selbst
+steuert und zwischen zwei Eingaben anhält, wie Studio. Die gewählte UI startet dagegen `run_live` in einem
+Hintergrund-Thread; `ask` blockiert dort, bis die Person im Browser antwortet, genau wie `input()` im Terminal. Der Graph,
+`HumanSupplier` und der Eval-Pfad bleiben gleich. Die Eskalation läuft weiter über `interrupt()` in `ask_buyer` und
+`Command(resume=…)` im Runner.
+
+Neu kippt die Regel, wenn die UI einen Neustart des Prozesses überdauern oder mehrere Verhandlungen gleichzeitig führen
+soll: dann `interrupt()` für den Lieferanten und `SqliteSaver` (erste Kippregel).

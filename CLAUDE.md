@@ -255,7 +255,7 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Spielkarten, Veröffentlichungs-Check (Befund in §6), Folien als Slides-Artifact (6 Min. Folien, 4 Min. Demo).
    Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
 4. **Beim Nutzer:** Namen auf der Titelfolie, PDF-Export der Folien (Share › Export); SW9 einordnen lassen, sobald die
-   Folien da sind; Demo-Probe mit Aufzeichnung; 5–10 Live-Runden mit Spielkarte (Tabelle in `docs/demo.md`); Zugriff für
+   Folien da sind; Demo-Probe mit Aufzeichnung; mindestens 3 Live-Runden mit Spielkarte plus Red-Teaming durch Claude als eigene Zeile (Tabelle in `docs/demo.md`); Zugriff für
    die Dozierenden (öffentlich oder Einladung) erst am Schluss.
 5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.

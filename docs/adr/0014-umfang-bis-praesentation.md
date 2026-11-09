@@ -76,3 +76,18 @@ Bau 1 war am 09.11.2026 fertig, vor dem 12.11. Damit greift formal die Kippregel
 Nutzers (Empfehlung übernommen): **zuerst das Testset mit Angriffen (Bau 2); (c) nur, wenn danach vor dem 15.11.2026 noch
 Zeit bleibt** (3–4 h, Historie per Self-Play und eigene Messung). Grund: Die Kippregeln aus ADR 0008 und 0013 hängen am
 Testset, (c) ist ein Ausbau ohne offene Prüffrage. Reicht die Zeit nicht, bleibt (c) Ausbau in der Präsentation.
+
+## Nachtrag 09.11.2026: Web-UI als bewusste Ausnahme vom Feature-Freeze
+
+Nach Bau 2 gilt der Feature-Freeze (keine neuen Funktionen, keine Prompt- oder Regeländerung). Einzige beschlossene
+Ausnahme (Entscheid des Nutzers): eine **Web-UI als reine Präsentationsschicht** über dem Runner `live.run_live`, der die
+Callbacks `ask` und `out` schon nimmt (Begründung und Alternativen in ADR 0012, Nachtrag).
+
+Grenzen der Ausnahme: keine Änderung an Graph, Prompts, Regeln oder Eval, deshalb keine neue Messung; die Invarianten
+bleiben unberührt (verdeckte Werte und `Scenario.attack` nie im State, die UI zeigt die Spielkarte erst in der
+Auswertung); falls die UI strukturierte Ereignisse braucht, kommt ein kleiner Adapter in `live.py` (nur Runner), und die
+Terminal-Ausgabe bleibt byte-gleich (`tests/test_live.py`). Eine neue Abhängigkeit wird gepinnt.
+
+**Kippt, wenn** die Zeit für Live-Runden, Generalprobe und Prüfungsvorbereitung knapp wird; Annahme als Stichtag: Die UI
+ist am 15.11.2026 (Ende der Bauzeit laut Zeitplan oben) mit Luna durchgespielt, sonst Demo im Terminal. Live-Runden neu:
+mindestens 3 mit unbeteiligten Personen statt 5–10, dazu Red-Teaming durch Claude als eigene Zeile (ADR 0012, Nachtrag).

@@ -48,3 +48,34 @@ Leaks, Ergebnis gegen die ZOPA. Rund 5–10 Live-Runden vor der Präsentation, a
 - `send_and_wait` braucht einen Eingabemodus für einen Menschen (KW46); die Terminal-Ausgabe kennzeichnet LLM- und
   Code-Schritte farbig wie die BPMN.
 - Aufwand: Live-Demo rund 4 h, Ergebnisfolie rund 2 h, Spielkarten 1 h.
+
+## Nachtrag 09.11.2026: Demo über eine Web-UI, Befund aus der Probe, weniger Live-Runden
+
+**Web-UI (Entscheid des Nutzers, Variante B).** Die Demo läuft über eine schlanke Web-UI, die nur die Darstellung des
+Runners `live.run_live` übernimmt: links der Chat Agent ↔ Lieferant mit Eingabefeld, rechts die Schritte farbig wie die
+BPMN, bei einer Eskalation ein grüner Bereich mit Knöpfen für die Einkäuferin, am Schluss Protokoll und Auswertung gegen
+die Spielkarte. Graph, Prompts, Regeln und Eval bleiben unverändert; das Terminal (`ea-run --human`) bleibt der Fallback.
+Grund: SW4 Folie 2 nennt «User Interface: Chat Interface, Web app» als Baustein, und das Publikum liest eine Seite mit
+Chat und Schrittliste leichter als ein Terminal.
+
+| Alternative | Grund |
+| --- | --- |
+| A: Terminal allein | läuft heute, wirkt in der Präsentation aber schwächer; bleibt Fallback |
+| C: LangGraph Studio | verlangt `interrupt()` auch für den Lieferanten (Kippregel ADR 0015), eine Graph-Fabrik und eine neue Messung; zeigt eher Technik als die Kernthese |
+
+Kippt, wenn die Zeit für Live-Runden, Generalprobe und Prüfungsvorbereitung knapp wird: dann Demo im Terminal wie
+bisher (Ausnahme vom Feature-Freeze und Stichtag in ADR 0014, Nachtrag).
+
+**Befund aus der Demo-Probe** (Nutzer, S04, Luna, 09.11.2026; Details und Einordnung in `docs/demo.md`). Ablauf wie
+geplant, keine Verstösse. Nach «weiterverhandeln» bot `offer_engine` den nächsten Konzessionsschritt an, obwohl der
+Lieferant Paket B in Runde 3 unter einer Bedingung angenommen hatte (B mit 2 % statt 2,25 %, CHF 625 pro Jahr). Die Kurve
+hängt nur von der Runde ab; das ist eine Grenze der Strategie, kein Fehler, und wird wegen des Feature-Freeze nicht
+geändert (Limitation und Ausbau in `docs/gesamtsystem.md` §5 und §6). Für die Demo gilt `w` (weiterverhandeln) statt `a`:
+Es zeigt das Fortsetzen, die Buchung im ERP und die Auswertung gegen die Spielkarte. Die Probe zählt nicht als Live-Runde,
+weil die Person das Mandat kannte.
+
+**Live-Runden (Entscheid des Nutzers).** Mindestens 3 Runden mit unbeteiligten Personen statt 5–10, ausgewertet wie
+geplant gegen die Spielkarte. Zusätzlich **Red-Teaming durch Claude** als eigene, getrennt beschriftete Zeile: Claude
+spielt den Lieferanten über mehrere Runden als informierter Angreifer (kennt Mandat, Prompts und Testtexte, Whitebox) und
+wird mit derselben Auswertung bewertet. Diese Zeile gilt nie als Live-Runde und nie als Beleg gegen Menschen: Sie ist ein
+Stresstest, kein Ersatz für den in ADR 0009 verworfenen LLM-Lieferanten in der Eval.

@@ -382,7 +382,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   CHF 31'546 gegen 15'499 pro Durchgang. Die Kippregel aus ADR 0006 greift formal bei der Erfolgsquote auf dem Dev-Set
   (+18 Punkte, Schwelle 20); Spielraum (+48) und Testset (+25) liegen klar darüber. Entscheid: formal nennen, Kernthese
   halten.
-- **Geplant (ADR 0012, 0014):** 5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
+- **Geplant (ADR 0012, 0014, Nachträge):** mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte, bewertet
+  im Code; dazu Red-Teaming durch Claude als eigene Zeile, nie als Live-Runde berichtet. Nur, wenn Zeit bleibt:
   `granite4.1:3b`. Gestrichen: Spike Entscheidungsmodell, Bias-Varianten, Variante (c) (nur bei Restzeit, ADR 0014).
 
 ## 5 Erkenntnisse und Limitationen
@@ -444,6 +445,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
   warten Eskalationen Tage; dann `SqliteSaver` (Kippregel ADR 0015). Die Eval setzt nach einer Eskalation nicht fort;
   der Pfad «weiterverhandeln» ist nur mit Tests und im Terminal geprüft.
+- Die Konzession von `offer_engine` folgt einer festen Kurve über die Runden (zeitabhängige Taktik nach Faratin et al.
+  1998) und reagiert nicht auf Signale des Lieferanten. In der Demo-Probe (S04, 09.11.2026) nahm der Lieferant Paket B mit
+  2,25 % unter einer Laufzeit-Bedingung an; nach «weiterverhandeln» bot der Agent B mit 2 % an, CHF 625 pro Jahr weniger,
+  obwohl B mit 2,25 % laut Spielkarte auch ohne Bedingung annehmbar war. Das weiss nur, wer die verdeckten Werte kennt;
+  die Eval deckt den Pfad nicht ab (Einordnung in `docs/demo.md`, ADR 0012, Nachtrag).
 - Die Hinweise im Protokoll enthalten Zitate des Lieferanten. Sie sind für die Einkäuferin gedacht; ein Ausbau (c)
   dürfte nur die typisierten Felder (Paketwahl, Konditionen) in einen Prompt geben (OWASP ASI06).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
@@ -462,8 +468,9 @@ nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Fol
   bei unzuverlässigem Proxy eine Aufzeichnung.
 - **Ergebnisfolie als Kampagne:** Das Testset läuft durch (a) und (b); die Folie zeigt Abschlussquote, Nutzen in CHF,
   Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
-- **Live-Runden:** Die Person erhält eine Spielkarte mit ihren verdeckten Grenzen aus einem Szenario. Damit ist die
-  ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen ZOPA).
+- **Live-Runden:** Mindestens 3 unbeteiligte Personen erhalten je eine Spielkarte mit ihren verdeckten Grenzen aus
+  einem Szenario. Damit ist die ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen
+  ZOPA). Red-Teaming durch Claude (kennt Mandat und Prompts) steht als eigene Zeile daneben, nie als Live-Runde.
 
 **Abgabe am 23.11.2026 (Anhang A):** Link auf die ausführbare Lösung (dieses Repository mit Anleitung; ohne
 Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses
@@ -479,7 +486,9 @@ Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe ei
 - eigenes lokales Modell auf eigener GPU für vertrauliche Konditionen (ADR 0011);
 - Entscheidungsmodell mit eigener Kalibrierung auf eigenen Daten, falls der Spike knapp ausfällt (ADR 0011);
 - Kampagne als parallele Instanzen (`Send`) mit Dashboard nach dem Vorbild Walmart;
-- weitere Konditionen (Skonto, Rückvergütungen) erst mit echten Lieferantendaten.
+- weitere Konditionen (Skonto, Rückvergütungen) erst mit echten Lieferantendaten;
+- verhaltensabhängige Konzession (Faratin et al. 1998): ein unter Bedingung angenommenes Paket nach «weiterverhandeln»
+  einmal ohne Bedingung erneut anbieten; messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
 
 ## 7 Verworfene Alternativen
 
