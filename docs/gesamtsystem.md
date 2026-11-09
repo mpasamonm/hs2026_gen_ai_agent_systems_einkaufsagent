@@ -374,8 +374,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   verlassen uns nur auf die eigene Messung (ADR 0011).
 - Gegen die Original-Vorlagen löst auch ein Regex-Parser alles. Gegen Umformulierungen fällt er auf 0.27, (b) mit Luna
   bleibt bei 1.00; gegen Menschen ist der Nutzen erst in den Live-Runden belegt. Die Umformulierungen betreffen nur die
-  Simulator-Sätze, einige teilen Wörter mit den Beispielen im Parse-Prompt, und die Stichprobe (0 von 20 fehlerhaft) hat Claude
-  beurteilt, also dieselbe Modellfamilie wie der Generator (ADR 0010). Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden und tragen nur teilweise
+  Simulator-Sätze, einige teilen Wörter mit den Beispielen im Parse-Prompt, die Stichprobe zeigte 0 von 20 fehlerhaft
+  (ADR 0010). Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden und tragen nur teilweise
   (S06 umformuliert 2× unnötig eskaliert); das Testset prüft sie (ADR 0013).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
