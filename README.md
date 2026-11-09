@@ -1,62 +1,120 @@
-# Einkaufsagent – Verhandlungsagent «Einkauf»
+# Einkaufsagent – LLM schlägt vor, Code entscheidet
 
-Gruppenarbeit «Generative KI und Agentensysteme», FHNW Hochschule für Wirtschaft, HS 2026.
-Ein LangGraph-Agent verhandelt für die fiktive Musterhandel AG Zahlungsziel, Rabatt und Mengenzusage
-mit kleineren Lieferanten nach, strikt innerhalb eines Mandats des Einkaufs (ADR 0001).
+Gruppenarbeit «Generative KI und Agentensysteme», FHNW Hochschule für Wirtschaft, HS 2026. Abgabe am 23.11.2026.
 
-**Stand KW43 (19.10.2026):** Variante (a) (reines LLM) und Variante (b) (Hybrid: LLM formuliert und extrahiert,
-Code rechnet und entscheidet) laufen gegen einen regelbasierten, simulierten Lieferanten; 11 Entwicklungsszenarien,
-Eval, Benchmark, LangSmith-Tracing. Ablation mit `gpt-5.6-luna`: (a) 0.79 Erfolg, (b) 1.00 (ADR 0013).
+Ein LangGraph-Agent verhandelt für die fiktive Musterhandel AG mit kleineren Lieferanten (Long Tail, unter
+CHF 250'000 Jahresvolumen) Zahlungsziel, Rabatt und Mengenzusage nach. Er bietet pro Runde 2–3 gleichwertige Pakete an
+(MESO, Vorbild Pactum bei Walmart), bleibt strikt im Mandat der Einkäuferin und übergibt an sie, was das Mandat nicht
+regelt. Die Kernthese «LLM schlägt vor, Code entscheidet» belegen wir mit einer Ablation gegen simulierte Lieferanten
+mit verdeckten Parametern und bekannter Wahrheit: (a) reines LLM gegen (b) Hybrid, in dem das LLM nur liest und
+formuliert und Code Pakete berechnet, jede Nachricht gegen das Mandat prüft und über Annahme entscheidet.
 
-## Schnellstart
+**Einstieg:** [`docs/gesamtsystem.md`](docs/gesamtsystem.md) erklärt Problem, Ansatz, Umsetzung, Evaluation und
+Limitationen mit Quellen; die Entscheide mit Alternativen stehen in [`docs/adr/`](docs/adr/README.md).
+
+## Start
+
+Voraussetzung: Python ≥ 3.12 und [uv](https://docs.astral.sh/uv/). Ohne API-Key laufen die Tests, die Regel-Referenz
+und Variante (b) mit Vorlage und Regex-Parser.
 
 ```bash
-uv sync                                   # Python ≥ 3.12, Abhängigkeiten aus uv.lock
-cp .env.example .env                      # LiteLLM- und LangSmith-Keys eintragen
-uv run pytest                             # Offline-Tests, ohne API-Key
-uv run ea-run --scenario S04 --policy rule          # eine Verhandlung, Regel-Referenz (offline)
-uv run ea-check-models                    # Function Calling / JSON Schema pro Modell prüfen
-uv run ea-run --scenario S04 --model gpt-5.6-luna   # dieselbe Verhandlung mit LLM, erscheint in LangSmith
-uv run ea-eval --model gpt-5.6-luna --repeats 3     # alle Szenarien, Metriken nach Artefakt 4
-uv run ea-eval --variant b --policy rule            # Variante (b) offline (Vorlage + Regex-Parser)
-uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3   # Variante (b) mit LLM
-uv run ea-benchmark --repeats 3           # drei Modelle + Regel-Referenz, Vergleichstabelle
-uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Simulator mit Umformulierungen (ADR 0010)
+uv sync                                                # Abhängigkeiten aus uv.lock
+uv run pytest                                          # 79 Tests, offline
+uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 Dev-Szenarien: Erfolg 0.91
+uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
+uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext
+uv run ea-run --scenario S11 --variant b --policy rule --live   # Eskalation, Einkäuferin entscheidet im Terminal
 ```
 
-Ergebnisse landen in `results/` (nicht versioniert): `runs.jsonl` mit vollem Verlauf pro Lauf,
-`summary.md` und `summary.json`, beim Benchmark zusätzlich `benchmark.md`.
+Mit Zugang zum FHNW-LiteLLM (Modell `gpt-5.6-luna`) und optional LangSmith:
 
-## Aufbau
+```bash
+cp .env.example .env                                   # LITELLM_BASE_URL, LITELLM_API_KEY, LangSmith-Key eintragen
+uv run ea-check-models                                 # Luna: function_calling ok
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3                                    # Dev-Set
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --scenarios data/scenarios/test.jsonl   # Testset
+uv run ea-eval --model gpt-5.6-luna --repeats 3        # Variante (a), reines LLM
+```
+
+Schalter: `--variant a|b`, `--paraphrase` (Lieferantentexte umformuliert), `--scenarios` (Dev- oder Testset),
+`--repeats`. Ergebnisse landen in `results/<zeitstempel>_…/` (`runs.jsonl` mit vollem Verlauf, `summary.md`,
+`summary.json`).
+
+## Demo: Mensch als Lieferant
+
+```bash
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite
+```
+
+Eine Person spielt den Lieferanten und versucht, den Agenten zu manipulieren. Die Ausgabe zeigt farbig, was das LLM
+vorschlägt (orange) und was der Code entscheidet (blau); bei einer Eskalation hält der Graph an (`interrupt()`) und die
+Einkäuferin entscheidet im selben Terminal (grün). Die Protokolle bleiben in der SQLite-Datei (Langzeitgedächtnis).
+Ablauf, Fallbacks und Spielkarten: [`docs/demo.md`](docs/demo.md).
+
+## Ergebnisse (finale Läufe vom 09.11.2026, `gpt-5.6-luna`, 3 Wiederholungen)
+
+| Variante | Erfolg Dev (11) | Erfolg Testset (15) | Testset umformuliert | Spielraum Testset | Verstösse Testset | Angriffe erfolgreich | unnötige Eskalationen Testset | USD pro Erfolg |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (a) reines LLM | 0.82 | 0.73 | 0.71 | 0.25 | 2 | 0 | 0.06 | 0.0031 |
+| **(b) Hybrid** | **1.00** | **0.98** | **0.93** | **0.70** | **0** | **0** | 0.12 | 0.0017 |
+| Regel-Referenz ohne LLM | 0.91 | 0.80 | – | 0.70 | 9 | 0 | 0 | 0 |
+| (b) mit Regex-Parser statt LLM | 1.00 | 0.80 | 0.13 | 0.70 | 5 | 0 | 0 | 0 |
+
+**Erfolg** heisst: erwartetes Ergebnis (Abschluss, kein Abschluss oder Eskalation) ohne Mandatsverstoss.
+**Gesicherter Spielraum** ist der Anteil des möglichen Nutzens über dem Mindestnutzen, den ein Abschluss sichert.
+Kurz gesagt: Zum Lesen braucht es das LLM (der Regex-Parser bricht bei umformulierten Texten ein), zum Entscheiden
+den Code (das reine LLM verschenkt Spielraum, verpasst Eskalationen und schliesst zweimal unter dem Mindestnutzen ab).
+Kein Angriff erreicht sein Ziel, auch nicht gegen (a). Auf dem Dev-Set liegt (b) bei der Erfolgsquote 18 Punkte vor (a),
+knapp unter der selbst gesetzten Schwelle von 20 Punkten. Spielraum (+48) und Testset (+25) liegen klar darüber
+(ADR 0013, Nachtrag).
+
+Alle Läufe vom selben Code-Stand mit Befehlen, Kosten und Fehlläufen: [`docs/ergebnisse/2026-11-09/`](docs/ergebnisse/2026-11-09/README.md).
+Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
+
+## Wo was liegt
 
 | Pfad | Inhalt |
 | --- | --- |
-| `CLAUDE.md` | Übergabe für neue Sessions: Kontext, Entscheide, Stand, nächste Schritte, Arbeitsweise |
-| `kontext/` | lokale Kursunterlagen und Exporte, **nicht im Git** (siehe `kontext/README.md`) |
-| `docs/gesamtsystem.md` | Gesamtsystem und Begründungen: Grundlage für Präsentation, Demo und Prüfung |
-| `docs/sw4-artefakte.md` | SW4-Artefakte 1–4 (Use-Case, Prozess, Anforderungen, Erfolgskriterien) |
-| `docs/adr/` | Architekturentscheide (ADR), Index in `docs/adr/README.md` |
-| `docs/process/` | BPMN 2.0 des Soll-Prozesses (`_v3`), Render, Validierungsskripte, Mapping BPMN → LangGraph |
-| `docs/eval-metriken.md` | Definition jeder Metrik und des Erfolgskriteriums |
-| `data/scenarios/dev.jsonl` | 11 Entwicklungsszenarien; `public` für den Agenten, `hidden` nur für den Simulator |
-| `data/paraphrases/` | eingefrorene Umformulierungen der Simulator-Vorlagen, Prompt und Stichprobe (ADR 0010) |
-| `scripts/build_scenarios.py` | erzeugt `dev.jsonl` und prüft jedes erwartete Ergebnis gegen die ZOPA |
-| `config/models.toml` | Modellkandidaten im FHNW-LiteLLM (ADR 0004) |
-| `src/einkaufsagent/domain.py` | Konditionen, Mandat, Käufernutzen, Mandatsprüfung (deterministisch) |
-| `src/einkaufsagent/supplier_sim.py` | Lieferanten-Simulator mit verdeckten Parametern, ZOPA-Analyse |
-| `src/einkaufsagent/graph_a.py` | LangGraph-Graph Variante (a) |
-| `src/einkaufsagent/policies.py` | `LLMPolicy` (Variante a) und `RuleBasedPolicy` (Referenz ohne LLM) |
-| `src/einkaufsagent/graph_b.py` | LangGraph-Graph Variante (b) nach `_v3` |
-| `src/einkaufsagent/hybrid.py` | Code-Schritte von (b): Nachricht prüfen, Vorlagen, Antwort bewerten (ADR 0008) |
-| `src/einkaufsagent/extract.py`, `narrate.py` | austauschbare LLM-Schritte von (b): Antwort extrahieren, Angebot formulieren |
-| `src/einkaufsagent/prompts.py` | System-Prompt Variante (a), Prompts für `narrate` und `parse_response` |
-| `src/einkaufsagent/eval.py`, `benchmark.py`, `check_models.py`, `run.py` | CLIs |
+| `docs/gesamtsystem.md` | Gesamtsystem und Begründungen: Grundlage für Präsentation und Prüfung |
+| `docs/adr/` | 15 Architekturentscheide mit Alternativen und «kippt, wenn» (Index in `README.md`) |
+| `einkaufsagent-prozess_v4.bpmn`, `.png` | gültiger Soll-Prozess (BPMN 2.0); Zuordnung BPMN → LangGraph in `docs/process/README.md`; `_v1`–`_v3` als Historie |
+| `docs/eval-metriken.md` | Definition und Zielwert jeder Metrik |
+| `docs/ergebnisse/` | versionierte Ergebnisse der finalen Läufe |
+| `docs/demo.md` | Demo-Ablauf, Aufzeichnung, Live-Runden, Spielkarten |
+| `src/einkaufsagent/graph_a.py` | Variante (a): `load_context → negotiate ⇄ send_and_wait → finalize`, ein LLM-Node entscheidet alles |
+| `src/einkaufsagent/graph_b.py` | Variante (b): `offer_engine → narrate → mandate_guard → send_and_wait → parse_response → assess_response →` Runde, Annahme, `escalate → ask_buyer` oder `record_outcome` |
+| `src/einkaufsagent/hybrid.py`, `domain.py` | Code-Schritte: Mandatsprüfung, Bewertung nach ADR 0008, Vorlagen, Nutzenfunktion |
+| `src/einkaufsagent/extract.py`, `narrate.py`, `prompts.py` | LLM-Schritte von (b) (austauschbar) und alle Prompts |
+| `src/einkaufsagent/erp.py`, `live.py` | ERP-Adapter (SQLite, Protokoll, Buchung) und Runner im Terminal |
+| `src/einkaufsagent/supplier_sim.py` | regelbasierter Lieferanten-Simulator mit verdeckten Parametern, ZOPA-Analyse |
+| `src/einkaufsagent/eval.py`, `benchmark.py` | Eval und Modellvergleich |
+| `data/scenarios/` | 11 Dev-Szenarien, 15 Testszenarien mit Angriffen (Aufbau in `README.md`) |
+| `data/paraphrases/` | eingefrorene Umformulierungen der Lieferantentexte mit Prompt und Stichprobe |
+| `scripts/` | Szenarien und Testset erzeugen und prüfen, Fehlerbilder auswerten |
+| `tests/` | Offline-Tests, darunter Canary-Tests: verdeckte Werte erreichen nie State, Prompt oder ERP |
+| `CLAUDE.md` | Arbeitsstand und Übergabe zwischen Sessions (Arbeitsprotokoll) |
+
+## Limitationen in Kürze
+
+- Gemessen gegen einen regelbasierten Simulator mit synthetischen Texten; gegen Menschen gibt es nur einzelne
+  Live-Runden. Externe Validität ist die Hauptlimitation.
+- 11 Dev- und 15 Testszenarien × 3 Wiederholungen: Ein Szenario entspricht 9 bzw. 6,7 Prozentpunkten; Unterschiede
+  unter etwa 20 Punkten nicht interpretieren.
+- Mit `gpt-5.6-luna` scheitert kein Angriff, auch nicht gegen (a); der Sicherheitsgewinn von (b) ist strukturell, mit
+  diesem Modell aber nicht messbar. Der Preis der Abwehr sind unnötige Eskalationen (Denial of Service gegen die
+  Einkäuferin), ADR 0013.
+- Szenarien, Testset und Regel-Referenz stammen aus einer Hand; die Testtexte schrieb ein Modell einer anderen Familie
+  (Claude Opus), der Code rechnet die Wahrheit (ADR 0010).
+- Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`).
+
+Ausführlich: `docs/gesamtsystem.md` §5.
 
 ## Grundsätze
 
-- **Die Evaluation ist die Spezifikation.** Keine Prompt- oder Architekturänderung ohne Messung auf
-  denselben Szenarien; das erwartete Ergebnis jedes Szenarios ist aus seinen Parametern hergeleitet.
-- **Verdeckte Lieferantenparameter erreichen den Agenten nie.** Der Simulator kommt per Closure in den
-  Graphen; ein Canary-Test prüft State und Prompts (`tests/test_graph_and_isolation.py`).
-- **LLM schlägt vor, Code entscheidet** – ab Variante (b). Variante (a) ist bewusst die Baseline ohne
-  diese Trennung (ADR 0002, 0013).
+- **Die Evaluation ist die Spezifikation.** Keine Prompt- oder Architekturänderung ohne Messung auf denselben
+  Szenarien; das erwartete Ergebnis jedes Szenarios ist aus seinen Parametern hergeleitet.
+- **Verdeckte Lieferantenparameter erreichen den Agenten nie.** Simulator, Mensch und ERP kommen per Closure in den
+  Graphen; Canary-Tests prüfen State, Prompts und den Inhalt der Datenbank.
+- **LLM schlägt vor, Code entscheidet** – ab Variante (b). Variante (a) ist bewusst die Baseline ohne diese Trennung.
+
+Fiktive Firma, keine echten Lieferanten, keine echten Daten.
