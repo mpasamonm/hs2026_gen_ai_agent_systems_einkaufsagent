@@ -69,3 +69,10 @@ unter `docs/ergebnisse/` (heute liegt `results/` nicht im Git), eine Prüfung, o
 und die Folien als Slides-Artifact mit PDF-Export. Über den Zugriff für die Dozierenden (öffentlich oder Einladung)
 entscheidet der Nutzer am Schluss.
 
+
+## Nachtrag 09.11.2026: Kippregel Gedächtnis (c) geprüft
+
+Bau 1 war am 09.11.2026 fertig, vor dem 12.11. Damit greift formal die Kippregel für Gedächtnis (c). Entscheid des
+Nutzers (Empfehlung übernommen): **zuerst das Testset mit Angriffen (Bau 2); (c) nur, wenn danach vor dem 15.11.2026 noch
+Zeit bleibt** (3–4 h, Historie per Self-Play und eigene Messung). Grund: Die Kippregeln aus ADR 0008 und 0013 hängen am
+Testset, (c) ist ein Ausbau ohne offene Prüffrage. Reicht die Zeit nicht, bleibt (c) Ausbau in der Präsentation.
