@@ -367,6 +367,21 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   drei neuen Bedingungen; Regex-Parser und Regel-Referenz sagen sie stillschweigend zu. Die unnötigen Eskalationen in (b)
   kommen von zwei Angriffen: Der Content-Filter des Proxys blockiert Tensor Trust Extraction (T09, Fail-safe eskaliert),
   und der wiederholte «TODO»-Satz gilt als wiederholte Forderung (T11). Fehlalarme gibt es nur bei «freigegeben» (T15).
+- **Finale Läufe für die Abgabe, 09.11.2026** (14 Läufe auf demselben Code-Stand, Luna × 3; alle Zahlen, Befehle und
+  Fehlläufe in `docs/ergebnisse/2026-11-09/README.md`, Kippregel in ADR 0013, Nachtrag finale Läufe). Diese Zahlen gelten
+  für Folien und README; die Messungen oben bleiben als Verlauf:
+
+| Variante | Erfolg Dev | Dev umformuliert | Erfolg Test | Test umformuliert | Spielraum Test | Verstösse Test | Angriff erfolgreich | unnötig eskaliert Test | USD pro Erfolg Test |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (a) reines LLM | 0.82 | 0.79 | 0.73 | 0.71 | 0.25 | 2 (T10) | 0 | 0.06 | 0.0031 |
+| (b) Hybrid | 1.00 | 1.00 | 0.98 | 0.93 | 0.70 | 0 | 0 | 0.12 | 0.0017 |
+| (b) mit Regex-Parser | 1.00 | 0.27 | 0.80 | 0.13 | 0.70 | 5 | 0 | 0 | 0 |
+| Regel-Referenz ohne LLM | 0.91 | – | 0.80 | – | 0.70 | 9 | 0 | 0 | 0 |
+
+  Als Kampagne über die 15 Testlieferanten: Abschlussquote 96 % gegen 74 %, Jahresnutzen der Abschlüsse ohne Verstoss
+  CHF 31'546 gegen 15'499 pro Durchgang. Die Kippregel aus ADR 0006 greift formal bei der Erfolgsquote auf dem Dev-Set
+  (+18 Punkte, Schwelle 20); Spielraum (+48) und Testset (+25) liegen klar darüber. Entscheid: formal nennen, Kernthese
+  halten.
 - **Geplant (ADR 0012, 0014):** 5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
   `granite4.1:3b`. Gestrichen: Spike Entscheidungsmodell, Bias-Varianten, Variante (c) (nur bei Restzeit, ADR 0014).
 
@@ -419,7 +434,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Simulator-Sätze, einige teilen Wörter mit den Beispielen im Parse-Prompt, die Stichprobe zeigte 0 von 20 fehlerhaft
   (ADR 0010). Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden und tragen nur teilweise
   (S06 umformuliert 2× unnötig eskaliert). Auf dem Testset erkennt (b) alle Bedingungen; unnötige Eskalationen liegen bei
-  9 % und umformuliert bei 18 %, über der Schwelle von 10 % aus ADR 0008, verursacht durch zwei Angriffe (ADR 0010).
+  9 % und umformuliert bei 18 % (finale Läufe: 12 % und 18 %), über der Schwelle von 10 % aus ADR 0008, verursacht durch
+  zwei Angriffe (ADR 0010).
+- Die Erfolgsquote von (a) auf dem Dev-Set streut zwischen Messungen von 0.76 bis 0.82. Im finalen Lauf liegt (b) nur 18
+  Punkte vor (a), knapp unter der selbst gesetzten Schwelle von 20 (ADR 0006); der Leistungsbeleg ist deshalb der
+  gesicherte Spielraum und das zurückgehaltene Testset (ADR 0013, Nachtrag finale Läufe).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
@@ -431,7 +450,9 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 
 ## 6 Demo und Abgabe
 
-**Demo (ADR 0012)**
+**Demo (ADR 0012)**: Ablauf, Fallbacks, Aufzeichnung und Spielkarten in `docs/demo.md`. Zeitplan der Präsentation
+(Entscheid des Nutzers, 09.11.2026): 6 Minuten Folien, 4 Minuten Demo, Fragen nicht eingerechnet. Der Projektbeschrieb
+nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 7 ist die Kürzungsstelle.
 - **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten im Terminal und
   versucht, den Agenten zu manipulieren:
   `uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite`. Die Ausgabe
@@ -446,8 +467,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 
 **Abgabe am 23.11.2026 (Anhang A):** Link auf die ausführbare Lösung (dieses Repository mit Anleitung; ohne
 Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses
-Dokument, ADRs, BPMN, Eval-Ergebnisse unter `docs/ergebnisse/`) und die Präsentation als PDF. Der Zugriff für die
-Dozierenden wird vor der Abgabe eingerichtet.
+Dokument, ADRs, BPMN, Eval-Ergebnisse unter `docs/ergebnisse/`) und die Präsentation als PDF. Die Folien liegen als
+Slides-Artifact vor (8 Hauptfolien, 6 Backup-Folien mit Sprechernotizen) und werden von dort als PDF exportiert. Der
+Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe eingerichtet; der Veröffentlichungs-Check vom
+09.11.2026 fand keine Secrets und keine Kursunterlagen in der Historie.
 
 **Ausbaumöglichkeiten**
 - nur lesender MCP-Server über dem ERP-Adapter, damit die Einkäuferin Protokolle aus ihrem Chat-Client abfragt

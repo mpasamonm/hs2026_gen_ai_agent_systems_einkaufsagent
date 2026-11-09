@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Bau 2). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Abgabe-Paket). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -30,7 +30,8 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   Unterrichtsstoff. Jede Person muss das Gesamtsystem erklären können, nicht nur den eigenen Teil.
 - Mögliche Prüfungsfragen laut Anhang A: Problemstellung, Modell- und Methodenwahl, Architektur, technische
   Umsetzung, Daten und Werkzeuge, Evaluation, Limitationen, alternative Lösungsansätze.
-- Abschlusspräsentation 23.11.2026, 13.00 Uhr, 10 Minuten inkl. Fragen: Problem, Ansatz, Umsetzung,
+- Abschlusspräsentation 23.11.2026, 13.00 Uhr, 10 Minuten (Projektbeschrieb; das Semesterprogramm sagt «inkl.
+  Verständnisfragen»; Entscheid des Nutzers 09.11.: 6 Min. Folien und 4 Min. Demo, Fragen nicht eingerechnet): Problem, Ansatz, Umsetzung,
   Evaluation, Erkenntnisse und Limitationen, möglichst mit Demo. Alle Mitglieder nehmen teil; die Dozierenden
   können individuelle Rückfragen stellen, auch zum eigenen Beitrag. Die Präsentation gehört zur Gruppenarbeit
   (erfüllt/nicht erfüllt) und gibt keine Punkte.
@@ -129,7 +130,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 09.11.2026 (nach Bau 2)
+## 6. Stand am 09.11.2026 (nach Abgabe-Paket)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -222,6 +223,20 @@ Erledigt:
     USD. Kippregel ADR 0008/0013 (unnötige Eskalationen > 10 %) greift formal im umformulierten Lauf; Entscheid des
     Nutzers: nicht ändern, als Befund berichten (ADR 0013, Nachtrag).
   - Lesung der 15 Testtexte: 0 Fehler, freigegeben (vom Nutzer an Claude delegiert; Hinweis T12 in `test_lesung.md`).
+- Session 09.11.2026, Abgabe-Paket (Etappe 3):
+  - Finale Läufe: 14 Läufe auf Commit `3ac6beb` (Dev und Testset; Regel-Referenz, (b) offline mit und ohne
+    `--paraphrase`, (a) und (b) mit Luna × 3 mit und ohne `--paraphrase`), 0.61 USD, versioniert mit `runs.jsonl` unter
+    `docs/ergebnisse/2026-11-09/` (Übersicht, Befehle, Fehlläufe in `README.md`). (b) 1.00 Dev / 0.98 Test, (a) 0.82 /
+    0.73, Spielraum 0.71 / 0.70 gegen 0.23 / 0.25, Angriffserfolg 0. Kippregel ADR 0006 greift formal bei der
+    Erfolgsquote auf Dev (+18 < 20); Entscheid des Nutzers: formal nennen, Kernthese halten (ADR 0013, Nachtrag finale
+    Läufe). Unnötige Eskalationen (b) jetzt 12 % Test, 11 % Dev umformuliert (S06, ohne ZOPA); Entscheid A gilt weiter.
+  - README neu als Einstieg für die Dozierenden; `docs/demo.md` mit Ablauf «Greift den Agenten an» (mit Luna geskriptet
+    geprüft: Behauptung zurückgewiesen, kein Leak, Eskalation), Fallbacks, Aufzeichnung (`script`/`scriptreplay`),
+    Live-Runden-Tabelle und Spielkarten S02, S04, S08, S11.
+  - Veröffentlichungs-Check: keine Secrets, `.env` und `kontext/` nie in der Historie; sichtbar wären die Proxy-Adresse
+    (CLAUDE.md, ADR 0004), Commit-E-Mails (auch des Teammitglieds) und CLAUDE.md als Arbeitsprotokoll. Zugriff offen.
+  - Folien als Slides-Artifact (15 Folien: 8 Hauptfolien, Backup-Trenner und 6 Backup-Folien, Sprechernotizen mit Zeiten):
+    https://claude.ai/artifact/C2fJqULVGBRzwNBkxBpzPJ (privat). Namen und PDF-Export macht der Nutzer.
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -236,12 +251,12 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    **Feature-Freeze ab 09.11.2026**: keine neuen Funktionen, keine Prompt- oder Regeländerung; Ausnahmen nur nach Rückfrage
    (SW9, ADR 0014). Bias gestrichen; granite und (c) nur bei Restzeit vor dem 15.11.
    Einstieg für Etappe 3: `kontext/UEBERGABE-PROMPT-ABGABE-3.md`.
-3. **Abgabe-Paket:** README als Einstieg für die Dozierenden (Zweck, Start offline und mit Key, Demo-Befehl, wo was
-   liegt); Endergebnisse (`summary.md` der finalen Läufe) versioniert unter `docs/ergebnisse/`; Prüfung, ob das Repo
-   veröffentlicht werden könnte (keine Secrets, keine Kursunterlagen in der Historie); Folien als Slides-Artifact
-   (10 Min. inkl. Fragen, Aufbau nach `docs/gesamtsystem.md`), Export als PDF; Demo-Aufzeichnung als Fallback.
-4. **Beim Nutzer:** SW9 einordnen lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
-   Zugriff für die Dozierenden (öffentlich oder Einladung) erst am Schluss.
+3. **Abgabe-Paket erledigt 09.11.:** finale Läufe unter `docs/ergebnisse/2026-11-09/`, README, `docs/demo.md` mit
+   Spielkarten, Veröffentlichungs-Check (Befund in §6), Folien als Slides-Artifact (6 Min. Folien, 4 Min. Demo).
+   Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
+4. **Beim Nutzer:** Namen auf der Titelfolie, PDF-Export der Folien (Share › Export); SW9 einordnen lassen, sobald die
+   Folien da sind; Demo-Probe mit Aufzeichnung; 5–10 Live-Runden mit Spielkarte (Tabelle in `docs/demo.md`); Zugriff für
+   die Dozierenden (öffentlich oder Einladung) erst am Schluss.
 5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
    Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
@@ -259,6 +274,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 - **Proxy (09.11.2026):** `ea-check-models` lieferte für Luna einmal einen 422-Fehler, die Wiederholung lief. Neu in der
   Modellliste: `microsoft-decision-1` und `gpt-6-luna` (ohne Präfix `azure_ai/`), nicht geprüft; der Spike ist
   gestrichen (ADR 0014).
+- **LangSmith (09.11.2026):** Das monatliche Trace-Limit des Kontos ist erschöpft (HTTP 429, «Monthly unique traces usage
+  limit exceeded»). Läufe und Tests laufen weiter, der Client schreibt aber Fehlermeldungen ins Terminal; für Demo und
+  Probe `export LANGSMITH_TRACING=false`. Neue Traces erst nach der Monatswende.
 - **Jev ist nicht im FHNW-Proxy** (Annahme vom 19.10. widerlegt). Erreichbar ist nur `tev1:0.8b` (Together AI,
   Qwen3.5-0.8B, nicht Jev) über `/v1/systemone`; SW6 Folie 40 zeigt dasselbe. Jev selbst nur über api.typesafe.ai mit
   eigenem Key, Betrieb in den USA.
@@ -349,6 +367,7 @@ uv run ea-eval --policy rule --repeats 3 --scenarios data/scenarios/test.jsonl  
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --scenarios data/scenarios/test.jsonl   # Testset (b): 0.98
 uv run ea-run --scenario S11 --variant b --policy rule --live                # Eskalation, Einkäuferin im Terminal (offline)
 uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo mit Mensch
+# Finale Läufe der Abgabe (14 Stück, --out docs/ergebnisse/<datum>): Befehle in docs/ergebnisse/2026-11-09/README.md
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
 cd docs/process && npm install && python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn \
   && node validate.mjs ../../einkaufsagent-prozess_v4.bpmn \
