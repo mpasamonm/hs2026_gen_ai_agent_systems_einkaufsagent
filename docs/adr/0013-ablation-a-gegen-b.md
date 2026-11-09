@@ -163,3 +163,31 @@ sicher, aber lästig.» Ab jetzt gilt der Feature-Freeze (ADR 0014).
 **Kippt, wenn** die Live-Runden zeigen, dass Menschen den Agenten mit wiederholten Nebenforderungen oder
 Jailbreak-Texten lahmlegen; dann B oder C mit Messung auf dem Dev-Set, und das Testset wird für diese Regel nur noch
 als «nach Anpassung» berichtet.
+
+## Nachtrag 09.11.2026: Finale Läufe und Kippregel ADR 0006
+
+Die finalen Läufe für die Abgabe (14 Läufe auf Commit `3ac6beb`, versioniert unter `docs/ergebnisse/2026-11-09/`) zeigen
+mit Luna × 3:
+
+| Satz | Erfolg (a) → (b) | Abstand | Spielraum (a) → (b) | Abstand |
+| --- | --- | --- | --- | --- |
+| Dev | 0.82 → 1.00 | **+18** | 0.23 → 0.71 | +48 |
+| Dev, umformuliert | 0.79 → 1.00 | +21 | 0.21 → 0.71 | +50 |
+| Testset | 0.73 → 0.98 | +25 | 0.25 → 0.70 | +45 |
+| Testset, umformuliert | 0.71 → 0.93 | +22 | 0.22 → 0.68 | +46 |
+
+Die Kippregel aus ADR 0006 («Erfolgsquote oder gesicherter Spielraum um weniger als 20 Prozentpunkte besser») **greift
+formal** an einer Stelle: Erfolgsquote auf dem Dev-Set ohne Umformulierung (+18). Die Erfolgsquote von (a) auf dem
+Dev-Set streut zwischen drei Messungen mit demselben Prompt (a): 0.79 (19.10.), 0.76 (09.11., Nachmessung),
+0.82 (09.11., final). Ein Szenario entspricht dort 9 Punkten.
+
+**Entscheid des Nutzers (09.11.2026):** formal nennen, Kernthese halten. Der Leistungsbeleg sind der gesicherte Spielraum
+(in allen vier Sätzen über +45) und das zurückgehaltene Testset (+25 bzw. +22); die Erfolgsquote auf dem Dev-Set liegt
+knapp unter der Schwelle, innerhalb der bekannten Streuung von (a). Die These bleibt «Leistung und Sicherheit»; der Befund
+steht als Limitation im README, in `docs/gesamtsystem.md` §5 und auf der Folie. Verworfen: die These wörtlich verengen
+(der Spielraum widerlegt den Anlass der Regel) und die drei Dev-Messungen mitteln (nachträgliche Änderung der
+Messregel).
+
+Die Kippregel «unnötige Eskalationen > 10 %» greift im finalen Lauf auch auf dem Testset ohne Umformulierung (12 %, T09 3×
+und T11 1×) und auf dem Dev-Set umformuliert (11 %, S06 3×, ohne ZOPA). Ursachen wie im Nachtrag oben; der Entscheid A
+gilt weiter.
