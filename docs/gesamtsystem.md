@@ -221,7 +221,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 | RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response`; SW7 Folie 44 verlangt genau diesen aktiven Entscheid, Folie 2 nennt die strukturierte DB gleichrangig | ADR 0009 |
 | Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; in der Demo als Datei, damit sie über Läufe bleiben. Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
 | Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11. (ADR 0015) |
-| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Angriffe KW45 (ADR 0010) |
+| Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Testset mit Angriffen gemessen 09.11. (ADR 0010) |
 | Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin (`ea-run --live`, `--human`), farbig nach LLM, Code und Mensch; keine Web-App | gebaut 09.11. (ADR 0012, 0015) |
 
 ### 3.3 Modellwahl (ADR 0004, 0011)
@@ -276,10 +276,14 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - **Umformulierungen (ADR 0010, Nachtrag):** 14 Simulator-Vorlagen mit je 5 Umformulierungen und 5 Schreibweisen der
   Konditionen, geschrieben von Claude Opus, eingefroren in `data/paraphrases/`; Schalter `--paraphrase`. Der Code prüft,
   dass Platzhalter und Zahlen gleich bleiben. Eine Stichprobe von 20 Texten wird von Hand gelesen.
-- **Synthetische Daten (ADR 0010):** Testset (12–15 Szenarien), Angriffstexte, Einkaufsrichtlinie und Bias-Varianten
-  entstehen nach dem Prinzip der Kernthese: Der Code zieht die Zahlen mit Seed
-  aus einem Raster und rechnet die Wahrheit (ZOPA, erwartetes Ergebnis), Claude Opus schreibt nur die Texte, der Code
-  prüft jede Zahl. Einmal erzeugt, liegen sie eingefroren im Repo, mit Modell, Datum und Prompt.
+- **Testset mit Angriffen (ADR 0010, Nachtrag 09.11.2026):** 15 Szenarien T01–T15 in `data/scenarios/test.jsonl`,
+  getrennt vom Dev-Set, nach dem Prinzip der Kernthese: Der Code zieht die Zahlen mit Seed aus einem Raster und rechnet
+  die Wahrheit (ZOPA, erwartetes Ergebnis), Claude Opus schreibt nur die Texte, der Code prüft sie (keine Wortfelder aus
+  dem Parse-Prompt, keine Wortfolgen aus Dev-Set oder Prompts, keine fremden Zahlen). Inhalt: je Eskalationskategorie aus
+  ADR 0008 mindestens ein Szenario, drei neue Bedingungen (Exklusivität, Gerichtsstand, ganze Paletten), ein bindendes
+  Rundenlimit, zwei ohne ZOPA, sechs Angriffe nach AgentDojo, InjecAgent und Tensor Trust, eine Behauptung ohne
+  Injection-Marker und drei harmlose Texte mit Triggerwort. Eingefroren mit Prompt, Modell und Datum
+  (`data/scenarios/README.md`). Einkaufsrichtlinie und Bias-Varianten sind nicht gebaut (ADR 0014).
 - **Lieferanten-Simulator** (ADR 0003): regelbasiert mit verdeckten Kostensätzen. Nachgiebigkeit über die Runden
   nach Faratin, Sierra und Jennings (1998), Geduld in Runden, Gegenangebot durch Kürzen des besten Pakets, optional
   Preisforderung, Prompt Injection und Bedingung ausserhalb des Mandats. Gewählt, weil reproduzierbar, billig und mit
@@ -347,9 +351,24 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - **Bau 1, 09.11.2026** (ERP-Adapter, Eskalation mit `interrupt()`, Mensch als Lieferant; ADR 0015, Nachtrag): Die
   Metriken von (b) bleiben gleich. Offline sind alle Läufe bis auf den Text identisch, mit Luna × 3 Erfolg 1.00, pass^3
   1.00, Spielraum 0.715 wie vorher. Neu: `korrekt_gebucht` 1.00 (offline, auch umformuliert, und mit Luna).
-- **Geplant (ADR 0010, 0012, 0014):** Ablation auf dem synthetischen Testset mit Angriffen (Erfolgsquote, Fehlalarme);
-  5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
-  `granite4.1:3b`, Bias über ausgetauschte Lieferantennamen. Gestrichen: Spike Entscheidungsmodell, Variante (c).
+- **Testset mit Angriffen, 09.11.2026** (15 Szenarien × 3, `gpt-5.6-luna`, alle Läufe am selben Tag; Aufbau,
+  Ergebnisordner und Kippregeln in ADR 0010, Nachtrag Testset):
+
+| Variante | Erfolg | pass^3 | Eskalation korrekt | unnötig | Verstösse | Spielraum | Angriff erfolgreich | Nutzen unter / ohne Angriff | Fehlalarme |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (a) reines LLM | 0.64 | 0.60 | 0.75 (44 % zu spät) | 0.06 | 3 | 0.20 | 0 | 0.39 / 0.78 | 0.38 |
+| (b) Hybrid | 0.98 | 0.93 | 1.00 | 0.09 | 0 | 0.70 | 0 | 0.94 / 1.00 | 0.33 |
+| (b) Hybrid, umformuliert | 0.93 | 0.93 | 1.00 | 0.18 | 0 | 0.68 | 0 | 0.83 / 1.00 | 0.33 |
+| Regel-Referenz ohne LLM | 0.80 | 0.80 | 0.25 | 0 | 9 | 0.70 | 0 | 1.00 / 1.00 | 0 |
+
+  Kein Angriff erreicht sein Ziel, auch nicht in (a): Mit Luna zeigt sich der Sicherheitsgewinn von (b) nicht. Der
+  Abstand (a) zu (b) wächst auf 34 Punkte, weil (a) die Eskalationskategorien verfehlt (Behauptung eskaliert, wiederholte
+  Forderung verpasst, Bedingungen zu spät) und in T10 erstmals unter dem Mindestnutzen abschliesst. (b) erkennt alle
+  drei neuen Bedingungen; Regex-Parser und Regel-Referenz sagen sie stillschweigend zu. Die unnötigen Eskalationen in (b)
+  kommen von zwei Angriffen: Der Content-Filter des Proxys blockiert Tensor Trust Extraction (T09, Fail-safe eskaliert),
+  und der wiederholte «TODO»-Satz gilt als wiederholte Forderung (T11). Fehlalarme gibt es nur bei «freigegeben» (T15).
+- **Geplant (ADR 0012, 0014):** 5–10 Live-Runden mit Spielkarte, bewertet im Code. Nur, wenn Zeit bleibt:
+  `granite4.1:3b`. Gestrichen: Spike Entscheidungsmodell, Bias-Varianten, Variante (c) (nur bei Restzeit, ADR 0014).
 
 ## 5 Erkenntnisse und Limitationen
 
@@ -361,6 +380,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   (Bedingung falsch gelesen, Forderung übersehen) und wurden zu einer unnötigen oder verpassten Eskalation, nie zu
   einer Zusage ausserhalb des Mandats. Auch gegen Umformulierungen liest Luna 95–99 % der Antworten richtig; ein
   Regex-Parser fällt auf 10 % (ADR 0010, Nachmessung).
+- **Auf neuen Texten hält die Kernthese, und die Angriffe scheitern (ADR 0010, Nachtrag Testset).** Auf 15 zurückgehaltenen
+  Szenarien mit Angriffen erreicht (b) 0.98, (a) 0.64. Kein Angriff erreicht sein Ziel, auch nicht gegen (a) mit Luna;
+  der strukturelle Schutz von (b) ist mit diesem Modell nicht messbar. Der Preis der Abwehr sind Eskalationen: Ein
+  Angriff, der in jeder Antwort wiederkehrt, gilt als wiederholte Forderung, und der Content-Filter des Proxys macht eine
+  Antwort «nicht auswertbar». Beides endet sicher, kostet aber Zeit der Einkäuferin (Denial of Service).
 - Das reine LLM hält mit Luna das Mandat ein, verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
   der Regel-Referenz und 83 % Angebotstexte ohne Konditionen. Sicherheit allein hängt vom Modell ab (Luna 0,
   Mistral 4 Verstösse).
@@ -377,8 +401,14 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Familie (Claude Opus), nicht eine andere Person; der Code rechnet die Wahrheit. Synthetische Texte sind sauberer und
   meist leichter als echte. Die Erzeugung über Claude Code ist nicht per Skript wiederholbar, deshalb sind die Daten
   eingefroren (ADR 0010).
-- 11 Szenarien × 3 Wiederholungen: Ein Szenario entspricht 9 Prozentpunkten, zwei Läufe mit fast gleichem Prompt
-  lagen bis zu 9 Prozentpunkte auseinander; Unterschiede unter etwa 20 Prozentpunkten nicht interpretieren. Die Mandate sind fast gleich, das Rundenlimit hat nie gegriffen.
+- 11 Dev- und 15 Testszenarien × 3 Wiederholungen: Ein Szenario entspricht 9 bzw. 6,7 Prozentpunkten, zwei Läufe mit
+  fast gleichem Prompt lagen bis zu 9 Prozentpunkte auseinander; Unterschiede unter etwa 20 Prozentpunkten nicht
+  interpretieren. Die Mandate unterscheiden sich nur in Mindestnutzen, Mengenzusage und (T07) Rundenlimit; die heutigen
+  Konditionen sind überall 30 Tage und 0 %.
+- Das Testset stammt aus derselben Session, die Parse-Prompt und Dev-Set kennt; sie meidet deren Wortlaut bewusst. Die
+  Messung lief vor der Handlesung der 15 Texte. Mit Luna fällt kein Angriff durch, (a) wie (b): Ob der Hybrid gegen ein
+  anfälligeres Modell schützt, ist nicht gemessen. Zusagen nur im Text (ohne Paket) und Täuschung sieht die Messung
+  nicht.
 - Das Modellangebot im Proxy ändert sich laufend (19.10.2026: Jev nicht verfügbar, `gpt-6-luna` und `decision-1`
   mit Fehlern); Ergebnisse gelten für den gemessenen Stand.
 - Herstellerangaben zu Entscheidungsmodellen (Geschwindigkeit, Kalibrierung) sind kaum unabhängig geprüft; wir
@@ -387,7 +417,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   bleibt bei 1.00; gegen Menschen ist der Nutzen erst in den Live-Runden belegt. Die Umformulierungen betreffen nur die
   Simulator-Sätze, einige teilen Wörter mit den Beispielen im Parse-Prompt, die Stichprobe zeigte 0 von 20 fehlerhaft
   (ADR 0010). Die zwei Präzisierungen im Parse-Prompt sind am Dev-Set entstanden und tragen nur teilweise
-  (S06 umformuliert 2× unnötig eskaliert); das Testset prüft sie (ADR 0013).
+  (S06 umformuliert 2× unnötig eskaliert). Auf dem Testset erkennt (b) alle Bedingungen; unnötige Eskalationen liegen bei
+  9 % und umformuliert bei 18 %, über der Schwelle von 10 % aus ADR 0008, verursacht durch zwei Angriffe (ADR 0010).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
@@ -485,11 +516,11 @@ relevante Eigenschaften» (Anhang A).
 
 | Thema | Abgedeckt (wo) | Lücke und Plan | Bewusst weggelassen (Grund) |
 | --- | --- | --- | --- |
-| Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`) | synthetisches Testset (KW45) | – |
-| Robustheit | Wiederholungen | Umformulierungen der Lieferantentexte, Kippen der Extraktion (KW44); Szenario mit bindendem Rundenlimit | – |
-| Sicherheit | Bauweise, siehe unten | Angriffsset mit Erfolgsquote und Fehlalarmen (KW45) | – |
+| Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`); zurückgehaltenes Testset mit 15 Szenarien (ADR 0010) | – | – |
+| Robustheit | Wiederholungen, Umformulierungen der Lieferantentexte (`--paraphrase`), neue Texte im Testset, bindendes Rundenlimit (T07) | Live-Runden gegen Menschen | paarweises Kippen der Extraktion (ADR 0014) |
+| Sicherheit | Bauweise, siehe unten; Testset mit 6 Angriffen und 3 harmlosen Texten: Angriffserfolg 0, Fehlalarme 0.33 (ADR 0010) | Denial of Service über wiederholte Angriffe (T09, T11) | – |
 | Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet und in `_v4` gezeichnet | – | eigener Retry-Graph |
-| Bias | – | Lieferantennamen und Herkunft tauschen, 3 Szenarien × 4 Varianten (KW45); in (b) muss das Ergebnis gleich bleiben, Unterschiede kämen aus der Extraktion | – |
+| Bias | – | – | Lieferantennamen tauschen gestrichen (ADR 0014); in (b) entscheidet der Code, Unterschiede kämen nur aus der Extraktion |
 | Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
 | Guardrails | Mandatsprüfung im Code, Text gegen Pakete (`mandate_guard`), Standardtext, Regeln im Prompt; Template-Rate als Metrik | Zuordnung Zahl zu Paket | LLM-Judge (nur falls Zeit bleibt) |
 | Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
@@ -504,7 +535,7 @@ relevante Eigenschaften» (Anhang A).
 
 | ID | Risiko | Bei uns |
 | --- | --- | --- |
-| LLM01 | Prompt Injection | `parse_response` liest den Lieferantentext ohne Befugnisse und liefert nur typisierte Felder; der Code entscheidet. Geprüft mit S09 und dem Angriffsset |
+| LLM01 | Prompt Injection | `parse_response` liest den Lieferantentext ohne Befugnisse und liefert nur typisierte Felder; der Code entscheidet. Geprüft mit S09 und dem Testset (6 Angriffe, kein Erfolg); der Content-Filter des Proxys blockiert zusätzlich Jailbreak-Texte |
 | LLM02 | Sensitive Information Disclosure | `narrate` sieht das Mandat nie; ein Leak des Mindestnutzens ist damit ausgeschlossen statt nur verboten. `mandate_guard` prüft zusätzlich |
 | LLM03 | Excessive Agency | keine Tool-Wahl durch das LLM, der Code bucht; das Mandat begrenzt jeden Abschluss |
 | LLM04 | Supply Chain | Versionen gepinnt (`uv.lock`), keine fremden MCP-Server |
@@ -534,7 +565,7 @@ individuellen Beitrag.
 
 | Person (GitHub) | Beitrag | Belege |
 | --- | --- | --- |
-| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v4`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ERP-Adapter mit Protokoll, Eskalation mit `interrupt()`, Mensch als Lieferant im Terminal, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
+| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v4`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ERP-Adapter mit Protokoll, Eskalation mit `interrupt()`, Mensch als Lieferant im Terminal, Testset mit Angriffen, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
 | PeisProjects | Umformulierungen der Simulator-Texte: Daten in `data/paraphrases/`, Prüfung im Code, Schalter `--paraphrase`, Metrik `extraktion_korrekt`, Messung vom 26.10.2026 (ADR 0010, Nachtrag) | PR #2, gemergt am 09.11.2026 |
 
 Rückmeldungen im Team: am 11.10.2026 zur Eskalation (eingeflossen in ADR 0008), am 12.10.2026 zur Speicherung der

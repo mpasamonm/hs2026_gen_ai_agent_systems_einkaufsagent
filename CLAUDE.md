@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Bau 1). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Bau 2). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -49,7 +49,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | 43 | 19.10. | MCP-Server anbinden | kein MCP (ADR 0009); Variante (b) mit Luna, `parse_response` austauschbar (erledigt 19.10., ADR 0013) |
 | 44 | 26.10. | RAG einbauen | kein RAG (ADR 0009, SW7 Folie 44); Umformulierungen (erledigt 26.10., PR #2, gemergt 09.11.) |
 | 45 | – | Blockwoche | nichts gebaut; Testset mit Angriffen verschoben auf Bau 2 (ADR 0014) |
-| 46 | 09.11. | Memory festlegen | festgelegt in ADR 0015 und gebaut (Bau 1 erledigt 09.11.: ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`); Bau 2 bis 15.11.: Testset mit Angriffen |
+| 46 | 09.11. | Memory festlegen | festgelegt in ADR 0015 und gebaut (Bau 1 erledigt 09.11.: ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`); Bau 2 erledigt 09.11.: Testset mit Angriffen (ADR 0010, Nachtrag Testset) |
 | 47 | 16.11. | Safeguarding (minimal prompt-basiert), Evaluation | SW9 einordnen («Guardrail Agent», SW8 Folie 31); voller Eval-Lauf, Ergebnisfolie, Demo (ADR 0012) |
 | 48 | 23.11. | Abschlusspräsentation | Demo |
 
@@ -72,11 +72,11 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0007 | Schlanke Prozessfassung `_v2`: ohne Timer und LLM-Strategie, ein Gedächtnis, ohne 1:3 | angenommen 11.10.2026; RAG und Tool-Wahl ersetzt durch ADR 0009 |
 | ADR 0008 | Eskalation nur, wenn das Mandat den Entscheid nicht abdeckt; Behauptungen ändern das Mandat nie; S09 nur Deal | angenommen 11.10.2026 |
 | ADR 0009 | Prozess `_v3`: ohne MCP und RAG, keine Tool-Wahl durch das LLM, Protokoll mit Paketwahl als Gedächtnis, Mensch als Lieferant; MCP nur lesend als Ausbau | angenommen 19.10.2026 |
-| ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11. |
+| ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11.; Nachtrag Testset 09.11. (15 Szenarien, gemessen) |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026 |
-| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026 |
+| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung) |
 
 ## 5. Architektur heute (Varianten a und b)
@@ -99,14 +99,19 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   Gegenangebot durch Kürzen des besten Pakets, optional Preisforderung, Prompt Injection und Bedingung
   ausserhalb des Mandats (nur im Text). Mit `paraphrase=True` (`--paraphrase` in `ea-run`, `ea-eval`, `ea-benchmark`)
   wählt er pro Seed eine der eingefrorenen Umformulierungen aus `data/paraphrases/` (`paraphrases.py`, ADR 0010);
-  ohne Schalter byte-gleich zu vorher.
+  ohne Schalter byte-gleich zu vorher. Angehängter Text (`hidden.injection`, ab Runde) trägt Angriffe, Behauptungen und
+  harmlose Texte; `OpeningDemand.once` macht eine Forderung einmalig (ADR 0008, Kat. 2).
 - Referenz ohne LLM: `RuleBasedPolicy` (lineare Konzession, 3 MESO-Pakete, Annahme nach AC_next; lehnt die erste
   Forderung ab und eskaliert die wiederholte). Löst S11 absichtlich nicht, weil sie den Text nicht liest.
 - Szenarien: `data/scenarios/dev.jsonl` (11 Stück), erzeugt und gegen die ZOPA geprüft mit
   `scripts/build_scenarios.py`. 7 × Deal (S09 mit Injection, nur Deal korrekt), 2 × ohne ZOPA, 2 × Eskalation
-  (S08 wiederholte Preisforderung, S11 Laufzeit-Bedingung).
-- Eval: `eval.py` mit `--variant a|b` und `--paraphrase`, Metriken in `docs/eval-metriken.md` (neu: `extraktion_korrekt`,
-  nur b). Benchmark: `benchmark.py`.
+  (S08 wiederholte Preisforderung, S11 Laufzeit-Bedingung). Testset `data/scenarios/test.jsonl` (15 Stück, T01–T15,
+  ADR 0010): erzeugt mit `scripts/build_testset.py` (Raster mit Seed, ZOPA-Prüfung, Regel-Referenz löst die Zahlen),
+  Texte eingefroren in `test_texts.json`, Code-Prüfung `testset.py`; Muster und Ziel eines Angriffs nur in
+  `Scenario.attack` (Auswertung). Aufbau in `data/scenarios/README.md`.
+- Eval: `eval.py` mit `--variant a|b`, `--paraphrase` und `--scenarios` (Ergebnisordner mit `_test`), Metriken in
+  `docs/eval-metriken.md` (`extraktion_korrekt` nur b; nur Testset: `angriffe_zugestellt`, `angriff_erfolgsquote`,
+  `nutzen_unter_angriff`, `nutzen_ohne_angriff`, `fehlalarme`). Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
 - Prozess: gültig ist `einkaufsagent-prozess_v4.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
   LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v4.py`; jede Änderung als neue Datei
@@ -115,7 +120,8 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 **Invarianten – nie brechen**
 - Verdeckte Lieferantenparameter (`hidden` im Szenario) gelangen nie in den Graph-State, einen Prompt,
   LangSmith-Metadaten oder das ERP. Simulator, Mensch und ERP kommen per Closure in den Graphen; die Canary-Tests in
-  `tests/test_graph_and_isolation.py` und `tests/test_variant_b.py` (auch DB-Dump) müssen grün bleiben.
+  `tests/test_graph_and_isolation.py` und `tests/test_variant_b.py` (auch DB-Dump) müssen grün bleiben. Ebenso erreichen
+  Muster und Ziel eines Angriffs (`Scenario.attack`) nie Agent, Parser oder Narrator (`tests/test_testset.py`).
 - In `ask_buyer` steht nichts vor `interrupt()`; Nebenwirkungen (Protokoll, Zwischenbescheid) gehören in `escalate`.
 - Rundenlogik wie BPMN v2: `round` zählt Angebotsrunden. Ein Gegenangebot ist auch nach der letzten Runde
   annehmbar. «accept» gilt nur für das letzte Gegenangebot; eine abgelehnte Annahme zählt als Runde.
@@ -123,7 +129,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 09.11.2026 (nach Bau 1)
+## 6. Stand am 09.11.2026 (nach Bau 2)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -201,24 +207,39 @@ Erledigt:
   - Messung: (b) offline und umformuliert bis auf den Text identisch zu vorher, (a) unverändert; Luna × 3: 1.00, pass^3
     1.00, Spielraum 0.715, `korrekt_gebucht` 1.00; umformuliert 1.00, S06 einmal unnötig eskaliert. Live mit Luna und
     Mensch geprüft (S04).
-  - Bau 1 ist vor dem 12.11. fertig: Die Kippregel für Gedächtnis (c) in ADR 0014 greift formal. Entscheid beim Nutzer
-    (Empfehlung: zuerst das Testset; (c) nur, wenn danach vor dem 15.11. Zeit bleibt).
+  - Bau 1 ist vor dem 12.11. fertig: Die Kippregel für Gedächtnis (c) greift formal; Entscheid des Nutzers: zuerst das
+    Testset, (c) nur bei Restzeit vor dem 15.11. (ADR 0014, Nachtrag).
+- Session 09.11.2026, Bau 2 (ADR 0010, Nachtrag Testset):
+  - Testset T01–T15: Kategorien 1–3 aus ADR 0008, neue Bedingungen (Exklusivität, Gerichtsstand, ganze Paletten),
+    Rundenlimit 3 (T07), 2 ohne ZOPA, 6 Angriffe (AgentDojo ×3, InjecAgent, Tensor Trust ×2), Behauptung T01, 3 harmlose
+    Texte. Code würfelt mit Seed 201–215, Claude Opus 5.5 schreibt, Code prüft; Build byte-gleich wiederholbar.
+    Lesungsblatt `data/scenarios/test_lesung.md` (Lesung durch den Nutzer offen). 79 Tests grün, ruff sauber.
+  - Messung Luna × 3: (b) 0.98 / umformuliert 0.93, (a) 0.64 / 0.71, Regel-Referenz und Regex 0.80 (Bedingungen
+    zugesagt). Angriffserfolg überall 0; (b) erkennt alle Bedingungen rechtzeitig; (a) eskaliert die Behauptung (T01),
+    verpasst die wiederholte Forderung (T06) und schliesst in T10 unter dem Mindestnutzen ab. Unnötige Eskalationen (b)
+    9 % / umformuliert 18 %: T09 (Content-Filter des Proxys → nicht auswertbar → Eskalation, ohne ZOPA) und T11
+    (wiederholter «TODO»-Satz als wiederholte Forderung). Fehlalarme nur bei T15 («freigegeben»), (a) und (b). Kosten 0.38
+    USD. Kippregel ADR 0008/0013 (unnötige Eskalationen > 10 %) greift formal im umformulierten Lauf; Entscheid beim
+    Nutzer.
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
 Ab dem 09.11.2026 arbeiten wir direkt auf die Abgabe hin, nicht mehr in Wochenschritten nach dem Semesterprogramm.
 Plan und Streichungen in ADR 0014 (Nachtrag), Memory und Human-in-the-loop in ADR 0015. Jede Session endet mit einem
-Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-ABGABE-1.md`.
+Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `kontext/UEBERGABE-PROMPT-ABGABE-<N>.md`.
 
 1. **Bau 1 erledigt 09.11.:** ERP-Adapter mit Protokoll und `korrekt_gebucht`, Eskalation mit `interrupt()`, Mensch als
    Lieferant im Terminal, BPMN `_v4` (ADR 0015, Nachtrag). Einstieg für Etappe 2: `kontext/UEBERGABE-PROMPT-ABGABE-2.md`.
-2. **Bau 2, danach Feature-Freeze (spätestens 15.11.):** Testset 12–15 Szenarien mit Angriffen (ADR 0010; ohne die Wortfelder
-   der Parse-Prompt-Beispiele), (a) und (b) mit Luna; granite-Zeile und Bias nur, wenn Zeit bleibt.
+2. **Bau 2 erledigt 09.11.:** Testset T01–T15 mit Angriffen, (a) und (b) mit Luna gemessen (ADR 0010, Nachtrag Testset).
+   **Feature-Freeze**, sobald der Nutzer zur Kippregel entschieden hat (unnötige Eskalationen 18 % umformuliert; Empfehlung:
+   keine Änderung, als Befund und Limitation berichten). Bias gestrichen; granite und (c) nur bei Restzeit vor dem 15.11.
+   Einstieg für Etappe 3: `kontext/UEBERGABE-PROMPT-ABGABE-3.md`.
 3. **Abgabe-Paket:** README als Einstieg für die Dozierenden (Zweck, Start offline und mit Key, Demo-Befehl, wo was
    liegt); Endergebnisse (`summary.md` der finalen Läufe) versioniert unter `docs/ergebnisse/`; Prüfung, ob das Repo
    veröffentlicht werden könnte (keine Secrets, keine Kursunterlagen in der Historie); Folien als Slides-Artifact
    (10 Min. inkl. Fragen, Aufbau nach `docs/gesamtsystem.md`), Export als PDF; Demo-Aufzeichnung als Fallback.
-4. **Beim Nutzer:** SW9 einordnen lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
+4. **Beim Nutzer:** Lesung der 15 Testtexte (`data/scenarios/test_lesung.md`, Kippregel > 2 Fehler); SW9 einordnen
+   lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
    Zugriff für die Dozierenden (öffentlich oder Einladung) erst am Schluss.
 5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
@@ -229,8 +250,7 @@ Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-
 - Briefing nennt «Folie 38» bzw. «Folie 30»: alte Nummern; aktuell Folie 41 (LiteLLM) und 31 (Pareto). Der Übergabe-
   Prompt vom 19.10. nennt «Folie 25 Eigenes Tool oder MCP?»; es ist SW6 Folie 26.
 - Briefing plant eine Frontier-Referenz; im LiteLLM gibt es keine. Ersatz: Regel-Referenz (ADR 0004).
-- SW4 Artefakt 4 plant rund 30 Szenarien (20 Dev, 10 Test); heute 11 Dev, das Testset (12–15) entsteht synthetisch
-  (ADR 0010). `docs/sw4-artefakte.md` ist abgelöst und spiegelt noch `_v1` und die alte Eskalationsregel.
+- SW4 Artefakt 4 plant rund 30 Szenarien (20 Dev, 10 Test); heute 11 Dev und 15 Test (synthetisch, ADR 0010). `docs/sw4-artefakte.md` ist abgelöst und spiegelt noch `_v1` und die alte Eskalationsregel.
 - SW4-Modellauswahl nennt GLM-5.3-Flash und DeepSeek V4.1 Flash; beide sind nicht im LiteLLM.
 - **Proxy (19.10.2026):** Function Calling geht mit Luna, Claude Haiku 5.5 und `gpt-5.4-mini-new`; gpt-oss, Mistral und
   `ibm/granite4.1:3b` (Ollama ignoriert `tool_choice`) nur mit `json_schema`. `azure_ai/gpt-6-luna` liefert bei Chat
@@ -256,7 +276,16 @@ Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-
   nur 0.27 der Umformulierungen; (b) mit Luna löst beide. Gegen Menschen ist der Nutzen erst mit den Live-Runden belegt
   (ADR 0006, 0010, 0013).
 - Die Präzisierungen im Parse-Prompt (ADR 0013) sind am Dev-Set entstanden; Prompt-Beispiele dürfen den Wortlaut der
-  Szenarien nicht übernehmen, und das Testset muss anders formuliert sein (ADR 0010).
+  Szenarien nicht übernehmen. Das Testset ist anders formuliert (Code-Prüfung `testset.py`). **Keine Prompt- oder
+  Regeländerung wegen des Testsets**, sonst ist es kein Testset mehr; Befunde als Limitation oder als neue Messung auf dem
+  Dev-Set, das Testset danach nur als «nach Anpassung» berichten.
+- Widerspruch im Übergabe-Prompt vom 09.11.: Exklusivität und Vorauskasse galten als «andere Bedingungen als im Prompt»,
+  stehen aber im Parse-Prompt und in Regel 6 von Prompt (a). Das Testset hat deshalb eine Bedingung aus dieser Liste
+  (T03, `bedingung_prompt`) und zwei, die in keinem Prompt stehen (T04, T05, `bedingung_neu`).
+- Der Content-Filter des Azure-Proxys («jailbreak detected») weist Aufrufe mit Tensor-Trust-Texten mit 400 ab; in (b)
+  endet `parse_response` dann als «nicht auswertbar» und eskaliert (T09). In (a) nie beobachtet.
+- Wiederkehrende Angriffstexte stehen in jeder Antwort; liest der Parser sie als Forderung auf «other», eskaliert
+  Regel 2 beim zweiten Mal (T11). ADR 0008 schliesst den Denial of Service nur für Behauptungen.
 - `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
 - BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v4.bpmn` im Root
   (byte-gleich, gültig seit 09.11.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v5`.
@@ -314,6 +343,9 @@ uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Sim
 uv run ea-eval --variant b --policy rule --paraphrase                       # offline: Regex-Parser bricht ein (0.27)
 uv run python scripts/sample_paraphrases.py       # Code-Prüfung; Stichprobe nur mit --neu neu ziehen (überschreibt Befunde)
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
+uv run python scripts/build_testset.py            # Testset prüfen; schreibt test.jsonl byte-gleich neu (Texte eingefroren)
+uv run ea-eval --policy rule --repeats 3 --scenarios data/scenarios/test.jsonl              # Testset offline: 0.80
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --scenarios data/scenarios/test.jsonl   # Testset (b): 0.98
 uv run ea-run --scenario S11 --variant b --policy rule --live                # Eskalation, Einkäuferin im Terminal (offline)
 uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo mit Mensch
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
