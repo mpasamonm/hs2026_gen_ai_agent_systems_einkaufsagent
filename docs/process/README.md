@@ -1,13 +1,16 @@
 # Soll-Prozess (BPMN 2.0)
 
-Gültig ist seit dem 19.10.2026 `einkaufsagent-prozess_v3.bpmn` im Root (ADR 0002, 0007, 0008, 0009):
-ERP-Adapter ohne MCP, Einkaufsrichtlinie ganz im Prompt statt RAG, keine Tool-Wahl durch das LLM, Protokoll mit
-Paketwahl als Gedächtnis, Mensch statt LLM-Lieferant. `einkaufsagent-prozess.bpmn` und `.png` in diesem Ordner sind
-byte-gleiche Kopien davon.
+Gültig ist seit dem 09.11.2026 `einkaufsagent-prozess_v4.bpmn` im Root (ADR 0002, 0007–0009, 0014, 0015). Gegenüber
+`_v3`: Gegenangebot annehmen als eigener Pfad (Annahme aus der Vorlage, Bestätigung abwarten, extrahieren, bewerten);
+Fehlerpfade als Fehler-Grenzereignisse («Angebot formulieren» scheitert → Standardtext, «Antwort extrahieren» scheitert →
+Eskalation); Zurückweisungen als Vorlagensatz aus «Antwort bewerten» (Annotation); «Eskalation aufbereiten» als Code
+statt LLM (ADR 0014); «Eskalation entscheiden» mit `interrupt()` und den zwei Entscheiden der Einkäuferin; «Ergebnis und
+Protokoll erfassen» auf jedem Ausgang; Konfidenz < 0,7 nur als Annotation (Spike gestrichen). `einkaufsagent-prozess.bpmn`
+und `.png` in diesem Ordner sind byte-gleiche Kopien davon.
 
-Abgelöste Fassungen im Root: `_v2` (schlanke Fassung, ADR 0007, 0008) und `_v1` (inhaltlich «Prozess v2» aus
-ADR 0002, Namensfalle siehe CLAUDE.md §8). Jede weitere Änderung kommt als neue Datei `_v4` in den Root; geplant ist
-`_v4` in KW44 mit Fehlerpfaden und dem Ergebnis des Klassifikations-Spikes (ADR 0009, 0011).
+Abgelöste Fassungen im Root: `_v3` (ohne MCP und RAG, ADR 0009), `_v2` (schlanke Fassung, ADR 0007, 0008) und `_v1`
+(inhaltlich «Prozess v2» aus ADR 0002, Namensfalle siehe CLAUDE.md §8). Jede weitere Änderung kommt als neue Datei `_v5`
+in den Root.
 
 Die Dateien öffnen in [bpmn.io](https://demo.bpmn.io). Farben: orange = LLM, blau = Code, grün = Mensch.
 
@@ -16,49 +19,50 @@ Die Dateien öffnen in [bpmn.io](https://demo.bpmn.io). Farben: orange = LLM, bl
 ```bash
 cd docs/process
 npm install                                              # bpmn-moddle 10.3.1, bpmnlint 11.14.0, bpmn-js 18.31.0
-python3 gen_bpmn_v3.py ../../einkaufsagent-prozess_v3.bpmn   # Layout und Inhalt sind im Generator definiert
-node validate.mjs ../../einkaufsagent-prozess_v3.bpmn        # bpmn-moddle-Warnungen + bpmnlint «recommended»
+python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn   # Layout und Inhalt sind im Generator definiert
+node validate.mjs ../../einkaufsagent-prozess_v4.bpmn        # bpmn-moddle-Warnungen + bpmnlint «recommended»
 uv run --no-project --with playwright==1.63.0 python -m playwright install chromium
 uv run --no-project --with playwright==1.63.0 python render.py \
-  ../../einkaufsagent-prozess_v3.bpmn ../../einkaufsagent-prozess_v3.png
-cp ../../einkaufsagent-prozess_v3.bpmn einkaufsagent-prozess.bpmn
-cp ../../einkaufsagent-prozess_v3.png einkaufsagent-prozess.png
+  ../../einkaufsagent-prozess_v4.bpmn ../../einkaufsagent-prozess_v4.png
+cp ../../einkaufsagent-prozess_v4.bpmn einkaufsagent-prozess.bpmn
+cp ../../einkaufsagent-prozess_v4.png einkaufsagent-prozess.png
 ```
 
 Chromium braucht unter WSL/Ubuntu 24.04 `libasound2t64` (`sudo apt install libasound2t64`). Ohne sudo:
 `apt-get download libasound2t64`, mit `dpkg -x` entpacken und den Ordner per `LD_LIBRARY_PATH` setzen.
-`gen_bpmn.py` und `gen_bpmn_v2.py` erzeugen die abgelösten Fassungen `_v1` und `_v2`.
+`gen_bpmn.py`, `gen_bpmn_v2.py` und `gen_bpmn_v3.py` erzeugen die abgelösten Fassungen `_v1` bis `_v3`.
 
-Stand 19.10.2026: bpmn-moddle 0 Warnungen, bpmnlint 0 Befunde, bpmn-js-Import 0 Warnungen; der Generator erzeugt
-`_v3` byte-gleich.
+Stand 09.11.2026: bpmn-moddle 0 Warnungen, bpmnlint 0 Befunde, bpmn-js-Import 0 Warnungen; der Generator erzeugt
+`_v4` byte-gleich.
 
 ## Mapping BPMN → LangGraph
 
-| BPMN-Element | LangGraph | Typ | Ab |
+| BPMN-Element | LangGraph | Typ | Stand |
 | --- | --- | --- | --- |
-| Start, «Mandat festlegen» | Graph-Input `mandate` (Pydantic-validiert) | Mensch | KW42 |
-| «Kontext laden» | Node `load_context`: Stammdaten, heutige Konditionen, frühere Protokolle über den ERP-Adapter (Python-Schnittstelle über SQLite, ADR 0009) | Code | KW42 JSON-Stub, KW44 ERP-Adapter |
-| Join vor «Pakete berechnen» | implizit: mehrere Edges auf `offer_engine` | – | KW43 |
-| «Pakete berechnen (Code)» | Node `offer_engine` (Pakete und Konzessionskurve aus `RuleBasedPolicy`); Variante (c): Startpunkt aus der Paketwahl in früheren Protokollen | Code | gebaut 19.10. |
-| «Angebot formulieren (LLM)» | Node `narrate` (`narrate.py`); sieht nur die Pakete und die Runde, nie das Mandat und nie den Lieferantentext | LLM | gebaut 19.10. |
+| Start, «Mandat festlegen» | Graph-Input `mandate` (Pydantic-validiert) | Mensch | gebaut |
+| «Kontext laden» | Node `load_context`: Stammdaten und heutige Konditionen aus dem ERP-Adapter (`erp.py`, SQLite, ADR 0009, 0015). Frühere Protokolle zeigt der Runner an, der Graph nutzt sie nicht | Code | gebaut 09.11. |
+| Join vor «Pakete berechnen» | implizit: mehrere Edges auf `offer_engine` | – | gebaut |
+| «Pakete berechnen (Code)» | Node `offer_engine` (Pakete und Konzessionskurve aus `RuleBasedPolicy`); nach «weiterverhandeln» in der letzten Runde: Rundenlimit | Code | gebaut 19.10. |
+| «Angebot formulieren (LLM)», Grenzereignis «LLM-Fehler: kein Text» | Node `narrate` (`narrate.py`); sieht nur Pakete und Runde. Scheitert er nach den Retries, setzt er `template_reason`, und `mandate_guard` schickt zum Standardtext | LLM | gebaut 19.10. |
 | «Nachricht prüfen (Code)», «Mandat eingehalten?» | Node `mandate_guard` + Conditional Edge (`hybrid.check_message`) | Code | gebaut 19.10. |
-| «Standardtext verwenden (Code)» | Node `template_message`; auch, wenn `narrate` nach den Retries scheitert | Code | gebaut 19.10. |
-| «Angebot senden, Antwort abwarten» | Node `send_and_wait`: Eval mit dem Simulator, Demo und Live-Runden mit einem Menschen im Terminal (ADR 0012) | Code | KW42, Mensch KW46 |
-| «Antwort extrahieren (LLM)» | Node `parse_response` (`extract.py`): Antworttyp, Paket, Gegenangebot, Aussagen mit Typ und Grösse; Einkaufsrichtlinie (Auszug) ganz im Prompt. Austauschbar (`LLMParser`, `RuleParser`, später Entscheidungsmodell mit `confidence`, ADR 0011) | LLM | gebaut 19.10. |
-| «Antwort bewerten (Code)», «Bewertung?» | Node `assess_response` + Conditional Edge (`hybrid.assess_reply`): Einigung (inkl. AC_next), Eskalation nur nach ADR 0008 und 0013 (scheitert `parse_response`, gilt die Antwort als nicht auswertbar), sonst weiter | Code | gebaut 19.10. |
-| «Weiterverhandeln?» | Conditional Edge nach `assess_response` (Runde < max. Runden, keine endgültige Absage); «kein Paket offen» in `offer_engine` | Code | gebaut 19.10. |
-| «Eskalation aufbereiten (LLM)», «Eskalation entscheiden» | Node `escalate`: der Code gibt Richtlinie, Verlauf und frühere Protokolle mit, das LLM fasst zusammen (ohne Tool-Wahl); dann `interrupt()` | LLM + Mensch | KW46 |
-| «Freigabe zum Weiterverhandeln?» | Conditional Edge nach `Command(resume=...)` | Mensch | KW46 |
-| «Ergebnis und Protokoll erfassen» | Node `record_outcome` über den ERP-Adapter, auf allen Ausgängen; Protokoll vom Code (Startpakete, Reaktion und Paketwahl, Verlauf, Ergebnis, Hinweise); die Protokolle sind das Gedächtnis (c) | Code | KW44 |
+| «Standardtext verwenden (Code)» | Node `template_message` | Code | gebaut 19.10. |
+| «Angebot senden, Antwort abwarten» | Node `send_and_wait` (`pending.kind = offer`); vor die Nachricht kommen Zurückweisungen aus Vorlagen (`prefix`). Eval: Simulator; Demo und Live-Runden: `HumanSupplier` (`live.py`), sieht nur den Text | Code | gebaut, Mensch 09.11. |
+| «Annahme senden, Bestätigung abwarten» | derselbe Node `send_and_wait` mit `pending.kind = accept`, Text aus `hybrid.accept_text` | Code | gebaut 19.10. |
+| «Antwort extrahieren (LLM)», Grenzereignis «LLM-Fehler: nicht auswertbar» | Node `parse_response` (`extract.py`): Antworttyp, Paket, Gegenangebot, Aussagen mit Typ und Grösse; Einkaufsrichtlinie (Auszug) im Prompt. Scheitert er, ist `parsed` leer und `assess_response` eskaliert (ADR 0008, Regel 3); die Zeichnung kürzt diesen Weg ab | LLM | gebaut 19.10. |
+| «Antwort bewerten (Code)», «Bewertung?», «Nächster Schritt?» | Node `assess_response` + Conditional Edge `after_assess` (`hybrid.assess_reply`): Einigung, Eskalation nur nach ADR 0008, Gegenangebot annehmen (AC_next), neue Runde oder kein Deal; Zurückweisungen als Vorlagensätze; Grössen, die die Einkäuferin abgelehnt hat, werden nicht erneut eskaliert | Code | gebaut 19.10., ergänzt 09.11. |
+| «Eskalation aufbereiten (Code)» | Node `escalate`: Vorlage `hybrid.escalation_brief` (Grund, Zitat, Verlauf, letzte Antwort), Protokoll mit Status «escalated», Zwischenbescheid an den Lieferanten; ohne LLM (ADR 0014) | Code | gebaut 09.11. |
+| «Eskalation entscheiden», «Entscheid der Einkäuferin?» | Node `ask_buyer` mit nur `interrupt(payload)`; Runner: `Command(resume={"decision", "note"})` mit derselben `thread_id`; Conditional Edge `after_buyer`: weiterverhandeln → `offer_engine`, abbrechen → `record_outcome`. Die Eval hält am Interrupt an | Mensch | gebaut 09.11. |
+| «Ergebnis und Protokoll erfassen» | Node `record_outcome` über `ErpAdapter.record_outcome`, auf allen Ausgängen, idempotent pro Verhandlung; bucht bei Deal die Konditionen; Metrik `korrekt_gebucht` | Code | gebaut 09.11. |
 | «Ergebnis mitteilen» | Node `notify_supplier` (Vorlage) | Code | gebaut 19.10. |
-| «Ergebnis?», Endereignisse | `END`; Ergebnis steht in `state.outcome` | – | KW42 |
+| «Ergebnis?», Endereignisse | `END`; Ergebnis steht in `state.outcome` (`deal`, `no_deal`, `escalated` mit `buyer_decision = abbrechen`) | – | gebaut |
 
-Variante (b) steht in `src/einkaufsagent/graph_b.py`. Variante (a) (`src/einkaufsagent/graph_a.py`) bündelt «Pakete», «Formulieren», «Extrahieren» und «Bewerten» in
-einem LLM-Node `negotiate`; das ist die Baseline der Ablation.
+Variante (b) steht in `src/einkaufsagent/graph_b.py`. Variante (a) (`src/einkaufsagent/graph_a.py`) bündelt «Pakete»,
+«Formulieren», «Extrahieren» und «Bewerten» in einem LLM-Node `negotiate`; das ist die Baseline der Ablation. ERP-Adapter,
+Eskalation mit `interrupt()` und Mensch als Lieferant gibt es nur in (b) (ADR 0015).
 
-## Fehlerbehandlung (gebaut 19.10., Zeichnung in `_v4`)
+## Fehlerbehandlung (gebaut 19.10., gezeichnet in `_v4`)
 
 Retries mit Backoff übernimmt der Client (`max_retries=2`, Timeout 90 s). Scheitert ein LLM-Schritt danach, greifen die
-bestehenden Fail-safes: Ohne Text von `narrate` geht der Standardtext hinaus; ohne auswertbare Antwort von
-`parse_response` wird eskaliert (ADR 0008, Regel 3). Fällt das LLM aus, verhandelt der Agent also mit Vorlagen weiter
-und übergibt der Einkäuferin, was er nicht lesen kann. Kein Fehler beendet den Graphen stillschweigend (SW6 Folie 27).
+Fail-safes: Ohne Text von `narrate` geht der Standardtext hinaus; ohne auswertbare Antwort von `parse_response` wird
+eskaliert (ADR 0008, Regel 3). Fällt das LLM aus, verhandelt der Agent also mit Vorlagen weiter und übergibt der
+Einkäuferin, was er nicht lesen kann. Kein Fehler beendet den Graphen stillschweigend (SW6 Folie 27).

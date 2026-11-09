@@ -1,4 +1,4 @@
-"""Variante (b) als LangGraph-Graph nach BPMN `_v3`: das LLM formuliert und extrahiert, der Code entscheidet.
+"""Variante (b) als LangGraph-Graph nach BPMN `_v4`: das LLM formuliert und extrahiert, der Code entscheidet.
 
     START → load_context → offer_engine → narrate → mandate_guard ─ ok ───────────→ send_and_wait
                                ▲                                └ Verstoss → template_message ─┘     │
