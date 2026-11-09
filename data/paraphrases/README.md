@@ -44,7 +44,8 @@ Der Wortlaut wurde nicht gespeichert; ADR 0010 (Schritt 4) verlangt ihn neben de
 2. **Von Hand:** 20 Zeilen in `stichprobe.md`. Kippregel: mehr als 2 Fehler → Prompt verschärfen und neu erzeugen,
    bevor die Daten gelten. Die erste Stichprobe (26.10.2026) deckte 3 der 14 Vorlagen nicht ab (`counter`,
    `accept_label`, `conditional_single`) und war nur vom Generator gelesen; am 09.11.2026 neu gezogen, jede Vorlage
-   mindestens einmal. **Die Lesung von Hand steht aus** (Spalte «ok?» ausfüllen, Person und Datum hier eintragen).
+   mindestens einmal. **Befund 09.11.2026: 0 Fehler in 20**, vom Nutzer gelesen, pro Zeile beurteilt von Claude Opus 5.5
+   (gleiche Familie wie der Generator, daher nicht unabhängig; Kippregel vorläufig geprüft).
 
 ## Grenzen
 

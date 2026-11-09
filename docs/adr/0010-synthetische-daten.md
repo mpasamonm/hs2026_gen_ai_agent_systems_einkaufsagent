@@ -134,7 +134,9 @@ für Feld verglichen, nur die Laufzeit weicht ab). Nachgearbeitet:
   «accept», wenn die Werte einem gesendeten Paket entsprechen; ein echtes Gegenangebot mit angehängter Bedingung (S11)
   muss «counter» bleiben. Test in `tests/test_paraphrases.py`.
 - Die Stichprobe deckte 3 der 14 Vorlagen nicht ab und ist neu gezogen (jede Vorlage mindestens einmal); das Skript
-  überschreibt sie nur noch mit `--neu`. Die Lesung von Hand steht weiter aus.
+  überschreibt sie nur noch mit `--neu`. Befund: 0 Fehler in 20, vom Nutzer gelesen, pro Zeile beurteilt von Claude
+  Opus 5.5 auf Wunsch des Nutzers. Weil das dieselbe Familie wie der Generator ist, gilt die Kippregel nur als vorläufig
+  geprüft (Limitation).
 - Grenzen in `data/paraphrases/README.md`: Einige Varianten verwenden «entgegenkommen» bzw. «Listenpreise» wie die
   Beispiele im Parse-Prompt (ADR 0013); der Prompt liegt nur sinngemäss vor.
 - Die geplante Metrik `extraktion_kippt` (paarweise) ist nicht gebaut; berichtet wird die Differenz von

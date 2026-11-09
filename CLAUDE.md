@@ -207,8 +207,8 @@ Commit und dem Prompt für die nächste; Einstieg ist `kontext/UEBERGABE-PROMPT-
    (10 Min. inkl. Fragen, Aufbau nach `docs/gesamtsystem.md`), Export als PDF; Demo-Aufzeichnung als Fallback.
 4. **Beim Nutzer:** SW9 einordnen lassen, sobald die Folien da sind; 5–10 Live-Runden mit Spielkarte; Demo-Probe;
    Zugriff für die Dozierenden (öffentlich oder Einladung) erst am Schluss.
-5. **Offen beim Nutzer:** Stichprobe `data/paraphrases/stichprobe.md` von Hand lesen (Kippregel ADR 0010). Eine
-   schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
+5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen, beurteilt von Claude;
+   Kippregel ADR 0010 vorläufig geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
    Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
 
 ## 8. Offene Widersprüche und Hinweise
