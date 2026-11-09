@@ -33,6 +33,7 @@ COLUMNS = [
     ("angebote_ohne_konditionen", "Ohne Konditionen"),
     ("verpasste_annahmen", "Verpasste Annahmen"),
     ("template_rate", "Template-Rate"),
+    ("extraktion_korrekt", "Extraktion korrekt"),
     ("formatfehler", "Formatfehler"),
     ("tokens_input", "Tokens in"),
     ("tokens_output", "Tokens out"),
@@ -50,18 +51,29 @@ def main() -> None:
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
+    ap.add_argument("--paraphrase", action="store_true", help="Simulator mit Umformulierungen (ADR 0010)")
     a = ap.parse_args()
 
     scenarios = load_scenarios(a.scenarios)
     models = a.models or list(load_models())
-    out_root = ROOT / "results" / f"benchmark_{datetime.now():%Y%m%d-%H%M%S}_{a.variant}"
+    out_root = (
+        ROOT
+        / "results"
+        / f"benchmark_{datetime.now():%Y%m%d-%H%M%S}_{a.variant}{'_umformuliert' if a.paraphrase else ''}"
+    )
     rows: list[tuple[str, dict]] = []
     entries = ([("rule", None)] if not a.no_rule else []) + [(None, m) for m in models]
     for pol, model in entries:
         policy, cfg = make_policy(pol, model, a.variant)
         print(f"→ {policy.name}: {len(scenarios)} Szenarien × {a.repeats}")
         summary = run_eval(
-            policy, cfg, scenarios, a.repeats, a.workers, out_root / policy.name.replace("/", "_")
+            policy,
+            cfg,
+            scenarios,
+            a.repeats,
+            a.workers,
+            out_root / policy.name.replace("/", "_"),
+            a.paraphrase,
         )
         summary["pass^k"] = summary.get(f"pass^{a.repeats}")
         rows.append((policy.name, summary))

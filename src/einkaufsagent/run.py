@@ -22,10 +22,11 @@ def main() -> None:
     g.add_argument("--model")
     ap.add_argument("--variant", choices=["a", "b"], default="a", help="a = reines LLM, b = Hybrid")
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
+    ap.add_argument("--paraphrase", action="store_true", help="Simulator mit Umformulierungen (ADR 0010)")
     a = ap.parse_args()
     sc = next(s for s in load_scenarios(a.scenarios) if s.id == a.scenario)
     policy, cfg = make_policy(a.policy, a.model, a.variant)
-    r = run_one(sc, policy, 1, cfg)
+    r = run_one(sc, policy, 1, cfg, a.paraphrase)
     print(f"{sc.id} · {sc.title} · Lieferant: {sc.public.context.supplier_name}\n")
     for t in r.transcript:
         who = "AGENT" if t["role"] == "agent" else "LIEFERANT"

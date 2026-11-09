@@ -163,9 +163,17 @@ Erledigt:
   - `docs/gesamtsystem.md` §2.5 mit Pactum-Stand 2026 (Release Notes Sept. 2026: Aggressivität, Angebotsprüfung,
     Eskalation, Audit-Trail = unsere Bausteine), §2.4 mit Liang und Xu als zweitem Beleg.
 
+- Session 26.10.2026, Umformulierungen (ADR 0010, Nachtrag):
+  - `data/paraphrases/` (14 Vorlagen × 5 Umformulierungen, 6 Schreibweisen der Konditionen, eingefroren; Claude Opus
+    5.5), `paraphrases.py` mit Code-Prüfung, Flag `--paraphrase` in allen CLIs, Metrik `extraktion_korrekt`,
+    `verpasste_annahmen` ohne Textmuster. 51 Tests grün, ruff sauber.
+  - Luna × 3: (b) umformuliert 1.00 Erfolg, Extraktion 0.976; (a) umformuliert 0.70 (vorher 0.79); Regex-Parser
+    0.27. Stichprobe `data/paraphrases/stichprobe.md` muss noch ein Teammitglied lesen.
+
 ## 7. Nächste Schritte in dieser Reihenfolge
 
-1. **KW44** (Prompt `kontext/UEBERGABE-PROMPT-KW44.md`): Umformulierungen der Simulator-Texte (ADR 0010), Spike
+1. **KW44** (Prompt `kontext/UEBERGABE-PROMPT-KW44.md`): ~~Umformulierungen der Simulator-Texte (ADR 0010)~~ erledigt
+   26.10. (Stichprobe von Hand offen), Spike
    Klassifikation auf `parse_response` (ADR 0011), ERP-Adapter über SQLite mit Protokoll und Paketwahl
    (`record_outcome`, Metrik `korrekt_gebucht`), `_v4` (Fehlerpfade sind im Code schon gebaut), granite-Zeile mit
    `--variant b --model ibm/granite4.1:3b`.
@@ -247,6 +255,8 @@ uv run ea-eval --variant b --policy rule                      # Variante (b) off
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3
 uv run ea-run --scenario S09 --variant b --model gpt-5.6-luna # zeigt auch die Hinweise für die Einkäuferin
 uv run ea-benchmark --repeats 3
+uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --paraphrase   # Simulator umformuliert (ADR 0010)
+uv run python scripts/sample_paraphrases.py       # Code-Prüfung + Stichprobe zum Lesen
 uv run python scripts/build_scenarios.py          # Szenarien neu erzeugen und prüfen
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
 cd docs/process && npm install && python3 gen_bpmn_v3.py ../../einkaufsagent-prozess_v3.bpmn \

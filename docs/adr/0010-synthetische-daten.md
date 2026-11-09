@@ -78,3 +78,47 @@ gehört, fällt es als Kandidat aus dem Spike (ADR 0011).
 - AgentDojo: arXiv 2406.13352 (NeurIPS 2024); Tensor Trust: arXiv 2311.01011 (ICLR 2024).
 - «Rule of three»: Hanley & Lippman-Hand, JAMA, 1983.
 - Stand der Recherche 19.10.2026; Titel und Autoren vor der Präsentation im Original nachlesen.
+
+## Nachtrag 26.10.2026: Umformulierungen umgesetzt
+
+- **Daten:** `data/paraphrases/supplier_templates.json`, 14 Vorlagen × (Original + 5 Umformulierungen) und 6
+  Schreibweisen der Konditionen; Generator Claude Opus 5.5 über Claude Code; eingefroren. Prompt, Umfang und
+  Prüfung in `data/paraphrases/README.md`. Nicht umformuliert: Einleitungen und die Texte aus den Szenarien
+  (Begründung, Injection, Bedingung); die gehören zu Testset und Angriffen (KW45).
+- **Einbau:** `SupplierSimulator(..., paraphrase=True)` bzw. `--paraphrase` in `ea-run`, `ea-eval`, `ea-benchmark`.
+  Eigener Zufallsgenerator mit dem Seed des Szenarios; Ereignis, Konditionen und Einleitungen bleiben gleich. Ohne
+  Flag byte-gleich zu vorher.
+- **Code-Prüfung:** `paraphrases.validate()` bestanden (Platzhalter, keine eigenen Zahlen, keine Dubletten, gleiche
+  Zahlen gerendert); Test: in allen 11 Szenarien gleiche Ereignisse und Konditionen mit und ohne Umformulierung.
+- **Handprüfung:** Stichprobe von 20 in `data/paraphrases/stichprobe.md`. Vom Generator gelesen, 0 Befunde; **Lesung
+  durch ein Teammitglied ausstehend**, erst danach gilt die Kippregel als geprüft.
+- **Neue Metrik** `extraktion_korrekt` (nur b) gegen die Wahrheit des Simulators; `verpasste_annahmen` liest das
+  Gegenangebot nicht mehr aus dem Text, sondern aus `SupplierReply.terms`.
+
+Messung 26.10.2026, 11 Dev-Szenarien × 3, `gpt-5.6-luna`:
+
+| Lauf | Erfolg | pass^3 | Abschluss | Eskalation | Spielraum | Extraktion korrekt | Verstösse | Kosten USD |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| (b) Regex-Parser, Original | 1.00 | 1.00 | – | – | – | 1.00 | 0 | 0 |
+| (b) Regex-Parser, umformuliert | 0.27 | – | – | – | – | 0.10 | 0 | 0 |
+| (a) Regel-Referenz, umformuliert | 0.909 | – | – | – | – | – | 3 (S11, wie ohne) | 0 |
+| (b) Luna, Original | 1.00 | 1.00 | 1.00 | 1.00 | 0.715 | 0.952 | 0 | 0.044 |
+| (b) Luna, umformuliert | 1.00 | 1.00 | 1.00 | 1.00 | 0.715 | 0.976 | 0 | 0.044 |
+| (a) Luna, umformuliert | 0.697 | 0.545 | 0.714 | 0.333 | 0.233 | – | 0 | 0.069 |
+
+(a) Luna ohne Umformulierung: 0.79 Erfolg, pass^3 0.64, Spielraum 0.195 (ADR 0013, 19.10.2026).
+
+**Befunde**
+
+- Der Regex-Parser bricht ein (0.27); der LLM-Parser in (b) nicht. Erst mit Umformulierungen zeigt sich der Nutzen
+  des LLM beim Extrahieren, den die Dev-Vorlagen bisher verdeckten (Limitation aus ADR 0006, 0013).
+- (b) mit Luna bleibt bei 1.00; `extraktion_kippt` ist im Rahmen der Schwankung null (0.952 ohne, 0.976 mit;
+  Unterschiede zwischen Läufen ohne Umformulierung schon so gross). Eine unnötige Eskalation in 27 Läufen
+  (0.037) und ein Formatfehler, beide abgefangen.
+- (a) verliert mit Umformulierungen weiter: Erfolg 0.79 → 0.70, korrekte Eskalation 0.33. Die Kernthese
+  «LLM schlägt vor, Code entscheidet» wird robuster belegt: Abstand (a) zu (b) jetzt 30 Punkte statt 21.
+- Einziger beobachteter Extraktionsfehler (Diagnoselauf, S06 Runde 4): Ablehnung mit dem Zusatz «Dabei bleibt es von
+  unserer Seite.» als Abbruch gelesen. Kein Fehler der Umformulierung: die Vorlage «letztes Wort» ist schon im
+  Original mehrdeutig; Ergebnis korrekt (kein Deal).
+- Grenze: Umformuliert sind nur die Simulator-Sätze; Szenariotexte und Angriffe sind unverändert. Die Messung läuft
+  noch auf dem Dev-Set, an dem der Parse-Prompt präzisiert wurde (ADR 0013).

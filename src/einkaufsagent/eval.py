@@ -88,6 +88,10 @@ class RunRecord:
     variant: str = "a"
     offers_template: int | None = None  # nur (b): Angebote mit Standardtext statt LLM-Text
     notes: list[str] = field(default_factory=list)  # nur (b): Hinweise für das Protokoll
+    paraphrase: bool = False  # Simulator mit Umformulierungen (ADR 0010)
+    parses: int = 0  # nur (b): ausgewertete Lieferantenantworten
+    parses_ok: int = 0  # nur (b): davon Antworttyp und Gegenangebot wie beim Simulator
+    parse_mismatches: list[str] = field(default_factory=list)  # nur (b): «R2:demand→counter»
 
 
 def is_correct(expected: str, outcome: str, violations: list[str]) -> bool:
@@ -107,15 +111,28 @@ def offers_without_terms(transcript: list[dict]) -> tuple[int, int]:
 
 
 def find_missed_acceptance(
-    transcript: list[dict], ctx: Context, m: Mandate, final_value: float | None
+    transcript: list[dict],
+    ctx: Context,
+    m: Mandate,
+    final_value: float | None,
+    supplier_terms: list[Terms | None] | None = None,
 ) -> dict | None:
     """Erstes annehmbares Gegenangebot (im Mandat, ≥ Mindestnutzen), das der Agent nicht angenommen hat,
     obwohl das Endergebnis schlechter ist (kein Deal oder weniger Nutzen). Ablehnen, um mehr zu holen, ist
-    legitim und zählt nicht."""
+    legitim und zählt nicht. ``supplier_terms`` sind die Werte des Simulators pro Lieferantenantwort; ohne sie
+    wird der Originaltext gelesen (trifft keine Umformulierung)."""
+    k = -1
     for i, t in enumerate(transcript):
-        if t["role"] != "supplier" or t.get("event") not in ("counter", "decline"):
+        if t["role"] != "supplier":
             continue
-        c = parse_counter(t["text"])
+        k += 1
+        if t.get("event") not in ("counter", "decline"):
+            continue
+        c = (
+            supplier_terms[k]
+            if supplier_terms is not None and k < len(supplier_terms)
+            else parse_counter(t["text"])
+        )
         nxt = next((x for x in transcript[i + 1 :] if x["role"] == "agent"), None)
         if c is None or nxt is None or nxt.get("action") == "accept":
             continue
@@ -125,6 +142,31 @@ def find_missed_acceptance(
         if final_value is None or final_value < vc - 1e-6:
             return {"round": t["round"], "terms": c, "value_chf": vc, "reaction": nxt.get("action")}
     return None
+
+
+_EXPECTED_REPLY = {
+    "accept": {"accept"},
+    "confirm": {"accept"},
+    "counter": {"counter"},
+    "decline": {"counter"},
+    "reject": {"reject"},
+    "demand": {"reject"},
+    "reject_final": {"final_reject"},
+}
+
+
+def extraction_ok(log: dict, reply: SupplierReply, condition: str | None) -> bool:
+    """Stimmt die Extraktion von (b) mit der Wahrheit des Simulators überein? Bei einer Annahme unter Bedingung
+    gelten «counter» und «accept»; entscheidend ist dort die Bedingung, die ``assess_response`` prüft."""
+    allowed = set(_EXPECTED_REPLY[reply.event])
+    if reply.event == "counter" and condition and condition in reply.text:
+        allowed.add("accept")
+    if log.get("reply_type") not in allowed:
+        return False
+    if log["reply_type"] == "counter" and reply.terms is not None:
+        got = log.get("counter_terms")
+        return got is not None and same_terms(Terms.model_validate(got), reply.terms)
+    return True
 
 
 class RecordingSupplier:
@@ -144,10 +186,15 @@ class RecordingSupplier:
 
 
 def run_one(
-    sc: Scenario, policy: Policy | HybridAgent, repeat: int, model_cfg: ModelConfig | None
+    sc: Scenario,
+    policy: Policy | HybridAgent,
+    repeat: int,
+    model_cfg: ModelConfig | None,
+    paraphrase: bool = False,
 ) -> RunRecord:
     ctx, m = sc.public.context, sc.public.mandate
-    supplier = RecordingSupplier(SupplierSimulator(sc.hidden, ctx))  # verdeckte Parameter bleiben hier
+    # verdeckte Parameter bleiben hier
+    supplier = RecordingSupplier(SupplierSimulator(sc.hidden, ctx, paraphrase=paraphrase))
     variant = getattr(policy, "variant", "a")
     graph = build_graph_b(policy, supplier) if variant == "b" else build_graph(policy, supplier)
     run_id = str(uuid.uuid4())
@@ -155,13 +202,14 @@ def run_one(
         "configurable": {"thread_id": run_id},
         "recursion_limit": 100,
         "run_name": f"verhandlung-{sc.id}",
-        "tags": [f"variante-{variant}", policy.name, sc.id],
+        "tags": [f"variante-{variant}", policy.name, sc.id, *(["umformuliert"] if paraphrase else [])],
         "metadata": {
             "scenario_id": sc.id,
             "category": sc.category,
             "repeat": repeat,
             "policy": policy.name,
             "variant": variant,
+            "paraphrase": paraphrase,
         },
     }
     t0 = time.perf_counter()
@@ -222,6 +270,11 @@ def run_one(
     tin = sum(t.get("input_tokens", 0) for t in turns)
     tout = sum(t.get("output_tokens", 0) for t in turns)
     outcome = final.get("outcome") or "error"
+    parse_logs = [t for t in turns if t.get("node") == "parse_response"]
+    cond_text = sc.hidden.condition.text if sc.hidden.condition else None
+    parse_checks = [
+        extraction_ok(lg, r, cond_text) for lg, r in zip(parse_logs, supplier.replies, strict=False)
+    ]
     return RunRecord(
         scenario_id=sc.id,
         category=sc.category,
@@ -238,7 +291,8 @@ def run_one(
         offers_sent=n_offers,
         offers_without_terms=n_bare,
         missed_acceptance=sc.expected_outcome != "escalate"  # dort ist Ausschlagen richtig
-        and find_missed_acceptance(transcript, ctx, m, deal_value) is not None,
+        and find_missed_acceptance(transcript, ctx, m, deal_value, [r.terms for r in supplier.replies])
+        is not None,
         escalation_round=esc_round,
         escalation_late=esc_round is not None and deadline is not None and esc_round > deadline,
         deal_terms=deal_terms,
@@ -256,6 +310,14 @@ def run_one(
         variant=variant,
         offers_template=n_template if variant == "b" else None,
         notes=final.get("notes", []),
+        paraphrase=paraphrase,
+        parses=len(parse_checks),
+        parses_ok=sum(parse_checks),
+        parse_mismatches=[
+            f"R{lg.get('round')}:{r.event}→{lg.get('reply_type')}"
+            for lg, r, ok in zip(parse_logs, supplier.replies, parse_checks, strict=False)
+            if not ok
+        ],
     )
 
 
@@ -304,6 +366,9 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
         "template_rate": round(sum(r.offers_template or 0 for r in records) / n_offers, 3)
         if n_offers and any(r.offers_template is not None for r in records)
         else None,
+        "extraktion_korrekt": round(sum(r.parses_ok for r in records) / n_parses, 3)
+        if (n_parses := sum(r.parses for r in records))
+        else None,
         "formatfehler": sum(r.format_errors for r in records),
         "fehlerlaeufe": sum(r.outcome == "error" for r in records),
         "tokens_input": sum(r.input_tokens for r in records),
@@ -320,8 +385,9 @@ def summarize(records: list[RunRecord], repeats: int) -> dict[str, Any]:
 def render_markdown(
     policy: str, summary: dict[str, Any], records: list[RunRecord], variant: str = "a"
 ) -> str:
+    para = " · Simulator umformuliert (ADR 0010)" if records and records[0].paraphrase else ""
     lines = [
-        f"# Eval Variante ({variant}) – {policy}",
+        f"# Eval Variante ({variant}) – {policy}{para}",
         "",
         f"Stand: {datetime.now():%Y-%m-%d %H:%M}",
         "",
@@ -364,10 +430,11 @@ def run_eval(
     repeats: int,
     workers: int,
     out_dir: Path,
+    paraphrase: bool = False,
 ) -> dict[str, Any]:
     jobs = [(sc, rep) for sc in scenarios for rep in range(1, repeats + 1)]
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        records = list(ex.map(lambda j: run_one(j[0], policy, j[1], model_cfg), jobs))
+        records = list(ex.map(lambda j: run_one(j[0], policy, j[1], model_cfg, paraphrase), jobs))
     summary = summarize(records, repeats)
     out_dir.mkdir(parents=True, exist_ok=True)
     with (out_dir / "runs.jsonl").open("w", encoding="utf-8") as f:
@@ -391,11 +458,13 @@ def main() -> None:
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=str(ROOT / "results"))
+    ap.add_argument("--paraphrase", action="store_true", help="Simulator mit Umformulierungen (ADR 0010)")
     a = ap.parse_args()
     policy, cfg = make_policy(a.policy, a.model, a.variant)
     scenarios = [s for s in load_scenarios(a.scenarios) if not a.only or s.id in a.only]
-    out_dir = Path(a.out) / f"{datetime.now():%Y%m%d-%H%M%S}_{a.variant}_{policy.name.replace('/', '_')}"
-    summary = run_eval(policy, cfg, scenarios, a.repeats, a.workers, out_dir)
+    tag = "_umformuliert" if a.paraphrase else ""
+    out_dir = Path(a.out) / f"{datetime.now():%Y%m%d-%H%M%S}_{a.variant}_{policy.name.replace('/', '_')}{tag}"
+    summary = run_eval(policy, cfg, scenarios, a.repeats, a.workers, out_dir, a.paraphrase)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f"\nErgebnisse: {out_dir}")
     flush_traces()

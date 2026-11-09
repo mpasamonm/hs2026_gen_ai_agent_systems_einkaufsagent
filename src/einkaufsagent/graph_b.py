@@ -169,6 +169,12 @@ def build_graph(agent: HybridAgent, supplier: SupplierSimulator):
             "output_tokens": res.output_tokens,
             "latency_s": round(res.latency_s, 3),
             "format_errors": res.format_errors,
+            "reply_type": res.parsed.reply_type
+            if res.parsed
+            else None,  # Metrik extraktion_korrekt (ADR 0010)
+            "counter_terms": res.parsed.counter_terms.model_dump()
+            if res.parsed and res.parsed.counter_terms
+            else None,
         }
         return {
             "parsed": res.parsed.model_dump() if res.parsed else None,

@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "adr": "0010",
+    "generator": "Claude Opus 5.5 (claude-opus-5-5) über Claude Code",
+    "created": "2026-10-26",
+    "frozen": true,
+    "note": "Index 0 ist die ursprüngliche Vorlage (Verhalten ohne --paraphrase byte-gleich); Index 1–5 sind die Umformulierungen. Prompt und Prüfung in README.md."
+  },
+  "terms": [
+    {"days": "Zahlungsziel {days} Tage", "disc": "Rabatt {disc} %", "vol": "Mengenzusage {vol} % des Vorjahresvolumens", "price": "Preisänderung {price} %", "sep": ", ", "last_sep": ", "},
+    {"days": "{days} Tage Zahlungsziel", "disc": "{disc} % Rabatt", "vol": "eine Mengenzusage von {vol} % des Vorjahresvolumens", "price": "eine Preisanpassung von {price} %", "sep": ", ", "last_sep": " und "},
+    {"days": "Zahlung innert {days} Tagen", "disc": "{disc} % Nachlass", "vol": "Abnahme von mindestens {vol} % der Vorjahresmenge", "price": "Preisänderung um {price} %", "sep": ", ", "last_sep": " sowie "},
+    {"days": "Zahlungsfrist {days} Tage", "disc": "Rabatt {disc} Prozent", "vol": "zugesagtes Volumen {vol} Prozent des Vorjahres", "price": "Preisänderung {price} Prozent", "sep": "; ", "last_sep": "; "},
+    {"days": "{days} Tage netto", "disc": "{disc} % Preisnachlass", "vol": "{vol} % Mengenzusage bezogen auf das Vorjahr", "price": "{price} % auf die Listenpreise", "sep": ", ", "last_sep": " und "},
+    {"days": "ein Zahlungsziel von {days} Tagen", "disc": "ein Rabatt von {disc} %", "vol": "Ihre Zusage über {vol} % des letztjährigen Volumens", "price": "eine Preisänderung von {price} %", "sep": ", ", "last_sep": " sowie "}
+  ],
+  "templates": {
+    "counter": [
+      "{opener} Das ist für uns zu teuer. Möglich wäre: {terms}.",
+      "{opener} So können wir leider nicht abschliessen. Was wir anbieten können: {terms}.",
+      "{opener} Diese Pakete übersteigen unseren Spielraum. Unser Gegenvorschlag lautet {terms}.",
+      "{opener} Das geht über das hinaus, was für uns tragbar ist. Entgegenkommen könnten wir Ihnen mit {terms}.",
+      "{opener} Zu diesen Bedingungen rechnet sich das für uns nicht. Vorstellen könnten wir uns aber Folgendes: {terms}.",
+      "{opener} Ganz so weit können wir nicht gehen. Wir würden {terms} anbieten."
+    ],
+    "accept_label": [
+      "{opener} Wir nehmen Paket {label} an: {terms}.",
+      "{opener} Paket {label} ist für uns in Ordnung, wir sind einverstanden: {terms}.",
+      "{opener} Wir entscheiden uns für Paket {label} ({terms}) und sagen zu.",
+      "{opener} Gerne akzeptieren wir Paket {label}: {terms}.",
+      "{opener} Abgemacht, wir wählen Paket {label} mit {terms}.",
+      "{opener} Mit Paket {label} können wir gut leben und stimmen zu: {terms}."
+    ],
+    "accept_single": [
+      "{opener} Wir nehmen Ihren Vorschlag an: {terms}.",
+      "{opener} Ihr Vorschlag ist für uns in Ordnung, wir sind einverstanden: {terms}.",
+      "{opener} Wir sagen zu Ihrem Vorschlag ja: {terms}.",
+      "{opener} Gerne akzeptieren wir Ihren Vorschlag: {terms}.",
+      "{opener} Abgemacht, wir nehmen das so an: {terms}.",
+      "{opener} Damit können wir gut leben und stimmen zu: {terms}."
+    ],
+    "conditional_label": [
+      "{opener} Paket {label} passt für uns: {terms}. {cond}",
+      "{opener} Paket {label} wäre für uns grundsätzlich machbar: {terms}. {cond}",
+      "{opener} Mit Paket {label} ({terms}) könnten wir uns anfreunden. {cond}",
+      "{opener} Paket {label} kommt für uns in Frage: {terms}. {cond}",
+      "{opener} Inhaltlich sind wir bei Paket {label} dabei: {terms}. {cond}",
+      "{opener} Paket {label} sehen wir positiv: {terms}. {cond}"
+    ],
+    "conditional_single": [
+      "{opener} Ihren Vorschlag passt für uns: {terms}. {cond}",
+      "{opener} Ihr Vorschlag wäre für uns grundsätzlich machbar: {terms}. {cond}",
+      "{opener} Mit Ihrem Vorschlag ({terms}) könnten wir uns anfreunden. {cond}",
+      "{opener} Ihr Vorschlag kommt für uns in Frage: {terms}. {cond}",
+      "{opener} Inhaltlich sind wir bei Ihrem Vorschlag dabei: {terms}. {cond}",
+      "{opener} Ihren Vorschlag sehen wir positiv: {terms}. {cond}"
+    ],
+    "reject_no_room": [
+      "{opener} Ohne Gegenleistung sehen wir bei Zahlungsziel und Rabatt keinen Spielraum.",
+      "{opener} Ein längeres Zahlungsziel oder einen Rabatt können wir ohne Gegenleistung nicht gewähren.",
+      "{opener} Solange Sie uns nicht entgegenkommen, können wir bei Zahlungsfrist und Rabatt nicht nachgeben.",
+      "{opener} Bei Zahlungsziel und Rabatt haben wir ohne eine Gegenleistung Ihrerseits leider keinen Handlungsspielraum.",
+      "{opener} Für ein Entgegenkommen bei Zahlungsziel oder Rabatt bräuchten wir eine Gegenleistung von Ihnen.",
+      "{opener} Ohne etwas im Gegenzug ist bei Zahlungsfrist und Rabatt für uns nichts zu machen."
+    ],
+    "last_word": [
+      " Das ist unser letztes Wort zu diesem Thema.",
+      " Weiter können wir in dieser Frage nicht gehen.",
+      " Mehr ist dazu von unserer Seite nicht drin.",
+      " Dabei bleibt es von unserer Seite.",
+      " An dieser Haltung wird sich nichts mehr ändern.",
+      " Daran ändert sich auch in weiteren Runden nichts."
+    ],
+    "last_offer": [
+      " Das ist unser letztes Angebot.",
+      " Ein besseres Angebot können wir nicht machen.",
+      " Weiter entgegenkommen können wir nicht.",
+      " Das ist unser abschliessendes Angebot.",
+      " Darüber hinaus ist nichts mehr möglich.",
+      " Mehr liegt für uns nicht drin."
+    ],
+    "demand_first": [
+      "{opener} Bevor wir über Zahlungsziele sprechen: {reason} Wir müssen die Preise deshalb ab dem nächsten Quartal um {pct} % erhöhen.",
+      "{opener} Zuerst etwas anderes: {reason} Ab dem nächsten Quartal sind wir deshalb gezwungen, unsere Preise um {pct} % anzuheben.",
+      "{opener} Über Zahlungsziele reden wir gerne, aber vorher: {reason} Darum steigen unsere Preise ab nächstem Quartal um {pct} %.",
+      "{opener} Ein wichtiger Punkt vorab: {reason} Wir kommen deshalb nicht um eine Preiserhöhung von {pct} % ab dem nächsten Quartal herum.",
+      "{opener} Bevor es um Konditionen geht, müssen wir etwas ansprechen: {reason} Unsere Produkte werden ab dem kommenden Quartal um {pct} % teurer.",
+      "{opener} Vorweg: {reason} Eine Anhebung der Preise um {pct} % ab dem nächsten Quartal ist daher unumgänglich."
+    ],
+    "demand_repeat": [
+      "Die Preiserhöhung um {pct} % ist für uns Voraussetzung für jedes Gespräch.",
+      "Ohne die Preiserhöhung von {pct} % können wir nicht weiterverhandeln.",
+      "Wir bleiben dabei: Zuerst müssen die {pct} % Preiserhöhung akzeptiert sein, dann reden wir weiter.",
+      "Die Anhebung um {pct} % ist für uns nicht verhandelbar und Bedingung für alles Weitere.",
+      "Solange die um {pct} % höheren Preise nicht vereinbart sind, ergibt ein Gespräch über Konditionen für uns keinen Sinn.",
+      "Ich wiederhole: Eine Preiserhöhung um {pct} % ist die Grundlage für jede weitere Diskussion."
+    ],
+    "confirm": [
+      "Einverstanden, damit haben wir eine Einigung: {terms}.",
+      "Sehr gut, dann ist es abgemacht: {terms}.",
+      "Perfekt, so halten wir es fest: {terms}.",
+      "Prima, damit sind wir uns einig: {terms}.",
+      "Gut, dann gilt ab sofort: {terms}.",
+      "In Ordnung, wir bestätigen die Vereinbarung: {terms}."
+    ],
+    "decline": [
+      "Das entspricht nicht unserem Vorschlag. Unser Angebot war: {terms}.",
+      "Da liegt ein Missverständnis vor. Angeboten hatten wir: {terms}.",
+      "Das haben wir so nicht vorgeschlagen. Unser Gegenangebot lautete {terms}.",
+      "Diese Werte stammen nicht von uns. Zur Erinnerung, unser Vorschlag: {terms}.",
+      "So war das nicht gemeint. Wir hatten {terms} angeboten.",
+      "Das deckt sich nicht mit unserem Angebot. Gültig ist weiterhin {terms}."
+    ],
+    "no_offer": [
+      "Dazu haben wir kein Angebot gemacht; bitte senden Sie uns einen konkreten Vorschlag.",
+      "Wir haben Ihnen dazu nichts angeboten. Schicken Sie uns doch bitte einen konkreten Vorschlag.",
+      "Ein solches Angebot kam nicht von uns; wir erwarten zuerst einen konkreten Vorschlag von Ihnen.",
+      "Da gibt es kein Angebot von unserer Seite. Bitte machen Sie uns einen konkreten Vorschlag.",
+      "Was Sie annehmen, haben wir nie angeboten. Wir warten auf Ihren konkreten Vorschlag.",
+      "Dazu liegt von uns kein Angebot vor. Senden Sie uns bitte einen Vorschlag mit konkreten Werten."
+    ],
+    "final_reject": [
+      "Wir möchten es bei den bestehenden Konditionen belassen. Vielen Dank für Ihr Verständnis.",
+      "Wir bleiben bei den heutigen Konditionen und beenden die Gespräche hier. Danke für Ihr Verständnis.",
+      "Für uns gelten weiterhin die bisherigen Bedingungen; weitere Verhandlungen möchten wir nicht führen.",
+      "Wir lassen die Konditionen, wie sie sind, und schliessen das Thema damit ab. Besten Dank.",
+      "Eine Änderung der Konditionen kommt für uns nicht in Frage. Wir danken Ihnen für die Gespräche.",
+      "Es bleibt bei den bestehenden Vereinbarungen. Wir sehen keinen Sinn in weiteren Runden und danken Ihnen."
+    ]
+  }
+}

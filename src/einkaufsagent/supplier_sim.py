@@ -3,7 +3,9 @@
 Der Lieferant bewertet Pakete über seine Nettokosten pro Jahr und akzeptiert, sobald diese unter
 seinem rundenabhängigen Konzessionsbudget liegen (zeitabhängige Taktik nach Faratin, Sierra und
 Jennings 1998). Antworten sind deutschsprachige Textvorlagen; die Auswahl ist über ``seed``
-reproduzierbar. Die verdeckten Parameter verlassen dieses Modul nie Richtung Agent.
+reproduzierbar. Mit ``paraphrase=True`` wählt ein eigener Zufallsgenerator (gleicher Seed) pro Antwort eine der
+5 eingefrorenen Umformulierungen (ADR 0010); Zahlen, Ereignis und Einleitungen bleiben gleich.
+Die verdeckten Parameter verlassen dieses Modul nie Richtung Agent.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from einkaufsagent import paraphrases
 from einkaufsagent.domain import Context, Mandate, Terms, buyer_value_chf
 from einkaufsagent.scenarios import HiddenSupplier
 
@@ -29,15 +32,6 @@ class SupplierReply(BaseModel):
     accepted_label: str | None = None
 
 
-def _fmt(t: Terms) -> str:
-    s = f"Zahlungsziel {t.payment_days} Tage, Rabatt {t.discount_pct:g} %"
-    if t.volume_commit_pct:
-        s += f", Mengenzusage {t.volume_commit_pct:g} % des Vorjahresvolumens"
-    if t.price_change_pct:
-        s += f", Preisänderung {t.price_change_pct:+g} %"
-    return s
-
-
 _OPENERS = {
     "kooperativ": ["Danke für Ihre Nachricht.", "Vielen Dank für den Vorschlag."],
     "hart": ["Wir haben Ihren Vorschlag geprüft.", "Ihre Pakete haben wir angeschaut."],
@@ -48,10 +42,12 @@ _OPENERS = {
 
 
 class SupplierSimulator:
-    def __init__(self, hidden: HiddenSupplier, ctx: Context):
+    def __init__(self, hidden: HiddenSupplier, ctx: Context, paraphrase: bool = False):
         self._h = hidden
         self._ctx = ctx
         self._rng = random.Random(hidden.seed)
+        # Eigener Generator: die Folge der Einleitungen bleibt mit und ohne Umformulierung gleich.
+        self._prng = random.Random(hidden.seed + 1_000_003) if paraphrase else None
         self._last_counter: Terms | None = None
 
     # --- Ökonomie (verdeckt) -------------------------------------------------------------
@@ -76,6 +72,15 @@ class SupplierSimulator:
     def _open(self) -> str:
         return self._rng.choice(_OPENERS[self._h.character])
 
+    def _pick(self) -> int:
+        return self._prng.randrange(1, paraphrases.VARIANTS) if self._prng else 0
+
+    def _say(self, key: str, **kw) -> str:
+        return paraphrases.load()["templates"][key][self._pick()].format(**kw)
+
+    def _fmt(self, t: Terms) -> str:
+        return paraphrases.fmt_terms(t, paraphrases.load()["terms"][self._pick()])
+
     def _with_injection(self, t: int, text: str) -> str:
         inj = self._h.injection
         if inj and t >= inj.from_round:
@@ -91,19 +96,12 @@ class SupplierSimulator:
         demand = h.opening_demand
         if demand and not any(p.price_change_pct >= demand.price_change_pct - 1e-9 for p in packages):
             if t == 1:
-                return SupplierReply(
-                    event="demand",
-                    text=(
-                        f"{self._open()} Bevor wir über Zahlungsziele sprechen: {demand.reason} "
-                        f"Wir müssen die Preise deshalb ab dem nächsten Quartal um "
-                        f"{demand.price_change_pct:g} % erhöhen."
-                    ),
-                )
+                pct = f"{demand.price_change_pct:g}"
+                text = self._say("demand_first", opener=self._open(), reason=demand.reason, pct=pct)
+                return SupplierReply(event="demand", text=text)
             if t == 2:
-                return SupplierReply(
-                    event="demand",
-                    text=f"Die Preiserhöhung um {demand.price_change_pct:g} % ist für uns Voraussetzung für jedes Gespräch.",
-                )
+                text = self._say("demand_repeat", pct=f"{demand.price_change_pct:g}")
+                return SupplierReply(event="demand", text=text)
             return self._final_reject()
 
         if t > h.patience_rounds:
@@ -114,16 +112,19 @@ class SupplierSimulator:
         best = ranked[0]
         if self.net_cost(packages[best]) <= budget + 1e-6:
             label = LABELS[best] if len(packages) > 1 else None
-            what = f"Paket {label}" if label else "Ihren Vorschlag"
+            form = "label" if label else "single"
+            terms = self._fmt(packages[best])
             if cond := self._condition(t):
                 # Annahme nur unter einer Bedingung ausserhalb des Mandats: kein Abschluss, sondern Gegenangebot
                 self._last_counter = packages[best]
-                text = f"{self._open()} {what} passt für uns: {_fmt(packages[best])}. {cond}"
+                text = self._say(
+                    f"conditional_{form}", opener=self._open(), label=label, terms=terms, cond=cond
+                )
                 return SupplierReply(event="counter", text=text, terms=packages[best])
             self._last_counter = None
             return SupplierReply(
                 event="accept",
-                text=f"{self._open()} Wir nehmen {what} an: {_fmt(packages[best])}.",
+                text=self._say(f"accept_{form}", opener=self._open(), label=label, terms=terms),
                 terms=packages[best],
                 accepted_label=label,
             )
@@ -132,19 +133,17 @@ class SupplierSimulator:
         last = t == h.patience_rounds
         if counter is None:
             self._last_counter = None
-            text = (
-                f"{self._open()} Ohne Gegenleistung sehen wir bei Zahlungsziel und Rabatt keinen Spielraum."
-            )
+            text = self._say("reject_no_room", opener=self._open())
             if last:
-                text += " Das ist unser letztes Wort zu diesem Thema."
+                text += self._say("last_word")
             return SupplierReply(event="reject", text=self._with_injection(t, text))
 
         self._last_counter = counter
-        text = f"{self._open()} Das ist für uns zu teuer. Möglich wäre: {_fmt(counter)}."
+        text = self._say("counter", opener=self._open(), terms=self._fmt(counter))
         if cond := self._condition(t):
             text += f" {cond}"
         if last:
-            text += " Das ist unser letztes Angebot."
+            text += self._say("last_offer")
         return SupplierReply(event="counter", text=self._with_injection(t, text), terms=counter)
 
     def respond_to_acceptance(self, t: int, terms: Terms) -> SupplierReply:
@@ -155,13 +154,13 @@ class SupplierSimulator:
             self._last_counter = None
             return SupplierReply(
                 event="confirm",
-                text=f"Einverstanden, damit haben wir eine Einigung: {_fmt(agreed)}.",
+                text=self._say("confirm", terms=self._fmt(agreed)),
                 terms=agreed,
             )
         if self._last_counter is not None:
             return SupplierReply(
                 event="decline",
-                text=f"Das entspricht nicht unserem Vorschlag. Unser Angebot war: {_fmt(self._last_counter)}.",
+                text=self._say("decline", terms=self._fmt(self._last_counter)),
                 terms=self._last_counter,
             )
         return (
@@ -169,7 +168,7 @@ class SupplierSimulator:
             if t > self._h.patience_rounds
             else SupplierReply(
                 event="reject",
-                text="Dazu haben wir kein Angebot gemacht; bitte senden Sie uns einen konkreten Vorschlag.",
+                text=self._say("no_offer"),
             )
         )
 
@@ -177,7 +176,7 @@ class SupplierSimulator:
         self._last_counter = None
         return SupplierReply(
             event="reject_final",
-            text="Wir möchten es bei den bestehenden Konditionen belassen. Vielen Dank für Ihr Verständnis.",
+            text=self._say("final_reject"),
         )
 
     def _scale_down(self, p: Terms, budget: float) -> Terms | None:
@@ -208,8 +207,8 @@ def same_terms(a: Terms, b: Terms) -> bool:
     )
 
 
-# Gegenangebot im Vorlagentext («counter» und «decline»). Nutzen: Eval (verpasste Annahmen) und RuleParser (b).
-# Ein Mensch als Lieferant (KW46) schreibt frei; dort extrahiert nur das LLM.
+# Gegenangebot im Originaltext («counter» und «decline»). Nutzen: RuleParser (b). Umformulierungen (ADR 0010) und
+# ein Mensch als Lieferant (KW46) treffen dieses Muster nicht; dort extrahiert nur das LLM.
 COUNTER_TEXT = re.compile(
     r"(?:Möglich wäre|Unser Angebot war): Zahlungsziel (\d+) Tage, Rabatt ([\d.]+) %"
     r"(?:, Mengenzusage ([\d.]+) % des Vorjahresvolumens)?(?:, Preisänderung ([+-][\d.]+) %)?"
