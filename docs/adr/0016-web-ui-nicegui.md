@@ -78,3 +78,44 @@ die Schriften mit; die Seite braucht zur Laufzeit kein Internet.
 - Befund aus dem Browser-Test, behoben: Das Eingabefeld blieb nach dem Senden bis zum nächsten Tick aktiv, eine schnelle
   zweite Eingabe wurde ohne Rückmeldung abgewiesen. Jetzt sperrt die Seite sofort und meldet, wenn der Agent am Zug ist.
 - Die Prototypen der Recherche liegen nicht im Repo.
+
+## Nachtrag 10.11.2026: lesbare Seite (Rollen, Mandat, Begriffe)
+
+**Anlass.** Bei der Vorbereitung von Etappe 5 war auf der Seite nicht sofort klar, wer welche Rolle spielt und was die
+Begriffe bedeuten (Spielkarte, Protokoll und Konditionen im ERP, Verstösse, Knotennamen wie `narrate`). Die Seite zeigt die
+Sicht des Lieferanten (Chat) und die interne Sicht des Einkaufs (Schritte, Eskalation, Auswertung) nebeneinander, ohne das
+zu sagen, und das Mandat, gegen das der Code entscheidet, war gar nicht zu sehen. Bei Pactum sieht der Lieferant nur den
+Chat über den Link aus der Einladungs-E-Mail; der Einkauf sieht Konfiguration, Dashboard, Eskalationen und Audit-Trail
+(`docs/gesamtsystem.md` §2.5).
+
+Trennende Achse: **wie stark die Demo die beiden Sichten trennt.**
+
+| Alternative | Grund |
+| --- | --- |
+| A: nur Erzählung (Folie, Moderation), Seite unverändert | Die Seite selbst bliebe unverständlich, auch im Bildschirmvideo und für die Dozierenden im Repo |
+| B: zwei Ansichten `/lieferant` und `/einkauf` in zwei Fenstern | Am Beamer sieht man ein Fenster oder beide nebeneinander, also wieder eine Seite; die Kernthese steht nur in der Innensicht; rund 3–4 h und mehr bewegliche Teile in der Demo |
+| **C+: eine Seite, beschriftet (gewählt)** | kleinster Schritt, der die Verwirrung auf dem Bildschirm selbst behebt |
+
+**Entscheid des Nutzers (10.11.2026): C+.** Nur Darstellung in `ui.py` und neu `ui_text.py` (ohne NiceGUI, offline
+getestet); Graph, Prompts, Regeln, Eval und `live.py` bleiben unverändert, die Terminal-Ausgabe ebenso.
+- Links «Sicht des Lieferanten» mit dem Hinweis, dass real der Link aus der Einladungs-E-Mail dorthin führt. Die Frage
+  «Stimmen Sie zu?» steht jetzt dort zwischen Chat und Eingabefeld, weil sie der Lieferant beantwortet (real: Vertrag zur
+  Signatur).
+- Rechts «Intern: Einkauf der Musterhandel AG · sieht der Lieferant nicht». Oben die Karte «Mandat der Einkäuferin» mit
+  heutigen Konditionen, Ziel, Grenzen, Mindestnutzen, Bewertungssätzen in CHF, wer es liest (nur Code) und Quelle. Sie ist
+  zugeklappt, damit eine Person in Live-Runden den Mindestnutzen nicht sieht; in der Demo öffnet sie die Moderation. Die
+  Werte stammen nur aus dem öffentlichen Teil des Szenarios (Test mit Canary).
+- Schritte mit dem Namen der BPMN-Aufgabe («Angebot formulieren»), darunter klein der Knoten im Code (`narrate`). Die
+  Felder von `parse_response` stehen auf Deutsch mit dem Code in Klammern, z.B. «nimmt an (accept) · Paket B · Bedingung
+  zu Vertragslaufzeit (condition/contract_term)».
+- Auswertung: unter jeder Zeile eine kurze Erklärung (Protokoll = Audit-Trail, Konditionen im ERP, Spielkarte und Anteil
+  am Spielraum, Verstösse); Verstösse zusätzlich mit deutscher Bedeutung.
+- Kopfzeile mit der Legende «LLM schlägt vor · Code entscheidet · Mensch entscheidet den Rest».
+
+**Prüfung.** 89 Tests grün (4 neu in `tests/test_ui_text.py`, darunter: jeder Knoten des Graphen hat einen BPMN-Namen),
+ruff sauber. Headless-Browser offline: S11 mit Simulator bis zur Eskalation (Mandat aufgeklappt) und zur Auswertung, S04
+mit Mensch bis zur Zustimmung. Die Zustimmungskarte sitzt über dem Eingabefeld, damit sie bei 1000 px Fensterhöhe sichtbar
+bleibt. Mit Luna nicht neu gemessen, weil sich nur Texte und Anordnung ändern; die Demo-Probe prüft den Ablauf.
+
+**Kippt, wenn** Personen in den Live-Runden rechts mitlesen und ihr Verhalten danach ausrichten: dann eine Ansicht
+`/lieferant` nur mit Chat und Zustimmung (Variante B), vor dem Stichtag 15.11.

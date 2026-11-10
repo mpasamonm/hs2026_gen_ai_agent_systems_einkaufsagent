@@ -1,0 +1,169 @@
+"""Texte der Web-UI (ADR 0016, Nachtrag 10.11.): Namen der BPMN-Aufgaben, Mandat in Worten, Erklärungen zur Auswertung.
+
+Reine Darstellung ohne NiceGUI, deshalb offline testbar. Sieht nur den öffentlichen Teil des Szenarios
+(``PublicScenario``), nie die verdeckten Werte des Lieferanten.
+"""
+
+from __future__ import annotations
+
+import re
+
+from einkaufsagent.scenarios import PublicScenario
+
+# Knoten im Graphen (graph_b.py) → Aufgabe in der BPMN _v4 (docs/process/README.md)
+NODE_DE = {
+    "load_context": "Kontext laden",
+    "offer_engine": "Pakete berechnen",
+    "narrate": "Angebot formulieren",
+    "mandate_guard": "Nachricht prüfen",
+    "template_message": "Standardtext verwenden",
+    "send_and_wait": "Angebot senden, Antwort abwarten",
+    "parse_response": "Antwort extrahieren",
+    "assess_response": "Antwort bewerten",
+    "escalate": "Eskalation aufbereiten",
+    "ask_buyer": "Eskalation entscheiden",
+    "record_outcome": "Ergebnis und Protokoll erfassen",
+    "notify_supplier": "Ergebnis mitteilen",
+    "escalate → ask_buyer": "Eskalation an die Einkäuferin",  # Ereignis «escalation» der UI
+}
+
+# Felder von ParsedReply und Statement (extract.py)
+REPLY_DE = {
+    "accept": "nimmt an",
+    "counter": "Gegenangebot",
+    "reject": "lehnt ab",
+    "final_reject": "bricht ab",
+}
+KIND_DE = {
+    "authority_claim": "Behauptung",
+    "demand": "Forderung",
+    "condition": "Bedingung",
+    "information": "Information",
+}
+QTY_DE = {
+    "payment_days": "Zahlungsziel",
+    "discount": "Rabatt",
+    "volume_commit": "Mengenzusage",
+    "price": "Preis",
+    "contract_term": "Vertragslaufzeit",
+    "exclusivity": "Exklusivität",
+    "prepayment": "Vorauskasse",
+    "other": "Sonstiges",
+}
+
+# Codes aus domain.check_terms/check_deal und live.report
+VIOLATION_DE = {
+    "volume_commit": "Mengenzusage über dem Maximum",
+    "price_increase": "Preiserhöhung zugestanden",
+    "worse_payment_days": "Zahlungsziel schlechter als heute",
+    "worse_discount": "Rabatt schlechter als heute",
+    "below_walk_away": "Abschluss unter dem Mindestnutzen",
+    "not_agreed": "gebucht ohne Zustimmung des Lieferanten",
+}
+
+# Erklärung pro Zeile der Auswertung (Zeilenanfang aus live.report)
+REPORT_HELP = {
+    "Ergebnis": "deal = Abschluss · no_deal = kein Abschluss · escalated = an die Einkäuferin übergeben und abgebrochen",
+    "Protokoll im ERP": "Audit-Trail: pro Verhandlung Status und Hinweise, pro Runde die gesendeten Pakete und die "
+    "Reaktion des Lieferanten (reject = lehnt ab, accept = nimmt an, counter = Gegenangebot) mit Paketwahl",
+    "Entscheid der Einkäuferin": "steht mit der Notiz im Protokoll",
+    "Konditionen im ERP": "was ab jetzt mit diesem Lieferanten gilt; gebucht nur bei einem Abschluss, nur im Mandat "
+    "und nur durch Code",
+    "Spielkarte": "Nutzen = Wert des Abschlusses pro Jahr für die Musterhandel AG. Anteil am Spielraum = wie viel vom "
+    "Bereich zwischen unserem Mindestnutzen und dem Besten, was der Lieferant laut Spielkarte angenommen hätte, "
+    "wir geholt haben",
+    "Verstösse": "Der Code prüft jedes angebotene Paket und den Abschluss gegen das Mandat, wie in der Eval; "
+    "«keine» = nie etwas ausserhalb des Mandats angeboten oder gebucht",
+}
+
+_STATEMENT = re.compile(r"^(\w+)/(\w+) (.*)$", re.S)
+
+
+def chf(x: float) -> str:
+    return f"CHF {x:,.0f}".replace(",", "'")
+
+
+def pct(x: float) -> str:
+    return f"{x:g} %"
+
+
+def node_label(node: str | None) -> str | None:
+    return NODE_DE.get(node or "", node)
+
+
+def explain_step(node: str | None, text: str) -> str:
+    """Englische Feldwerte aus ``parse_response`` auf Deutsch, die Codes bleiben in Klammern sichtbar."""
+    if node != "parse_response":
+        return text
+    prefix = "(ohne LLM) " if text.startswith("(ohne LLM) ") else ""
+    parts = text.removeprefix(prefix).split(" · ")
+    if parts[0] not in REPLY_DE:  # z.B. «nicht auswertbar (…)»
+        return text
+    out = [f"{REPLY_DE[parts[0]]} ({parts[0]})"]
+    for p in parts[1:]:
+        m = _STATEMENT.match(p)
+        if m and m.group(1) in KIND_DE and m.group(2) in QTY_DE:
+            kind, qty, quote = m.groups()
+            out.append(f"{KIND_DE[kind]} zu {QTY_DE[qty]} ({kind}/{qty}) {quote}")
+        else:
+            out.append(p)
+    return prefix + " · ".join(out)
+
+
+def report_help(line: str) -> str | None:
+    for start, text in REPORT_HELP.items():
+        if line.startswith(start):
+            return text
+    return None
+
+
+def violations_de(codes: list[str]) -> list[str]:
+    """«R2:volume_commit» → «R2: Mengenzusage über dem Maximum (volume_commit)»."""
+    out = []
+    for c in codes:
+        where, _, code = c.rpartition(":")
+        out.append(f"{where}: {VIOLATION_DE.get(code, code)} ({code})")
+    return out
+
+
+def mandate_lines(public: PublicScenario) -> list[tuple[str, str]]:
+    """Mandat der Einkäuferin in Worten, als (Titel, Text). Nur öffentliche Daten des Szenarios."""
+    ctx, m = public.context, public.mandate
+    cur, a = ctx.current_terms, ctx.annual_volume_chf
+    today = f"{cur.payment_days} Tage Zahlungsziel, {pct(cur.discount_pct)} Rabatt, " + (
+        f"Mengenzusage {pct(cur.volume_commit_pct)}" if cur.volume_commit_pct else "keine Mengenzusage"
+    )
+    price = (
+        f"Preiserhöhung höchstens {pct(m.max_price_change_pct)}"
+        if m.max_price_change_pct
+        else "keine Preiserhöhung"
+    )
+    return [
+        ("Lieferant", f"{ctx.supplier_name} ({ctx.category}), Volumen {chf(a)} pro Jahr; heute {today}"),
+        (
+            "Ziel",
+            f"{m.target_payment_days} Tage, {pct(m.target_discount_pct)} Rabatt: Anspruch der ersten Runde, "
+            "danach sinkt er Runde für Runde bis zum Mindestnutzen",
+        ),
+        (
+            "Grenzen",
+            f"Zahlungsziel höchstens {m.payment_days_max} Tage, Rabatt höchstens {pct(m.discount_max_pct)}, "
+            f"Mengenzusage höchstens {pct(m.max_volume_commit_pct)}, {price}, höchstens {m.max_rounds} Runden",
+        ),
+        ("Mindestnutzen", f"{chf(m.min_value_chf)} pro Jahr; darunter kein Abschluss (Walk-away)"),
+        (
+            "Bewertung",
+            f"1 Tag Zahlungsziel ist uns {chf(a * m.buyer_capital_rate / 365)} wert "
+            f"(Kapitalkosten {pct(m.buyer_capital_rate * 100)}), 1 % Rabatt {chf(a / 100)}; "
+            f"10 % Mengenzusage kosten uns {chf(a * 0.1 * m.buyer_commit_cost_rate)}",
+        ),
+        (
+            "Wer liest es",
+            "nur Code: Pakete berechnen, Nachricht prüfen, Antwort bewerten. "
+            "Die LLM-Schritte (orange) sehen es nie",
+        ),
+        (
+            "Quelle",
+            "data/scenarios/*.jsonl, Teil public.mandate; real legt es die Einkäuferin vor dem Start fest",
+        ),
+    ]

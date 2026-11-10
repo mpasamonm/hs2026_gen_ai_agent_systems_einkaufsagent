@@ -19,7 +19,7 @@ und Variante (b) mit Vorlage und Regex-Parser.
 
 ```bash
 uv sync                                                # Abhängigkeiten aus uv.lock
-uv run pytest                                          # 85 Tests, offline
+uv run pytest                                          # 89 Tests, offline
 uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 Dev-Szenarien: Erfolg 0.91
 uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
 uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext
@@ -91,7 +91,7 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 | `src/einkaufsagent/hybrid.py`, `domain.py` | Code-Schritte: Mandatsprüfung, Bewertung nach ADR 0008, Vorlagen, Nutzenfunktion |
 | `src/einkaufsagent/extract.py`, `narrate.py`, `prompts.py` | LLM-Schritte von (b) (austauschbar) und alle Prompts |
 | `src/einkaufsagent/erp.py`, `live.py` | ERP-Adapter (SQLite, Protokoll, Buchung) und Runner im Terminal |
-| `src/einkaufsagent/ui.py`, `ui_session.py` | Web-UI `ea-ui` über dem Runner (Lauf im Hintergrund-Thread, ADR 0016) |
+| `src/einkaufsagent/ui.py`, `ui_session.py`, `ui_text.py` | Web-UI `ea-ui` über dem Runner (Lauf im Hintergrund-Thread; Sicht des Lieferanten links, intern mit Mandat, Schritten und Auswertung rechts; ADR 0016) |
 | `src/einkaufsagent/supplier_sim.py` | regelbasierter Lieferanten-Simulator mit verdeckten Parametern, ZOPA-Analyse |
 | `src/einkaufsagent/eval.py`, `benchmark.py` | Eval und Modellvergleich |
 | `data/scenarios/` | 11 Dev-Szenarien, 15 Testszenarien mit Angriffen (Aufbau in `README.md`) |

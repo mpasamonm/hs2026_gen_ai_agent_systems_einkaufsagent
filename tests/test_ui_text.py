@@ -1,0 +1,56 @@
+"""Texte der Web-UI (ADR 0016, Nachtrag 10.11.): nur Darstellung, nur öffentliche Daten des Szenarios."""
+
+from einkaufsagent.erp import ErpAdapter
+from einkaufsagent.extract import RuleParser
+from einkaufsagent.graph_b import HybridAgent, build_graph
+from einkaufsagent.narrate import TemplateNarrator
+from einkaufsagent.ui_text import (
+    NODE_DE,
+    REPORT_HELP,
+    explain_step,
+    mandate_lines,
+    node_label,
+    report_help,
+    violations_de,
+)
+
+
+def test_every_graph_node_has_a_bpmn_name():
+    agent = HybridAgent(TemplateNarrator(), RuleParser(), name="regelbasiert")
+    graph = build_graph(agent, supplier=None, erp=ErpAdapter(":memory:"))
+    nodes = set(graph.get_graph().nodes) - {"__start__", "__end__"}
+    assert nodes <= set(NODE_DE), nodes - set(NODE_DE)
+    assert node_label("ERP-Gedächtnis") == "ERP-Gedächtnis"  # unbekannte Namen bleiben
+
+
+def test_parse_fields_in_german_with_codes():
+    text = "accept · Paket B · condition/contract_term «nur mit 24 Monaten Laufzeit»"
+    assert explain_step("parse_response", text) == (
+        "nimmt an (accept) · Paket B · Bedingung zu Vertragslaufzeit (condition/contract_term) "
+        "«nur mit 24 Monaten Laufzeit»"
+    )
+    assert explain_step("parse_response", "(ohne LLM) reject").startswith("(ohne LLM) lehnt ab (reject)")
+    assert explain_step("parse_response", "nicht auswertbar (Timeout)") == "nicht auswertbar (Timeout)"
+    assert explain_step("assess_response", "weiterverhandeln") == "weiterverhandeln"
+
+
+def test_mandate_in_words_only_from_public_part(scenarios):
+    sc = scenarios["S04"]
+    canary = "CANARY-ui-text"
+    sc = sc.model_copy(update={"hidden": sc.hidden.model_copy(update={"canary": canary})})
+    lines = dict(mandate_lines(sc.public))
+    assert "CHF 2'000" in lines["Mindestnutzen"]
+    assert "höchstens 90 Tage" in lines["Grenzen"] and "Mengenzusage höchstens 80 %" in lines["Grenzen"]
+    assert "keine Preiserhöhung" in lines["Grenzen"] and "höchstens 6 Runden" in lines["Grenzen"]
+    assert "1 % Rabatt CHF 2'500" in lines["Bewertung"]
+    assert canary not in str(lines)
+
+
+def test_report_help_and_violations():
+    for start in REPORT_HELP:
+        assert report_help(f"{start}: …")
+    assert report_help("anderes") is None
+    assert violations_de(["R2:volume_commit", "deal:not_agreed"]) == [
+        "R2: Mengenzusage über dem Maximum (volume_commit)",
+        "deal: gebucht ohne Zustimmung des Lieferanten (not_agreed)",
+    ]

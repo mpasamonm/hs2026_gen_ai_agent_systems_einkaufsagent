@@ -3,9 +3,10 @@
     uv run ea-ui                          # http://127.0.0.1:8080 (nicht localhost) · Mensch als Lieferant · Luna · ERP results/erp-demo.sqlite
     uv run ea-ui --model offline          # ohne Proxy (Vorlage + Regex-Parser), z.B. S11 mit dem Simulator
 
-Links das Gespräch Agent ↔ Lieferant (die Person tippt als Lieferant), rechts die Schritte farbig wie die BPMN
-(orange LLM, blau Code, grün Mensch), bei einer Eskalation die Vorlage für die Einkäuferin mit zwei Knöpfen, am Schluss
-Protokoll und Auswertung gegen die Spielkarte. Der Lauf liegt im Server-Prozess (``ui_session.Session``); ein Reload
+Links die Sicht des Lieferanten (Chat und Zustimmung; die Person tippt als Lieferant), rechts die interne Sicht des
+Einkaufs: das Mandat (zugeklappt, damit es in Live-Runden verdeckt bleibt), bei einer Eskalation die Vorlage für die
+Einkäuferin mit zwei Knöpfen, am Schluss Protokoll und Auswertung gegen die Spielkarte, und die Schritte farbig wie die
+BPMN (orange LLM, blau Code, grün Mensch) mit den Namen der BPMN-Aufgaben. Texte in ``ui_text``. Der Lauf liegt im Server-Prozess (``ui_session.Session``); ein Reload
 der Seite zeigt denselben Stand. «Neue Verhandlung» bricht einen laufenden Lauf ab.
 """
 
@@ -21,6 +22,7 @@ from einkaufsagent.config import ROOT, flush_traces
 from einkaufsagent.eval import DEFAULT_SCENARIOS
 from einkaufsagent.scenarios import load_scenarios
 from einkaufsagent.ui_session import MEMORY, OFFLINE, Session, Settings
+from einkaufsagent.ui_text import explain_step, mandate_lines, node_label, report_help, violations_de
 
 # Farben aus docs/process/gen_bpmn_v4.py (Rand, Fläche)
 COL = {
@@ -30,12 +32,16 @@ COL = {
     "dim": ("#6b7280", "#f3f4f6"),
 }
 BADGE = {"llm": "LLM", "code": "Code", "human": "Mensch", "dim": "verworfen"}
+LEGEND = {"llm": "LLM schlägt vor", "code": "Code entscheidet", "human": "Mensch entscheidet den Rest"}
 CSS = """
 body { font-size: 17px; }
 .step { border-left: 4px solid; padding: 2px 8px; border-radius: 3px; }
 .node { font-family: ui-monospace, monospace; font-weight: 600; }
 .badge { font-size: 12px; font-weight: 700; padding: 0 6px; border-radius: 8px; color: white; }
 .round { color: #6b7280; font-size: 14px; margin-top: 6px; border-top: 1px solid #d1d5db; width: 100%; }
+.side { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
+.help { font-size: 13px; color: #6b7280; line-height: 1.3; }
+.code-name { font-family: ui-monospace, monospace; font-size: 12px; color: #6b7280; }
 """
 
 STATE: dict[str, Any] = {"session": None, "settings": Settings(), "scenarios": {}, "log_dir": None}
@@ -55,14 +61,14 @@ def index() -> None:
     ui.add_css(CSS)
     ui.page_title("Einkaufsagent")
     settings: Settings = STATE["settings"]
-    view: dict[str, Any] = {"session": None, "seen": 0, "report": False}
+    view: dict[str, Any] = {"session": None, "seen": 0, "report": False, "mandate_for": None}
 
     with ui.header().classes("items-center bg-slate-800 py-2"):
         ui.label("Einkaufsagent · Musterhandel AG").classes("text-xl font-bold")
-        ui.label("LLM schlägt vor, Code entscheidet").classes("text-slate-300")
+        ui.label("verhandelt im Auftrag des Einkaufs mit einem Lieferanten").classes("text-slate-300")
         ui.space()
         for kind in ("llm", "code", "human"):
-            ui.label(BADGE[kind]).classes("badge").style(f"background:{COL[kind][0]}")
+            ui.label(LEGEND[kind]).classes("badge").style(f"background:{COL[kind][0]}")
 
     with ui.row().classes("w-full items-end gap-4"):
         options = {k: f"{k} · {s.public.context.supplier_name}" for k, s in STATE["scenarios"].items()}
@@ -87,15 +93,35 @@ def index() -> None:
 
     with ui.row().classes("w-full no-wrap items-start gap-4"):
         with ui.card().classes("w-7/12"):
+            ui.label("Sicht des Lieferanten").classes("side")
             ui.label("Gespräch Agent ↔ Lieferant").classes("text-lg font-bold")
-            with ui.scroll_area().classes("w-full h-[58vh]") as chat_area:
+            ui.label(
+                "Nur das sieht der Lieferant (real: Chat über den Link aus der Einladungs-E-Mail). "
+                "Wer hier tippt, spielt den Verkäufer der Lieferfirma; das Mandat kennt er nicht."
+            ).classes("help")
+            with ui.scroll_area().classes("w-full h-[48vh]") as chat_area:
                 chat = ui.column().classes("w-full")
+            with ui.card().classes("w-full").style("border:2px solid #b45309;background:#fef3c7") as agree:
+                agree_label = ui.label().classes("font-bold")
+                ui.label(
+                    "Der Code bucht nur, was der Lieferant bestätigt (real: Vertrag zur digitalen Signatur); "
+                    "sonst zählt es als Verstoss deal:not_agreed."
+                ).classes("help")
+                with ui.row():
+                    ui.button("Ja, zugestimmt", on_click=lambda: answer_agree(True)).props("color=green-8")
+                    ui.button("Nein", on_click=lambda: answer_agree(False)).props("color=red-8 outline")
             with ui.row().classes("w-full no-wrap items-center"):
                 box = ui.input(placeholder="Antwort als Lieferant, Enter sendet").classes("flex-grow")
                 send_btn = ui.button("Senden", icon="send", on_click=lambda: send())
             box.on("keydown.enter", lambda: send())
 
         with ui.column().classes("w-5/12"):
+            ui.label("Intern: Einkauf der Musterhandel AG · sieht der Lieferant nicht").classes("side")
+            with (
+                ui.card().classes("w-full").style(f"border-left:6px solid {COL['code'][0]}"),
+                ui.expansion("Mandat der Einkäuferin", icon="gavel").classes("w-full font-bold"),
+            ):
+                mandate_body = ui.column().classes("gap-1 font-normal")
             with (
                 ui.card()
                 .classes("w-full")
@@ -104,6 +130,10 @@ def index() -> None:
                 ui.label("Eskalation an die Einkäuferin").classes("text-lg font-bold").style(
                     f"color:{COL['human'][0]}"
                 )
+                ui.label(
+                    "Das Mandat deckt diesen Fall nicht ab (ADR 0008). Der Graph hält mit interrupt() an, "
+                    "bis die Einkäuferin entscheidet."
+                ).classes("help")
                 esc_body = ui.column().classes("gap-1")
                 note = ui.input("Notiz fürs Protokoll (geht nicht an den Lieferanten)").classes("w-full")
                 with ui.row():
@@ -111,16 +141,19 @@ def index() -> None:
                         "color=green-8"
                     )
                     ui.button("abbrechen", on_click=lambda: decide("abbrechen")).props("color=red-8 outline")
-            with ui.card().classes("w-full") as agree:
-                agree_label = ui.label().classes("font-bold")
-                with ui.row():
-                    ui.button("Ja, zugestimmt", on_click=lambda: answer_agree(True)).props("color=green-8")
-                    ui.button("Nein", on_click=lambda: answer_agree(False)).props("color=red-8 outline")
             with ui.card().classes("w-full") as report:
-                ui.label("Auswertung gegen die Spielkarte").classes("text-lg font-bold")
+                ui.label("Auswertung nach dem Lauf").classes("text-lg font-bold")
+                ui.label(
+                    "Die Spielkarte enthält die verdeckten Grenzen des Lieferanten; der Agent sieht sie nie. "
+                    "Erst damit lässt sich nachrechnen, wie gut der Abschluss war."
+                ).classes("help")
                 report_body = ui.column().classes("gap-1")
             with ui.card().classes("w-full"):
-                ui.label("Schritte").classes("text-lg font-bold")
+                ui.label("Schritte im Agenten").classes("text-lg font-bold")
+                ui.label(
+                    "Jeder Schritt ist ein Knoten im LangGraph-Graphen und eine Aufgabe der BPMN; "
+                    "darunter klein der Name im Code."
+                ).classes("help")
                 with ui.scroll_area().classes("w-full h-[40vh]") as step_area:
                     steps = ui.column().classes("w-full gap-1")
 
@@ -174,8 +207,11 @@ def index() -> None:
             ui.label(BADGE.get(kind, kind)).classes("badge").style(f"background:{border}")
             with ui.column().classes("gap-0"):
                 if node:
-                    ui.label(node).classes("node").style(f"color:{border}")
-                ui.label(text).style("white-space:pre-wrap")
+                    label = node_label(node)
+                    ui.label(label).classes("font-bold").style(f"color:{border}")
+                    if label != node:
+                        ui.label(node).classes("code-name")
+                ui.label(explain_step(node, text)).style("white-space:pre-wrap")
 
     def add(e: dict[str, Any]) -> None:
         match e["type"]:
@@ -191,7 +227,12 @@ def index() -> None:
                     f"{m['recorded_at']}: {m['status']} nach {m['rounds']} Runden, Paketwahl {m['choice']}"
                     for m in e["items"]
                 ]
-                step("code", "ERP-Gedächtnis", "\n".join([f"{e['count']} frühere Verhandlung(en)", *lines]))
+                step(
+                    "code",
+                    "ERP-Gedächtnis",
+                    "\n".join([f"{e['count']} frühere Verhandlung(en) mit diesem Lieferanten", *lines])
+                    + "\n(nur zur Information der Einkäuferin; der Agent nutzt sie nicht)",
+                )
             case "round":
                 with steps:
                     ui.label(f"Runde {e['round']}").classes("round")
@@ -226,12 +267,29 @@ def index() -> None:
                     for line in e["lines"]:
                         bold = line.startswith(("Ergebnis", "Spielkarte", "Verstösse"))
                         ui.label(line).classes("font-bold" if bold else "")
+                        if line.startswith("Verstösse") and e.get("violations"):
+                            for v in violations_de(e["violations"]):
+                                ui.label(v).classes("help")
+                        if text := report_help(line):
+                            ui.label(text).classes("help")
             case "error":
                 step("dim", "Fehler", e["text"])
                 ui.notify(e["text"], type="negative", timeout=0, close_button=True)
 
+    def show_mandate(sc_id: str) -> None:
+        mandate_body.clear()
+        with mandate_body:
+            for title, text in mandate_lines(STATE["scenarios"][sc_id].public):
+                with ui.row().classes("no-wrap gap-2 items-start"):
+                    ui.label(f"{title}:").classes("font-bold").style("min-width:7.5em")
+                    ui.label(text)
+        view["mandate_for"] = sc_id
+
     def render() -> None:
         ses: Session | None = STATE["session"]
+        sc_id = ses.sc.id if ses is not None else sel_sc.value
+        if sc_id in STATE["scenarios"] and sc_id != view["mandate_for"]:
+            show_mandate(sc_id)
         if ses is not view["session"]:
             for c in (chat, steps, esc_body, report_body):
                 c.clear()

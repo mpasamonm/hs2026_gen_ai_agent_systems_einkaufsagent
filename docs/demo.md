@@ -16,7 +16,7 @@ entscheidet», nicht die Zahl der Bausteine.
 **Vorbereitung am Vortag**
 
 ```bash
-uv sync && LANGSMITH_TRACING=false uv run pytest   # 85 Tests grün
+uv sync && LANGSMITH_TRACING=false uv run pytest   # 89 Tests grün
 uv run ea-check-models                              # Luna: function_calling ok (bei 422 einmal wiederholen)
 rm -f results/erp-demo.sqlite                       # frisches ERP
 export LANGSMITH_TRACING=false
