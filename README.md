@@ -19,11 +19,12 @@ und Variante (b) mit Vorlage und Regex-Parser.
 
 ```bash
 uv sync                                                # Abhängigkeiten aus uv.lock
-uv run pytest                                          # 79 Tests, offline
+uv run pytest                                          # 85 Tests, offline
 uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 Dev-Szenarien: Erfolg 0.91
 uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
 uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext
 uv run ea-run --scenario S11 --variant b --policy rule --live   # Eskalation, Einkäuferin entscheidet im Terminal
+uv run ea-ui --model offline --erp :memory:            # Web-UI offline: http://127.0.0.1:8080, «Simulator», S11
 ```
 
 Mit Zugang zum FHNW-LiteLLM (Modell `gpt-5.6-luna`) und optional LangSmith:
@@ -43,13 +44,17 @@ Schalter: `--variant a|b`, `--paraphrase` (Lieferantentexte umformuliert), `--sc
 ## Demo: Mensch als Lieferant
 
 ```bash
-uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite
+export LANGSMITH_TRACING=false
+uv run ea-ui                                           # Browser: http://127.0.0.1:8080 (S04, Mensch, Luna, ERP-Datei)
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Terminal
 ```
 
-Eine Person spielt den Lieferanten und versucht, den Agenten zu manipulieren. Die Ausgabe zeigt farbig, was das LLM
-vorschlägt (orange) und was der Code entscheidet (blau); bei einer Eskalation hält der Graph an (`interrupt()`) und die
-Einkäuferin entscheidet im selben Terminal (grün). Die Protokolle bleiben in der SQLite-Datei (Langzeitgedächtnis).
-Ablauf, Fallbacks und Spielkarten: [`docs/demo.md`](docs/demo.md).
+Eine Person spielt den Lieferanten und versucht, den Agenten zu manipulieren. Die Web-UI (NiceGUI, ADR 0016) zeigt links
+das Gespräch und rechts die Schritte farbig wie die BPMN: was das LLM vorschlägt (orange) und was der Code entscheidet
+(blau). Bei einer Eskalation hält der Graph an (`interrupt()`), und die Einkäuferin entscheidet über eine grüne Karte. Am
+Schluss folgt die Auswertung gegen die Spielkarte. Die UI ist nur Darstellung über demselben Runner wie das Terminal, das
+als Fallback bleibt. Die Protokolle bleiben in der SQLite-Datei (Langzeitgedächtnis). Ablauf, Fallbacks und Spielkarten:
+[`docs/demo.md`](docs/demo.md).
 
 ## Ergebnisse (finale Läufe vom 09.11.2026, `gpt-5.6-luna`, 3 Wiederholungen)
 
@@ -86,6 +91,7 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 | `src/einkaufsagent/hybrid.py`, `domain.py` | Code-Schritte: Mandatsprüfung, Bewertung nach ADR 0008, Vorlagen, Nutzenfunktion |
 | `src/einkaufsagent/extract.py`, `narrate.py`, `prompts.py` | LLM-Schritte von (b) (austauschbar) und alle Prompts |
 | `src/einkaufsagent/erp.py`, `live.py` | ERP-Adapter (SQLite, Protokoll, Buchung) und Runner im Terminal |
+| `src/einkaufsagent/ui.py`, `ui_session.py` | Web-UI `ea-ui` über dem Runner (Lauf im Hintergrund-Thread, ADR 0016) |
 | `src/einkaufsagent/supplier_sim.py` | regelbasierter Lieferanten-Simulator mit verdeckten Parametern, ZOPA-Analyse |
 | `src/einkaufsagent/eval.py`, `benchmark.py` | Eval und Modellvergleich |
 | `data/scenarios/` | 11 Dev-Szenarien, 15 Testszenarien mit Angriffen (Aufbau in `README.md`) |

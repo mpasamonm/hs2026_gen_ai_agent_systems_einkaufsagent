@@ -222,7 +222,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 | Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; in der Demo als Datei, damit sie über Läufe bleiben. Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
 | Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11. (ADR 0015) |
 | Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Testset mit Angriffen gemessen 09.11. (ADR 0010) |
-| Interface | KW47 | Terminal für den Menschen als Lieferant und für die Einkäuferin (`ea-run --live`, `--human`), farbig nach LLM, Code und Mensch; keine Web-App | gebaut 09.11. (ADR 0012, 0015) |
+| Interface | KW47 | Web-UI `ea-ui` (NiceGUI 3.18.0) als reine Darstellung über dem Runner: Chat mit dem Menschen als Lieferant, Schritte farbig nach LLM, Code und Mensch, Karte für die Einkäuferin, Auswertung gegen die Spielkarte; der Lauf liegt im Server-Prozess, ein Reload zeigt denselben Stand. Terminal (`ea-run --live`, `--human`) als Fallback | Terminal gebaut 09.11. (ADR 0015), Web-UI 10.11. (ADR 0016, Ausnahme vom Feature-Freeze nach ADR 0014) |
 
 ### 3.3 Modellwahl (ADR 0004, 0011)
 
@@ -257,7 +257,10 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Gegenangebot annehmen, `escalate` → `ask_buyer` (`interrupt()`) oder `record_outcome` → `notify_supplier`.
   Code-Schritte in `hybrid.py`, Parser in `extract.py` (austauschbar: LLM, Regeln, später Entscheidungsmodell mit
   Konfidenz), Narrator in `narrate.py`, ERP-Adapter in `erp.py` (SQLite: Lieferant, Konditionen, Protokoll, Runden),
-  Runner im Terminal in `live.py` (`HumanSupplier`, Einkäuferin, farbige Ausgabe).
+  Runner im Terminal in `live.py` (`HumanSupplier`, Einkäuferin, farbige Ausgabe); Web-UI darüber in `ui.py` und
+  `ui_session.py` (NiceGUI 3.18.0, ADR 0016): `run_live` läuft in einem Hintergrund-Thread, `ask` blockiert an einer
+  Queue, bis die Seite antwortet, und der optionale Callback `emit` liefert die Schritte als Daten. Graph und Eval
+  bleiben unverändert, und ohne `emit` ist die Ausgabe im Terminal byte-gleich.
 - Narrator, Parser, Lieferant und ERP-Adapter kommen per Closure in den Graphen. Der Lieferant hat eine Schnittstelle
   (`respond_to_offer`, `respond_to_acceptance`) mit zwei Umsetzungen: Simulator und Mensch.
 - Offline ohne Key: `uv run ea-eval --variant b --policy rule` (Vorlage + Regex-Parser) löst alle 11 Szenarien;
@@ -459,13 +462,13 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 **Demo (ADR 0012)**: Ablauf, Fallbacks, Aufzeichnung und Spielkarten in `docs/demo.md`. Zeitplan der Präsentation
 (Entscheid des Nutzers, 09.11.2026): 6 Minuten Folien, 4 Minuten Demo, Fragen nicht eingerechnet. Der Projektbeschrieb
 nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 7 ist die Kürzungsstelle.
-- **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten im Terminal und
-  versucht, den Agenten zu manipulieren:
-  `uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite`. Die Ausgabe
-  zeigt pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau); bei einer Eskalation
-  entscheidet die Einkäuferin im selben Terminal (grün). Ein zweiter Lauf mit derselben Datei zeigt das frühere
-  Protokoll (Langzeitgedächtnis). Fallback ohne zweite Person: `--live` mit dem Simulator, zum Beispiel S11 oder S08;
-  bei unzuverlässigem Proxy eine Aufzeichnung.
+- **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten in der Web-UI
+  (`uv run ea-ui`, Browser `http://127.0.0.1:8080`) und versucht, den Agenten zu manipulieren. Rechts erscheint pro
+  Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
+  Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start zeigt das ERP das
+  Protokoll aus einem Vorlauf (Langzeitgedächtnis). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im
+  Terminal (`ea-run --human`), Simulator mit S11 oder S08 ohne zweite Person, «offline» ohne Proxy und ein
+  Bildschirmvideo der Probe (`docs/demo.md`, ADR 0016).
 - **Ergebnisfolie als Kampagne:** Das Testset läuft durch (a) und (b); die Folie zeigt Abschlussquote, Nutzen in CHF,
   Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
 - **Live-Runden:** Mindestens 3 unbeteiligte Personen erhalten je eine Spielkarte mit ihren verdeckten Grenzen aus
@@ -560,7 +563,7 @@ relevante Eigenschaften» (Anhang A).
 | Memory | State mit `InMemorySaver`; Protokolle im ERP-Adapter, Metrik `korrekt_gebucht` (ADR 0015) | `SqliteSaver`, falls Eskalationen einen Neustart überdauern sollen | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
 | Human-in-the-loop | `escalate` und `ask_buyer` mit `interrupt()`, `Command(resume=…)` im Terminal (ADR 0015) | – | Mandatsänderung durch die Einkäuferin im laufenden Graphen (neues Mandat = neue Verhandlung) |
 | Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8, SW8 Folien 24 und 26) |
-| Interface | Terminal für Lieferant und Einkäuferin, farbig nach LLM, Code, Mensch (`live.py`) | – | Web-App |
+| Interface | Web-UI `ea-ui` über dem Runner (Chat, Schritte in BPMN-Farben, Karte für die Einkäuferin, Auswertung; ADR 0016); Terminal als Fallback (`live.py`) | – | LangGraph Studio als Oberfläche (verlangt `interrupt()` für den Lieferanten, ADR 0012) |
 | Tracing | LangSmith EU | – | – |
 | MCP, RAG | – | – | ADR 0009; MCP nur lesend als Ausbau, gestrichen bis 23.11. (ADR 0014) |
 

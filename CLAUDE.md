@@ -91,7 +91,10 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `offer_engine` (dieselbe Grösse wird nicht erneut eskaliert), «abbrechen» → `record_outcome`. ERP-Adapter in `erp.py`
   (SQLite, eine Verbindung pro Lauf; Eval `:memory:`, Demo `--erp PFAD`); Metrik `korrekt_gebucht` (nur b). Runner im
   Terminal in `live.py`: `--live` (Simulator, Einkäuferin entscheidet), `--human` (`HumanSupplier`, sieht nur Text,
-  Ereignis `human`). Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
+  Ereignis `human`). Web-UI `ea-ui` (`ui.py`, `ui_session.py`, NiceGUI 3.18.0, ADR 0016): `Session` startet `run_live` im
+  Hintergrund-Thread, `ask` blockiert an einer Queue, der optionale Callback `emit` liefert die Schritte als Daten; Lauf im
+  Server-Prozess (Reload zeigt denselben Stand), «Neue Verhandlung» bricht ab, ERP-Datei oder `:memory:`, Modell oder
+  `offline`, Ereignisse als JSONL in `results/ui/`. Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
   (`LLMParser`, `RuleParser`; Protokoll `Parser` mit optionaler `confidence`), Narrator in `narrate.py`. `narrate` sieht
   nur Pakete und Runde; `parse_response` sieht nur Antwort und Gesendetes; keiner sieht das Mandat. Einigung liest
   `parse_response` aus dem Text; die Eval prüft sie gegen den Simulator (`deal:not_agreed`). Offline:
@@ -124,6 +127,9 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `tests/test_graph_and_isolation.py` und `tests/test_variant_b.py` (auch DB-Dump) müssen grün bleiben. Ebenso erreichen
   Muster und Ziel eines Angriffs (`Scenario.attack`) nie Agent, Parser oder Narrator (`tests/test_testset.py`).
 - In `ask_buyer` steht nichts vor `interrupt()`; Nebenwirkungen (Protokoll, Zwischenbescheid) gehören in `escalate`.
+- Die Web-UI ist nur Darstellung (ADR 0014, 0016): keine Änderung an Graph, Prompts, Regeln oder Eval für die UI; ohne
+  `emit` bleibt die Terminal-Ausgabe byte-gleich (`test_emit_does_not_change_terminal_output`); die Spielkarte erscheint
+  erst in der Auswertung.
 - Rundenlogik wie BPMN v2: `round` zählt Angebotsrunden. Ein Gegenangebot ist auch nach der letzten Runde
   annehmbar. «accept» gilt nur für das letzte Gegenangebot; eine abgelehnte Annahme zählt als Runde.
 - Ab Variante (b) entscheidet nur Code über Zahlen und Mandat; das LLM extrahiert und formuliert.
@@ -366,7 +372,9 @@ uv run python scripts/build_testset.py            # Testset prüfen; schreibt te
 uv run ea-eval --policy rule --repeats 3 --scenarios data/scenarios/test.jsonl              # Testset offline: 0.80
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --scenarios data/scenarios/test.jsonl   # Testset (b): 0.98
 uv run ea-run --scenario S11 --variant b --policy rule --live                # Eskalation, Einkäuferin im Terminal (offline)
-uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo mit Mensch
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo im Terminal (Fallback)
+uv run ea-ui                                      # Web-UI für die Demo: http://127.0.0.1:8080 (nicht localhost), ADR 0016
+uv run ea-ui --model offline --erp :memory:       # Web-UI ohne Proxy, Probe ohne Spuren im ERP
 # Finale Läufe der Abgabe (14 Stück, --out docs/ergebnisse/<datum>): Befehle in docs/ergebnisse/2026-11-09/README.md
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
 cd docs/process && npm install && python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn \
