@@ -270,6 +270,10 @@ Erledigt:
     Kürzungsregel und Risiken in `docs/demo.md` §1, ADR 0012 Nachtrag (bc772fa). Folie 8 mit Ablauf und Rollen, Sprechernotiz
     Folie 2 (Slides-Artifact Version 13).
   - Offen beim Nutzer: Wer spielt den Lieferanten (Teammitglied oder allein); Demo-Probe in der neuen UI mit Luna und Video.
+  - Befund aus einer Probe des Nutzers (S04, Luna): Ein Gegenangebot «90 Tage, 2 %» nahm der Agent nach AC_next an (für uns
+    CHF 7'055, mehr als jedes eigene Paket; für den Lieferanten laut Spielkarte CHF 9'500 ohne Gegenleistung). Richtig
+    gehandelt, aber auf der Seite ist zu wenig sichtbar, dass man eigene Vorschläge machen kann. Recherche zu Gegenangeboten,
+    anderen Bots und Bot gegen Bot lokal in `kontext/recherche-2026-11-10-verhandlungsbots.md`. Entscheid offen (Etappe 6).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -289,7 +293,10 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
 4. **Web-UI erledigt 10.11.:** Entscheide nachgetragen, Befund der Probe eingetragen, `ea-ui` mit NiceGUI gebaut und mit
    Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
-5. **Etappe 5 (läuft):** Rollen und Rahmen der Demo erledigt 10.11. (ADR 0012 und 0016, Nachträge); SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
+5. **Etappe 5, Punkt 0 erledigt 10.11.:** Rollen und Rahmen der Demo, lesbare UI (ADR 0012 und 0016, Nachträge). Einstieg
+   für Etappe 6: `kontext/UEBERGABE-PROMPT-ABGABE-6.md`, zuerst drei neue Fragen des Nutzers: Gegenangebot sichtbar machen
+   (Empfehlung U1 prüfen), Verhandlungsgegenstand (Jahres- bzw. Rahmenkonditionen statt einzelner Lieferungen ausdrücklich
+   beschreiben und begründen), Aktualität der Belege (2020 nur als Ursprung, 2024–2026 recherchieren). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
    mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
    (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -298,6 +305,12 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
 
 ## 8. Offene Widersprüche und Hinweise
+
+- **Verhandlungsgegenstand (10.11.2026):** Die Doku sagt «Konditionen nachverhandeln» und rechnet den Nutzen pro Jahr,
+  beschreibt aber nirgends ausdrücklich, dass es um Rahmenkonditionen für die Bestellungen eines Jahres geht und warum nicht
+  um einzelne Lieferungen. Pactum macht beides (Kampagnen und Verhandlung pro Bedarfsanforderung). Offen für Etappe 6.
+- **Demo-ERP (10.11.2026):** `results/erp-demo.sqlite` enthält nach Proben des Nutzers 3 Protokolle statt 1; vor der Demo
+  löschen und den Vorlauf wiederholen (`docs/demo.md` §1).
 
 - **Web-UI (10.11.2026):** Im Windows-Browser `http://127.0.0.1:8080` öffnen; `localhost` läuft unter WSL (Modus
   `mirrored`) in einen Timeout, vermutlich IPv6 zuerst. Der Server lauscht nur auf `127.0.0.1` (Binden an `0.0.0.0` wurde
