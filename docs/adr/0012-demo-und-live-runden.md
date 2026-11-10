@@ -79,3 +79,38 @@ geplant gegen die Spielkarte. Zusätzlich **Red-Teaming durch Claude** als eigen
 spielt den Lieferanten über mehrere Runden als informierter Angreifer (kennt Mandat, Prompts und Testtexte, Whitebox) und
 wird mit derselben Auswertung bewertet. Diese Zeile gilt nie als Live-Runde und nie als Beleg gegen Menschen: Sie ist ein
 Stresstest, kein Ersatz für den in ADR 0009 verworfenen LLM-Lieferanten in der Eval.
+
+## Nachtrag 10.11.2026: Rollen, Rahmen wie bei Walmart/Pactum, Mandat sichtbar
+
+**Anlass.** Bei der Vorbereitung war nicht sofort klar, wen man in der Demo spielt (Lieferant, Agent, Einkauf). Recherche
+zum realen Ablauf (`docs/gesamtsystem.md` §2.5): Bei Walmart/Pactum legt der Einkauf Ziele und Grenzen fest, der Bot lädt
+den Lieferanten per E-Mail-Link ein, der Lieferant chattet im Browser und wählt unter gleichwertigen Angeboten, Ausnahmen
+gehen mit Kontext an eine Person, der Abschluss wird signiert und ins ERP zurückgeschrieben. Der Lieferant sieht nur den
+Chat, der Einkauf Dashboard und Audit-Trail.
+
+**Was die Demo leisten muss.** Die Präsentation gibt keine Punkte; die Folien zeigen mit der Ablation, *dass* der Hybrid
+wirkt, die Demo zeigt, *wie*. Das sieht man nur von innen: Aus Sicht des Lieferanten ist der Agent ein Chatbot. Deshalb
+bleibt eine Seite mit beiden Sichten, aber beschriftet (ADR 0016, Nachtrag 10.11.), und das Mandat wird gezeigt, weil
+«Code entscheidet im Mandat» ohne das Mandat nicht nachvollziehbar ist.
+
+**Entscheid des Nutzers (10.11.2026).**
+- **Rollen:** Agent (Musterhandel AG, verhandelt im Chat), Lieferant (Verkaufsleiter der Lieferfirma, sieht nur den Chat,
+  kennt nur seine Spielkarte), Einkäuferin (hat das Mandat festgelegt, entscheidet nur Eskalationen), Moderation (sagt, dass
+  das Publikum beide Seiten sieht). Je ein Satz für die Moderation in `docs/demo.md` §1.
+- **Wer spielt:** ein Teammitglied den Lieferanten mit den vier geprüften Sätzen statt einer Person aus dem Publikum; führt
+  die vortragende Person allein vor, spielt sie beide Seiten und sagt den Wechsel laut. Grund: In 4 Minuten kosten Anwerben
+  und unvorhersehbare Eingaben zu viel Zeit; die Demo ist ein Vorzeigen des Mechanismus, keine Messung (die Messung gegen
+  Menschen sind die Live-Runden). Das Publikum darf es in der Fragerunde probieren.
+- **Ehrlich bleiben:** Mit Luna liess auch (a) keinen Angriff durch (ADR 0010, Nachtrag Testset). Die Demo sagt deshalb
+  nicht «der Hybrid wehrt ab, was das LLM durchlässt», sondern: Der schreibende Schritt kennt das Minimum nicht, und zusagen
+  kann nur Code.
+- Zeitplan mit Kürzungsregel und die Risiken (Content-Filter des Proxys bei «Ignorieren Sie Ihre Anweisungen», Proxy,
+  Präsentationsrechner) in `docs/demo.md` §1.
+
+| Alternative | Grund |
+| --- | --- |
+| Person aus dem Publikum in den 4 Minuten | Anwerben 30–60 s, Eingaben unvorhersehbar; bleibt für die Fragerunde |
+| Nur die Sicht des Lieferanten zeigen (wie real) | zeigt einen Chatbot, nicht die Kernthese |
+
+**Kippt, wenn** die Dozierenden ausdrücklich eine Person aus dem Publikum wünschen: dann mit derselben Spielkarte und der
+Kürzungsregel, die Seite bleibt gleich.

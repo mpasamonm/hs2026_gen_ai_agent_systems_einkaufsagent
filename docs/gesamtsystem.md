@@ -1,6 +1,6 @@
 # Einkaufsagent – Gesamtsystem und Begründungen
 
-Stand: 09.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
+Stand: 10.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
 Prüfung. Jede Person muss das Gesamtsystem erklären können (Projektbeschrieb, Anhang A). Ein schriftlicher Bericht
 ist laut Projektbeschrieb nicht verlangt; dieses Dokument ist das Projektartefakt «zur Nachvollziehbarkeit» und die
 Vorlage für die Folien.
@@ -141,6 +141,24 @@ schrieben 68 % und 3 % der HBR-Fallstudie zu; das war falsch und ist am 06.10.20
 
 **Der Pilot im Detail:** Anfang 2021, Walmart Canada (Walmart International), 89 Lieferanten von Betriebsmitteln wie
 Einkaufswagen; Einigung in im Schnitt 11 Tagen (PON). Die Dauer von rund drei Monaten nennen nur Sekundärquellen.
+Eingeladen waren 100 Lieferanten, 89 nahmen teil; ob sich die 64 % auf die 89 (PON) oder die 100 (Talking Logistics)
+beziehen, ist widersprüchlich. Am Pilot arbeiteten 5 Einkäufer sowie Finance, Treasury und Legal mit.
+
+**Ablauf und Rollen** (Recherche vom 10.11.2026; Grundlage für die Rollen in der Demo, ADR 0012, Nachtrag 10.11.):
+
+| # | Real (Walmart/Pactum) | Rolle | Bei uns |
+| --- | --- | --- | --- |
+| 1 | Der Einkauf legt Ziele, Grenzen und erlaubte Tauschgeschäfte fest; im Pilot bauten Pactum-Analysten daraus Skripte, heute konfiguriert laut Pactum das Team des Kunden die Kampagne (Einführung 2–4 Wochen) | Einkauf | Mandat im Szenario (`public.mandate`), Konzessionskurve in `offer_engine` |
+| 2 | Daten aus ERP oder CSV (Kontakte, Konditionen, Spend); Start als Kampagne, durch Auslöser (Zeit, Rohstoffpreis) oder in Coupa/Ariba durch eine Bedarfsanforderung | System | `load_context` aus dem ERP-Adapter; die Kampagne ist bei uns die Eval über 15 Lieferanten |
+| 3 | E-Mail im Namen des Kunden mit Link; Chat im Branding des Kunden, einige Tage gültig, auf jedem Gerät | Bot → Lieferant | erste Nachricht mit KI-Hinweis und Paketen; **keine E-Mail** |
+| 4 | Der Lieferant chattet (Freitext, Zahlen, Auswahl) und wählt unter mehreren gleichwertigen Angeboten oder kontert | Lieferant ↔ Bot | Chat, MESO-Pakete (Pactum nennt es «multiple equivalent simultaneous offers») |
+| 5 | Alles ausserhalb der Regeln geht mit Kontext an eine Person; der Lieferant kann einen Einkäufer verlangen | Bot → Einkauf | `escalate` → `ask_buyer` (ADR 0008, 0015) |
+| 6 | Vertrag automatisch erzeugt und digital signiert, ERP bzw. Coupa/Ariba nachgeführt; der Einkauf sieht Live-Dashboard und Audit-Trail | System, Einkauf | `record_outcome` mit Protokoll; **keine Signatur, kein Dashboard** (die Ergebnisfolie steht für die Kampagne) |
+
+Der Lieferant sieht nur den Chat; der Einkauf sieht Konfiguration, Status der Kampagne, Eskalationen und den Audit-Trail.
+Eine Freigabe durch einen Menschen ist nicht überall vorgesehen: bei Walmart nicht, bei Maersk schon (MIT CTL 2025).
+Nicht belegt gefunden (unverified): ob der Einkauf die Lieferanten vorher ankündigt, ob sich der Bot ausdrücklich als
+Bot zu erkennen gibt, und wie Preiserhöhungen von Lieferanten hereinkommen.
 
 **Stand 2026** (Recherche vom 19.10.2026; Walmart 2021 ist der Ursprung, nicht mehr der Stand):
 - **Walmart:** Die letzte belastbare Ausweitung meldete Bloomberg im April 2023 (USA, Chile, Südafrika, nur Waren für
@@ -149,10 +167,14 @@ Einkaufswagen; Einigung in im Schnitt 11 Tagen (PON). Die Dauer von rund drei Mo
   bei Onboarding und Bestellungen, verhandelt aber nicht.
 - **Pactum:** Series C über 54 Mio. USD (Juni 2025); laut Website über 50 Grosskunden und 55 Mrd. USD Einkaufsvolumen.
   Das Produkt «Campaigns» (Konditionen über viele Lieferanten) entspricht unserem Fall. Pactum nennt sich «explainable
-  rules-based AI»; laut CEO (Dez. 2024) ist eine Abschlussvollmacht «nur mit einem LLM» unmöglich. Ob Pactum für Texte
-  LLMs nutzt, ist nicht offengelegt.
-- **Release Notes Sept. 2026:** Aggressivität pro Lieferant oder Kategorie, automatische Prüfung jedes Angebots,
-  «anything outside the defined rules escalates to a person», Audit-Trail, über 40 Sprachen, E-Mail als Kanal.
+  rules-based AI»; laut CEO (Dez. 2024) ist eine Abschlussvollmacht «nur mit einem LLM» unmöglich. Laut einem Pactum-Beitrag
+  schickt der regelbasierte Teil «structured and legally approved negotiation scripts», und generative KI personalisiert
+  den Dialog: fast unsere Kernthese, aber eine Herstellerangabe; wie viel Text ein LLM tatsächlich erzeugt, ist offen
+  (unverified).
+- **Release Notes Sept. 2026** (10.09.2026): Aggressivität pro Lieferant oder Kategorie; «Every finalized negotiation is
+  now verified automatically before it flows into downstream purchase orders and contracts» (also jeder Abschluss, nicht
+  jedes Angebot; frühere Stände dieses Dokuments schrieben «jedes Angebot», korrigiert am 10.11.2026); «anything outside
+  the defined rules escalates to a person with the context to decide»; Audit-Trail, über 40 Sprachen, E-Mail als Kanal.
 - **Markt:** Zip, Fairmarkit, Arkestro, SAP Joule und Coupa analysieren oder schlagen vor; autonom über Konditionen
   verhandelt praktisch nur Pactum (seit Dez. 2025 auch im Coupa-Marketplace). Agent gegen Agent (der Lieferant hat
   ebenfalls einen KI-Agenten) ist im Betrieb nicht belegt; Pactum nennt es als nächste Entwicklung (Dez. 2025).
@@ -160,7 +182,7 @@ Einkaufswagen; Einigung in im Schnitt 11 Tagen (PON). Die Dauer von rund drei Mo
 | Pactum 2026 | Bei uns |
 | --- | --- |
 | Aggressivität pro Lieferant oder Kategorie | Konzessionskurve in `offer_engine` (Anspruchsniveau bis Mindestnutzen) |
-| automatische Prüfung jedes Angebots | `mandate_guard` (Text) und `assess_response` (Annahme nur im Mandat) |
+| automatische Prüfung jedes Abschlusses vor Bestellung und Vertrag | `assess_response` (Annahme nur im Mandat), `record_outcome` bucht nur einen geprüften Abschluss; zusätzlich prüft `mandate_guard` jede Nachricht |
 | Eskalation, was ausserhalb der Regeln liegt | Eskalationsregel (ADR 0008) |
 | Audit-Trail | Protokoll auf jedem Ausgang (ADR 0009) |
 | regelbasiert und erklärbar entscheiden | «LLM schlägt vor, Code entscheidet» |
@@ -462,9 +484,12 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 **Demo (ADR 0012)**: Ablauf, Fallbacks, Aufzeichnung und Spielkarten in `docs/demo.md`. Zeitplan der Präsentation
 (Entscheid des Nutzers, 09.11.2026): 6 Minuten Folien, 4 Minuten Demo, Fragen nicht eingerechnet. Der Projektbeschrieb
 nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 7 ist die Kürzungsstelle.
-- **Live «Greift den Agenten an»:** Eine Person ohne Kenntnis des Mandats spielt den Lieferanten in der Web-UI
-  (`uv run ea-ui`, Browser `http://127.0.0.1:8080`) und versucht, den Agenten zu manipulieren. Rechts erscheint pro
-  Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
+- **Live «Ein Lieferant greift den Agenten an»:** Ein Teammitglied spielt den Lieferanten in der Web-UI (`uv run ea-ui`,
+  Browser `http://127.0.0.1:8080`) mit der Spielkarte S04 und versucht, den Agenten zu manipulieren; wer allein vorführt,
+  spielt beide Seiten (ADR 0012, Nachtrag 10.11.). Rahmen wie bei Walmart/Pactum (§2.5): Die Seite zeigt links, was der
+  Lieferant sieht (den Chat), und rechts, was nur der Einkauf sieht: das Mandat (zugeklappt, die Moderation zeigt es), die
+  Schritte mit den Namen der BPMN-Aufgaben und die Auswertung mit Erklärungen (ADR 0016, Nachtrag 10.11.). Rechts erscheint
+  pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
   Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start zeigt das ERP das
   Protokoll aus einem Vorlauf (Langzeitgedächtnis). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im
   Terminal (`ea-run --human`), Simulator mit S11 oder S08 ohne zweite Person, «offline» ohne Proxy und ein
@@ -563,7 +588,7 @@ relevante Eigenschaften» (Anhang A).
 | Memory | State mit `InMemorySaver`; Protokolle im ERP-Adapter, Metrik `korrekt_gebucht` (ADR 0015) | `SqliteSaver`, falls Eskalationen einen Neustart überdauern sollen | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
 | Human-in-the-loop | `escalate` und `ask_buyer` mit `interrupt()`, `Command(resume=…)` im Terminal (ADR 0015) | – | Mandatsänderung durch die Einkäuferin im laufenden Graphen (neues Mandat = neue Verhandlung) |
 | Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8, SW8 Folien 24 und 26) |
-| Interface | Web-UI `ea-ui` über dem Runner (Chat, Schritte in BPMN-Farben, Karte für die Einkäuferin, Auswertung; ADR 0016); Terminal als Fallback (`live.py`) | – | LangGraph Studio als Oberfläche (verlangt `interrupt()` für den Lieferanten, ADR 0012) |
+| Interface | Web-UI `ea-ui` über dem Runner (links Sicht des Lieferanten, rechts intern: Mandat, Schritte in BPMN-Farben mit den Namen der BPMN-Aufgaben, Karte für die Einkäuferin, Auswertung mit Erklärungen; ADR 0016); Terminal als Fallback (`live.py`) | – | LangGraph Studio als Oberfläche (verlangt `interrupt()` für den Lieferanten, ADR 0012) |
 | Tracing | LangSmith EU | – | – |
 | MCP, RAG | – | – | ADR 0009; MCP nur lesend als Ausbau, gestrichen bis 23.11. (ADR 0014) |
 
@@ -630,6 +655,15 @@ Paketwahl (eingeflossen ins Protokoll, ADR 0009).
   Die Pilotzahlen (64 %, 1,5 %, 35 Tage) stammen aus dem HBR-Artikel «How Walmart Automated Supplier
   Negotiations» (2022), hier über Sekundärquellen geprüft; vor der Präsentation im Original nachlesen.
   Pilot Walmart Canada 2021: [PON, Chatbot Negotiations: What Can AI Do for You?](https://www.pon.harvard.edu/daily/negotiation-skills-daily/chatbot-negotiations-what-can-ai-do-for-you).
+- Walmart und Pactum, Ablauf und Rollen (Recherche 10.11.2026):
+  [Retail Dive, 10.12.2020](https://www.retaildive.com/news/the-startup-thats-automating-supplier-negotiations-for-walmart/591972);
+  [Pactum, Your next contract negotiation might be with a machine](https://pactum.com/your-next-contract-negotiation-might-be-with-a-machine/) (08.06.2020);
+  [Pactum, Required components of autonomous negotiations](https://pactum.com/the-required-components-of-autonomous-negotiations-platform-pactum-platform/) (datiert 19.12.2025);
+  [Pactum, Campaigns](https://pactum.com/campaigns-agents), [Single-Source Negotiation](https://pactum.com/procurement-agents/single-source-negotiation)
+  und [Integrations](https://pactum.com/integrations) (abgerufen 10.11.2026);
+  [Talking Logistics, ca. 05/2023](https://talkinglogistics.com/2023/05/01/negotiating-with-a-chatbot-a-walmart-procurement-case-study/);
+  [Fortune, 27.04.2021](https://fortune.com/2021/04/27/a-i-startup-pactum-negotiating-software-saving-walmart-money/);
+  [MIT CTL, 28.07.2025](https://ctl.mit.edu/news/how-ai-reshaping-supplier-negotiations).
 - OWASP: [Top 10 for LLM Applications 2026](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/) (Aug. 2026);
   [Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (Dez. 2025).
 - Willison, S. (2023). [The Dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/).
