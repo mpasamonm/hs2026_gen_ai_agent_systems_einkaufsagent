@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 10.11.2026 (nach Etappe 4, Web-UI). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 10.11.2026 (Etappe 5, Punkt 0: Rollen der Demo, lesbare UI). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -75,11 +75,11 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0009 | Prozess `_v3`: ohne MCP und RAG, keine Tool-Wahl durch das LLM, Protokoll mit Paketwahl als Gedächtnis, Mensch als Lieferant; MCP nur lesend als Ausbau | angenommen 19.10.2026 |
 | ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11.; Nachtrag Testset 09.11. (15 Szenarien, gemessen) |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
-| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude |
+| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude; Nachtrag 10.11.: Rollen wie bei Walmart/Pactum, Teammitglied spielt den Lieferanten (allein: beide Seiten), Mandat zeigen |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
-| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026 |
+| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`) |
 
 ## 5. Architektur heute (Varianten a und b)
 
@@ -92,7 +92,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `offer_engine` (dieselbe Grösse wird nicht erneut eskaliert), «abbrechen» → `record_outcome`. ERP-Adapter in `erp.py`
   (SQLite, eine Verbindung pro Lauf; Eval `:memory:`, Demo `--erp PFAD`); Metrik `korrekt_gebucht` (nur b). Runner im
   Terminal in `live.py`: `--live` (Simulator, Einkäuferin entscheidet), `--human` (`HumanSupplier`, sieht nur Text,
-  Ereignis `human`). Web-UI `ea-ui` (`ui.py`, `ui_session.py`, NiceGUI 3.18.0, ADR 0016): `Session` startet `run_live` im
+  Ereignis `human`). Web-UI `ea-ui` (`ui.py`, `ui_session.py`, `ui_text.py`, NiceGUI 3.18.0, ADR 0016; links Sicht des Lieferanten, rechts intern mit Mandat-Karte zugeklappt): `Session` startet `run_live` im
   Hintergrund-Thread, `ask` blockiert an einer Queue, der optionale Callback `emit` liefert die Schritte als Daten; Lauf im
   Server-Prozess (Reload zeigt denselben Stand), «Neue Verhandlung» bricht ab, ERP-Datei oder `:memory:`, Modell oder
   `offline`, Ereignisse als JSONL in `results/ui/`. Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
@@ -137,7 +137,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 10.11.2026 (nach Etappe 4, Web-UI)
+## 6. Stand am 10.11.2026 (Etappe 5, Punkt 0)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -260,6 +260,17 @@ Erledigt:
     §3.2/§3.4/§6/§9, CLAUDE.md §5/§10; Folie 8 im Slides-Artifact (Version 11: `ea-ui`, Schritt 4 «weiterverhandeln»,
     Sprechernotiz mit Antwort auf die Konzessionsfrage).
 
+- Session 10.11.2026, Etappe 5, Punkt 0 (Rollen der Demo):
+  - Recherche zum Ablauf bei Walmart/Pactum (Einkauf legt Mandat fest, Einladung per E-Mail-Link, Chat, Eskalation,
+    Signatur und ERP, Dashboard) in `docs/gesamtsystem.md` §2.5 mit Quellen; Korrektur: Die Release Notes Sept. 2026 prüfen
+    jeden Abschluss, nicht jedes Angebot.
+  - Entscheid des Nutzers: C+ (ADR 0016, Nachtrag): eine Seite, beschriftet (links Sicht des Lieferanten, rechts intern),
+    Mandat-Karte zugeklappt, Schritte mit BPMN-Namen, Erklärungen zur Auswertung, Zustimmungsfrage links (8973c69). 89 Tests
+    grün (4 neu), Headless-Browser offline (S11 Eskalation, S04 Zustimmung). Rollen, Lesehilfe, Drehbuch mit Zeitplan,
+    Kürzungsregel und Risiken in `docs/demo.md` §1, ADR 0012 Nachtrag (bc772fa). Folie 8 mit Ablauf und Rollen, Sprechernotiz
+    Folie 2 (Slides-Artifact Version 13).
+  - Offen beim Nutzer: Wer spielt den Lieferanten (Teammitglied oder allein); Demo-Probe in der neuen UI mit Luna und Video.
+
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
 Ab dem 09.11.2026 arbeiten wir direkt auf die Abgabe hin, nicht mehr in Wochenschritten nach dem Semesterprogramm.
@@ -278,8 +289,7 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
 4. **Web-UI erledigt 10.11.:** Entscheide nachgetragen, Befund der Probe eingetragen, `ea-ui` mit NiceGUI gebaut und mit
    Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
-5. **Etappe 5 (offen):** zuerst Rollen und Rahmen der Demo klären (wer spielt wen; Ablauf wie bei Walmart/Pactum: wie
-   kommen Anfragen herein; Folien und `docs/demo.md`, ggf. UI-Ansichten, Frage des Nutzers vom 10.11.); SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
+5. **Etappe 5 (läuft):** Rollen und Rahmen der Demo erledigt 10.11. (ADR 0012 und 0016, Nachträge); SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
    mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
    (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
