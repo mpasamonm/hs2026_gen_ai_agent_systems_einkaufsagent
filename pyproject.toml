@@ -11,6 +11,7 @@ dependencies = [
     "langsmith==0.14.4",
     "pydantic==2.13.5",
     "python-dotenv==1.2.4",
+    "nicegui==3.18.0",
 ]
 
 [dependency-groups]
@@ -24,6 +25,7 @@ ea-run = "einkaufsagent.run:main"
 ea-eval = "einkaufsagent.eval:main"
 ea-benchmark = "einkaufsagent.benchmark:main"
 ea-check-models = "einkaufsagent.check_models:main"
+ea-ui = "einkaufsagent.ui:main"
 
 [build-system]
 requires = ["hatchling==1.32.4"]

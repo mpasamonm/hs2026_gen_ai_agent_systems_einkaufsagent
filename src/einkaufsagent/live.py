@@ -7,6 +7,9 @@ Lieferant. Nur Variante (b).
 Farben wie in der BPMN: orange = LLM, blau = Code, grün = Mensch. Der Runner streamt die Updates der Nodes, hält am
 Interrupt von ``ask_buyer`` an und setzt mit ``Command(resume=...)`` und derselben ``thread_id`` fort (SW8 Folie 20).
 Die verdeckten Werte des Szenarios (Spielkarte) nutzt nur die Auswertung am Schluss, nie der Graph.
+
+Für die Web-UI (``ui.py``, ADR 0016) liefert der optionale Callback ``emit`` dieselben Schritte als Daten (``type``:
+start, memory, round, step, message, escalation, ask, report). Ohne ``emit`` bleibt die Ausgabe im Terminal gleich.
 """
 
 from __future__ import annotations
@@ -28,6 +31,12 @@ from einkaufsagent.supplier_sim import LABELS, SupplierReply, SupplierSimulator,
 
 Ask = Callable[[str], str]
 Out = Callable[[str], None]
+Emit = Callable[[dict[str, Any]], None]
+
+
+def _no_emit(event: dict[str, Any]) -> None:
+    pass
+
 
 _COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 LLM, CODE, HUMAN, MSG, DIM = "38;5;208", "38;5;33", "38;5;34", "1", "2"
@@ -45,8 +54,8 @@ def _terms_line(packages: list[dict]) -> str:
 class HumanSupplier:
     """Mensch als Lieferant (ADR 0015): sieht nur den Text der Nachricht, nie die Pakete aus dem State."""
 
-    def __init__(self, ask: Ask = input, out: Out = print):
-        self._ask, self._out = ask, out
+    def __init__(self, ask: Ask = input, out: Out = print, emit: Emit | None = None):
+        self._ask, self._out, self._emit = ask, out, emit or _no_emit
 
     def respond_to_offer(self, t: int, packages: list[Terms], text: str = "") -> SupplierReply:
         return self._reply(t, text)
@@ -56,32 +65,40 @@ class HumanSupplier:
 
     def _reply(self, t: int, text: str) -> SupplierReply:
         self._out(paint(MSG, f"\n  Agent → Lieferant (Runde {t}): {text}"))
+        self._emit({"type": "message", "role": "agent", "round": t, "text": text})
         answer = ""
         while not answer.strip():
+            self._emit({"type": "ask", "what": "supplier", "round": t})
             answer = self._ask(paint(HUMAN, "  Ihre Antwort als Lieferant: "))
+        self._emit({"type": "message", "role": "supplier", "round": t, "text": answer.strip()})
         return SupplierReply(event="human", text=answer.strip())
 
 
 class Printer:
     """Zeigt pro Node, was das LLM vorschlägt und was der Code entscheidet."""
 
-    def __init__(self, out: Out, human: bool, offline: set[str] | None = None):
+    def __init__(self, out: Out, human: bool, offline: set[str] | None = None, emit: Emit | None = None):
         self.out, self.human = out, human
         self.offline = offline or set()  # Nodes ohne LLM (Vorlage bzw. Regex, --policy rule)
+        self.emit = emit or _no_emit
         self.draft: str | None = None
         self.narrate_failed = False
 
     def llm(self, node: str, text: str) -> None:
         if node in self.offline:
             self.out(paint(CODE, f"  [Code] {node} (ohne LLM): {text}"))
+            self.emit({"type": "step", "kind": "code", "node": node, "text": f"(ohne LLM) {text}"})
         else:
             self.out(paint(LLM, f"  [LLM]  {node}: {text}"))
+            self.emit({"type": "step", "kind": "llm", "node": node, "text": text})
 
     def code(self, node: str, text: str) -> None:
         self.out(paint(CODE, f"  [Code] {node}: {text}"))
+        self.emit({"type": "step", "kind": "code", "node": node, "text": text})
 
-    def message(self, who: str, text: str) -> None:
+    def message(self, who: str, text: str, role: str = "agent", rnd: int | None = None) -> None:
         self.out(paint(MSG, f"\n  {who}: {text}"))
+        self.emit({"type": "message", "role": role, "round": rnd, "text": text})
 
     def show(self, node: str, u: dict[str, Any]) -> None:
         match node:
@@ -94,6 +111,7 @@ class Printer:
                     self.code(node, f"kein Paket mehr möglich ({u['end_reason']})")
                 else:
                     self.out("")
+                    self.emit({"type": "round", "round": u["round"]})
                     self.code(node, f"Runde {u['round']}, Pakete {_terms_line(u['pending']['packages'])}")
             case "narrate":
                 self.draft, self.narrate_failed = u.get("draft"), not u.get("draft")
@@ -107,6 +125,9 @@ class Printer:
                 elif u.get("template_reason"):
                     self.code(node, f"LLM-Text verworfen: {u['template_reason']}")
                     self.out(paint(DIM, f"         verworfen: {self.draft}"))
+                    self.emit(
+                        {"type": "step", "kind": "dim", "node": node, "text": f"verworfen: {self.draft}"}
+                    )
                 else:
                     self.code(node, "Zahlen und Pakete geprüft, Text darf hinaus")
             case "template_message":
@@ -114,21 +135,29 @@ class Printer:
             case "send_and_wait":
                 agent, supplier = u["transcript"]
                 if not self.human:  # beim Menschen hat HumanSupplier beides schon gezeigt
-                    self.message(f"Agent → Lieferant (Runde {agent['round']})", agent["text"])
-                    self.message("Lieferant → Agent", supplier["text"])
+                    self.message(
+                        f"Agent → Lieferant (Runde {agent['round']})", agent["text"], "agent", agent["round"]
+                    )
+                    self.message("Lieferant → Agent", supplier["text"], "supplier", supplier["round"])
             case "parse_response":
                 self._parsed(u)
             case "assess_response":
                 self._assessed(u)
             case "escalate":
                 self.code(node, "Vorlage für die Einkäuferin aufbereitet, Protokoll mit Status «escalated»")
-                self.message("Agent → Lieferant", u["transcript"][0]["text"])
+                self.message(
+                    "Agent → Lieferant", u["transcript"][0]["text"], "agent", u["transcript"][0]["round"]
+                )
             case "ask_buyer":
                 self.out(paint(HUMAN, f"  [Mensch] Einkäuferin: {u['buyer_decision']}"))
+                text = u["buyer_decision"] + (f" ({u['buyer_note']})" if u.get("buyer_note") else "")
+                self.emit({"type": "step", "kind": "human", "node": node, "text": f"Einkäuferin: {text}"})
             case "record_outcome":
                 self.code(node, "Ergebnis und Protokoll im ERP erfasst")
             case "notify_supplier":
-                self.message("Agent → Lieferant", u["transcript"][0]["text"])
+                self.message(
+                    "Agent → Lieferant", u["transcript"][0]["text"], "agent", u["transcript"][0]["round"]
+                )
 
     def _parsed(self, u: dict) -> None:
         p = u.get("parsed")
@@ -161,7 +190,9 @@ class Printer:
             self.code("assess_response", f"Vorlage: «{sentence}»")
 
 
-def ask_buyer_in_terminal(brief: dict, ask: Ask, out: Out) -> dict:
+def ask_buyer_in_terminal(brief: dict, ask: Ask, out: Out, emit: Emit | None = None) -> dict:
+    emit = emit or _no_emit
+    emit({"type": "escalation", "brief": brief})
     out(paint(HUMAN, "\n  ── Eskalation an die Einkäuferin ──"))
     for key in ("lieferant", "runde", "grund", "mandat"):
         out(paint(HUMAN, f"  {key.capitalize()}: {brief[key]}"))
@@ -173,7 +204,9 @@ def ask_buyer_in_terminal(brief: dict, ask: Ask, out: Out) -> dict:
         out(paint(HUMAN, f"  Hinweis: {note}"))
     choice = ""
     while choice not in ("w", "a"):
+        emit({"type": "ask", "what": "decision"})
         choice = ask(paint(HUMAN, "  Entscheid [w = weiterverhandeln, a = abbrechen]: ")).strip().lower()[:1]
+    emit({"type": "ask", "what": "note"})
     note = ask(paint(HUMAN, "  Notiz fürs Protokoll (optional, geht nicht an den Lieferanten): ")).strip()
     return {"decision": "weiterverhandeln" if choice == "w" else "abbrechen", "note": note}
 
@@ -186,10 +219,12 @@ def run_live(
     paraphrase: bool = False,
     ask: Ask = input,
     out: Out = print,
+    emit: Emit | None = None,
 ) -> dict[str, Any]:
+    emit = emit or _no_emit
     ctx, m = sc.public.context, sc.public.mandate
     sim = None if human else RecordingSupplier(SupplierSimulator(sc.hidden, ctx, paraphrase=paraphrase))
-    supplier = HumanSupplier(ask, out) if human else sim
+    supplier = HumanSupplier(ask, out, emit) if human else sim
     erp.seed(ctx)
     nid = str(uuid.uuid4())
     graph = build_graph(agent, supplier, erp)
@@ -201,10 +236,21 @@ def run_live(
         "metadata": {"scenario_id": sc.id, "variant": "b", "human": human},
     }
     out(paint(MSG, f"{sc.id} · {ctx.supplier_name} · Lieferant: {'Mensch' if human else 'Simulator'}"))
+    emit(
+        {
+            "type": "start",
+            "scenario": sc.id,
+            "supplier_name": ctx.supplier_name,
+            "category": ctx.category,
+            "human": human,
+            "agent": agent.name,
+        }
+    )
     earlier = erp.protocols(ctx.supplier_id)
     out(
         paint(CODE, f"  [Code] ERP-Gedächtnis: {len(earlier)} frühere Verhandlung(en) mit diesem Lieferanten")
     )
+    memory = []
     for p in earlier[-3:]:
         choice = next((x["chosen_package"] for x in reversed(p["exchanges"]) if x["chosen_package"]), "–")
         out(
@@ -213,10 +259,14 @@ def run_live(
                 f"         {p['recorded_at']}: {p['status']} nach {p['rounds']} Runden, Paketwahl {choice}",
             )
         )
+        memory.append(
+            {"recorded_at": p["recorded_at"], "status": p["status"], "rounds": p["rounds"], "choice": choice}
+        )
+    emit({"type": "memory", "count": len(earlier), "items": memory})
 
     offline = {"narrate"} if agent.narrator.name == "vorlage" else set()
     offline |= {"parse_response"} if agent.parser.name == "regeln" else set()
-    printer = Printer(out, human, offline)
+    printer = Printer(out, human, offline, emit)
     command: Any = {
         "scenario_id": sc.id,
         "negotiation_id": nid,
@@ -236,30 +286,38 @@ def run_live(
         snapshot = graph.get_state(cfg)
         if not snapshot.interrupts:
             break
-        command = Command(resume=ask_buyer_in_terminal(snapshot.interrupts[0].value, ask, out))
+        command = Command(resume=ask_buyer_in_terminal(snapshot.interrupts[0].value, ask, out, emit))
     final = snapshot.values
-    report(sc, final, erp, sim, human, ask, out)
+    report(sc, final, erp, sim, human, ask, out, emit)
     return final
 
 
-def report(sc: Scenario, final: dict, erp: ErpAdapter, sim, human: bool, ask: Ask, out: Out) -> None:
-    """Ergebnis, Protokoll im ERP und Auswertung gegen die Spielkarte (verdeckte Werte des Szenarios, ADR 0012)."""
+def report(
+    sc: Scenario, final: dict, erp: ErpAdapter, sim, human: bool, ask: Ask, out: Out, emit: Emit | None = None
+) -> None:
+    """Ergebnis, Protokoll im ERP und Auswertung gegen die Spielkarte (verdeckte Werte des Szenarios, ADR 0012).
+    Die UI bekommt dieselben Zeilen als Ereignis ``report``; die Spielkarte erscheint dort erst hier."""
+    emit = emit or _no_emit
     ctx, m = sc.public.context, sc.public.mandate
-    out(
-        paint(
-            MSG,
-            f"\nErgebnis: {final.get('outcome')} ({final.get('end_reason')}) nach {final.get('round')} Runden",
-        )
+    lines: list[str] = []
+
+    def put(code: str, text: str) -> None:
+        lines.append(text.strip())
+        out(paint(code, text))
+
+    put(
+        MSG,
+        f"\nErgebnis: {final.get('outcome')} ({final.get('end_reason')}) nach {final.get('round')} Runden",
     )
     p = erp.protocols(ctx.supplier_id)[-1]
     choices = ", ".join(
         f"R{x['round']} {x['reply_type'] or '?'} {x['chosen_package'] or ''}".strip() for x in p["exchanges"]
     )
-    out(paint(CODE, f"  Protokoll im ERP: Status {p['status']}, Reaktionen {choices}"))
+    put(CODE, f"  Protokoll im ERP: Status {p['status']}, Reaktionen {choices}")
     if p["buyer_decision"]:
         note = f" ({p['buyer_note']})" if p["buyer_note"] else ""
-        out(paint(CODE, f"  Entscheid der Einkäuferin: {p['buyer_decision']}{note}"))
-    out(paint(CODE, f"  Konditionen im ERP: {erp.current_terms(ctx.supplier_id).short()}"))
+        put(CODE, f"  Entscheid der Einkäuferin: {p['buyer_decision']}{note}")
+    put(CODE, f"  Konditionen im ERP: {erp.current_terms(ctx.supplier_id).short()}")
 
     violations = [
         f"R{o['round']}:{v.code}"
@@ -268,10 +326,12 @@ def report(sc: Scenario, final: dict, erp: ErpAdapter, sim, human: bool, ask: As
         for v in check_terms(Terms.model_validate(t), ctx, m)
     ]
     line = "  Spielkarte: "
+    value = share = None
     if final.get("outcome") == "deal" and final.get("deal_terms"):
         dt = Terms.model_validate(final["deal_terms"])
         violations += [f"deal:{v.code}" for v in check_deal(dt, ctx, m) if v.code == "below_walk_away"]
         if human:
+            emit({"type": "ask", "what": "agree", "terms": dt.short()})
             agreed = (
                 ask(paint(HUMAN, f"  Lieferant: Stimmen Sie {dt.short()} zu? [j/n]: ")).strip().lower()[:1]
                 == "j"
@@ -296,5 +356,17 @@ def report(sc: Scenario, final: dict, erp: ErpAdapter, sim, human: bool, ask: As
             line += " (mehr, als der simulierte Lieferant zugestanden hätte)" if share > 1 else ""
     else:
         line += f"kein Abschluss; erwartet war laut Szenario {sc.expected_outcome}"
-    out(paint(MSG, line))
-    out(paint(MSG, f"  Verstösse: {', '.join(violations) or 'keine'}"))
+    put(MSG, line)
+    put(MSG, f"  Verstösse: {', '.join(violations) or 'keine'}")
+    emit(
+        {
+            "type": "report",
+            "outcome": final.get("outcome"),
+            "end_reason": final.get("end_reason"),
+            "rounds": final.get("round"),
+            "value_chf": value,
+            "share": share,
+            "violations": violations,
+            "lines": lines,
+        }
+    )
