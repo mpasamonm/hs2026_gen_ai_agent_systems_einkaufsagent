@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 09.11.2026 (nach Abgabe-Paket). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 10.11.2026 (nach Etappe 4, Web-UI). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -75,10 +75,11 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0009 | Prozess `_v3`: ohne MCP und RAG, keine Tool-Wahl durch das LLM, Protokoll mit Paketwahl als Gedächtnis, Mensch als Lieferant; MCP nur lesend als Ausbau | angenommen 19.10.2026 |
 | ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11.; Nachtrag Testset 09.11. (15 Szenarien, gemessen) |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
-| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026 |
+| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
-| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset |
-| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung) |
+| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
+| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
+| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026 |
 
 ## 5. Architektur heute (Varianten a und b)
 
@@ -136,7 +137,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 09.11.2026 (nach Abgabe-Paket)
+## 6. Stand am 10.11.2026 (nach Etappe 4, Web-UI)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -243,6 +244,21 @@ Erledigt:
     (CLAUDE.md, ADR 0004), Commit-E-Mails (auch des Teammitglieds) und CLAUDE.md als Arbeitsprotokoll. Zugriff offen.
   - Folien als Slides-Artifact (15 Folien: 8 Hauptfolien, Backup-Trenner und 6 Backup-Folien, Sprechernotizen mit Zeiten):
     https://claude.ai/artifact/C2fJqULVGBRzwNBkxBpzPJ (privat). Namen und PDF-Export macht der Nutzer.
+- Session 09./10.11.2026, Etappe 4 (Web-UI):
+  - Entscheide nachgetragen (b370bf6): ADR 0012 (Demo über Web-UI, Terminal als Fallback; Live-Runden ≥ 3 mit unbeteiligten
+    Personen plus Red-Teaming durch Claude als eigene Zeile, nie als Live-Runde), ADR 0014 (Web-UI als einzige Ausnahme vom
+    Feature-Freeze, Stichtag 15.11.), ADR 0015 (Kippregel «Web-UI» greift nicht, ausdrücklich begründet).
+  - Befund aus der Demo-Probe des Nutzers geprüft und eingetragen (`docs/demo.md`, `docs/gesamtsystem.md` §5/§6): Nach
+    «weiterverhandeln» macht `offer_engine` den nächsten Konzessionsschritt (B 2,25 % → 2 %, CHF 625), weil die Kurve nur
+    von der Runde abhängt; offline mit Fake-Parser exakt nachgestellt. Kein Fehler, Grenze der Strategie; die Hälfte der
+    Differenz zur Eval (S04 0.84) stammt aus dem Drehbuch (Ablehnung in R2). Demo mit «weiterverhandeln».
+  - Bibliotheksrecherche (Gradio, Streamlit, Chainlit, NiceGUI, je Prototyp im Headless-Browser), Entscheid NiceGUI 3.18.0
+    (ADR 0016). Gebaut (fec00fb): `emit` in `live.py` (Terminal byte-gleich, sechs Pfade verglichen), `ui_session.py`,
+    `ui.py`, `ea-ui`. 85 Tests grün (6 neu), ruff sauber. Headless-Browser offline und Luna-Durchlauf mit den Demo-Sätzen
+    (gleiches Ergebnis wie die Probe: R4, CHF 4'000, 0.52, keine Verstösse; 2–4 s pro Runde).
+  - Präsentation angepasst (187d2ec): `docs/demo.md` (Ablauf in der UI, Fallbacks, Bildschirmvideo), README, `docs/gesamtsystem.md`
+    §3.2/§3.4/§6/§9, CLAUDE.md §5/§10; Folie 8 im Slides-Artifact (Version 11: `ea-ui`, Schritt 4 «weiterverhandeln»,
+    Sprechernotiz mit Antwort auf die Konzessionsfrage).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -260,14 +276,26 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 3. **Abgabe-Paket erledigt 09.11.:** finale Läufe unter `docs/ergebnisse/2026-11-09/`, README, `docs/demo.md` mit
    Spielkarten, Veröffentlichungs-Check (Befund in §6), Folien als Slides-Artifact (6 Min. Folien, 4 Min. Demo).
    Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
-4. **Beim Nutzer:** Namen auf der Titelfolie, PDF-Export der Folien (Share › Export); SW9 einordnen lassen, sobald die
-   Folien da sind; Demo-Probe mit Aufzeichnung; mindestens 3 Live-Runden mit Spielkarte plus Red-Teaming durch Claude als eigene Zeile (Tabelle in `docs/demo.md`); Zugriff für
-   die Dozierenden (öffentlich oder Einladung) erst am Schluss.
-5. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
+4. **Web-UI erledigt 10.11.:** Entscheide nachgetragen, Befund der Probe eingetragen, `ea-ui` mit NiceGUI gebaut und mit
+   Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
+5. **Etappe 5 (offen):** SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
+   mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
+   (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
+   Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
+6. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
    Beiträge pro Person stehen in `docs/gesamtsystem.md` §10.
 
 ## 8. Offene Widersprüche und Hinweise
+
+- **Web-UI (10.11.2026):** Im Windows-Browser `http://127.0.0.1:8080` öffnen; `localhost` läuft unter WSL (Modus
+  `mirrored`) in einen Timeout, vermutlich IPv6 zuerst. Der Server lauscht nur auf `127.0.0.1` (Binden an `0.0.0.0` wurde
+  im Test vom Auto-Modus abgelehnt und ist nicht nötig). NiceGUI 4.0.0 (04.11.) ist eine neue Hauptversion, gepinnt
+  bleibt 3.18.0. Ein abgebrochener Lauf kann ein Protokoll «escalated» in der ERP-Datei hinterlassen: Proben «nur im
+  Speicher». Browser-Tests laufen mit `uv run --no-project --with playwright==1.63.0` und `LD_LIBRARY_PATH` auf die
+  entpackte `libasound2t64` (wie beim BPMN-Rendern).
+- **Konzession nach «weiterverhandeln» (10.11.2026):** zeitabhängig, liest keine Signale (Befund der Probe, ADR 0012
+  Nachtrag). Nicht ändern (Feature-Freeze); messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
 
 - Briefing nennt «Folie 38» bzw. «Folie 30»: alte Nummern; aktuell Folie 41 (LiteLLM) und 31 (Pareto). Der Übergabe-
   Prompt vom 19.10. nennt «Folie 25 Eigenes Tool oder MCP?»; es ist SW6 Folie 26.
