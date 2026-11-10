@@ -278,7 +278,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Einstieg für Etappe 4: `kontext/UEBERGABE-PROMPT-ABGABE-4.md`.
 4. **Web-UI erledigt 10.11.:** Entscheide nachgetragen, Befund der Probe eingetragen, `ea-ui` mit NiceGUI gebaut und mit
    Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
-5. **Etappe 5 (offen):** SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
+5. **Etappe 5 (offen):** zuerst Rollen und Rahmen der Demo klären (wer spielt wen; Ablauf wie bei Walmart/Pactum: wie
+   kommen Anfragen herein; Folien und `docs/demo.md`, ggf. UI-Ansichten, Frage des Nutzers vom 10.11.); SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
    mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
    (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
