@@ -308,7 +308,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
 5. **Etappe 5, Punkt 0 erledigt 10.11.:** Rollen und Rahmen der Demo, lesbare UI (ADR 0012 und 0016, Nachträge). Einstieg
    für Etappe 6: `kontext/UEBERGABE-PROMPT-ABGABE-6.md`. **Etappe 6, Punkt 0 erledigt 11.11.:** Einladung vor dem Chat,
-   Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
+   Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge; Folien Version 15). Einstieg
+   für Etappe 7: `kontext/UEBERGABE-PROMPT-ABGABE-7.md`, zuerst Red-Teaming durch Claude (freigegeben 11.11.). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
    mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
    (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
