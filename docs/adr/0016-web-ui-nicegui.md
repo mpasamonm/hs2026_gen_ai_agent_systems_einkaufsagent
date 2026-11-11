@@ -155,3 +155,16 @@ CHF 5'250, Anteil 0.84). Mit Luna nicht neu gemessen, weil sich nur der Text der
 
 **Kippt, wenn** die Einladung in der Demo-Probe am Beamer zu viel Platz frisst (dann auf zwei Sätze kürzen); U2, wenn
 Personen in den Live-Runden trotz Einladung nur Pakete wählen oder nie über die Mengenzusage verhandeln.
+
+## Nachtrag 11.11.2026: Wortlaut «Grenzen» der Mandat-Karte (Entscheid B)
+
+Anlass: Red-Teaming R6 (`docs/demo.md` §3). Ein Gegenangebot mit 95 Tagen nahm der Code an, die Mandat-Karte nannte
+«Zahlungsziel höchstens 90 Tage» aber eine Grenze. `check_terms` prüft nur Grenzen zulasten der Musterhandel AG;
+`payment_days_max` und `discount_max_pct` halten ZOPA-Analyse und `offer_engine` nur bei eigenen Paketen ein.
+Entscheid des Nutzers (11.11.): B, nur den Wortlaut präzisieren, keine neue Regel (Feature-Freeze; eine Regel wäre eine
+Änderung an `check_terms` mit neuer Messung).
+- `ui_text.mandate_lines`: «Grenzen» nennt nur, was der Code bei jedem Angebot und Abschluss prüft (Mengenzusage
+  höchstens, keine Preiserhöhung, Zahlungsziel und Rabatt nicht unter heute, Rundenlimit). Neue Zeile «Richtlinie»:
+  Zahlungsziel und Rabatt höchstens …, «nur für unsere Pakete; ein Gegenangebot darüber darf der Code annehmen».
+- Test `test_mandate_in_words_only_from_public_part` angepasst. 90 Tests grün, ruff sauber; Karte im Headless-Browser
+  offline geprüft (S04, 1600 × 1000 px, eine Zeile mehr, ohne Scrollen lesbar).

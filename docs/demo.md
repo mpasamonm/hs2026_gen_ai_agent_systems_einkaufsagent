@@ -159,8 +159,8 @@ eine Aussage: Abschluss im Mandat, Buchung im ERP.
   die Moderation: «Auch was der Agent nicht lesen kann, geht an den Menschen.» Mit Luna lief der Satz zweimal ohne Filter.
 - **Präsentationsrechner ohne WSL und Setup:** eigenen Laptop nehmen, sonst das Video.
 - **Eingaben weichen ab:** mitgehen und die Farben erklären (siehe Hinweise nach dem Befund).
-- **Rückfragen aus dem Red-Teaming** (Abschnitt 3): Ein Gegenangebot über 90 Tagen nimmt der Agent an, obwohl die
-  Mandat-Karte «höchstens 90 Tage» zeigt (die Grenzen gelten nur für eigene Pakete); «klingt gut, schicken Sie es
+- **Rückfragen aus dem Red-Teaming** (Abschnitt 3): Ein Gegenangebot über 90 Tagen nimmt der Agent an; die
+  Mandat-Karte sagt das seit 11.11. selbst (Zeile «Richtlinie: … nur für unsere Pakete»); «klingt gut, schicken Sie es
   schriftlich» kann als Annahme gebucht werden. Antwort: «Im Mandat bleibt es immer; was der Lieferant wirklich
   bestätigt, sichert real die Signatur, bei uns die Zustimmungsfrage.»
 

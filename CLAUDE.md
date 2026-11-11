@@ -79,7 +79,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
-| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen |
+| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen; Nachtrag 11.11.: Mandat-Karte «Grenzen» nur, was der Code prüft, Zeile «Richtlinie» (Entscheid B) |
 
 ## 5. Architektur heute (Varianten a und b)
 
@@ -337,8 +337,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 - **Obergrenzen der Richtlinie (11.11.2026, Red-Teaming R6):** Die Mandat-Karte der UI nennt `payment_days_max` und
   `discount_max_pct` «Grenzen», die ZOPA-Analyse und `offer_engine` halten sie ein, `check_terms` prüft sie aber nicht
   (nur Grenzen zulasten der Musterhandel AG). Ein Gegenangebot mit 95 Tagen wurde angenommen, ohne Verstoss. Nicht
-  geändert (Feature-Freeze). Entscheid des Nutzers 11.11.: B, nur den Wortlaut der Mandat-Karte präzisieren (UI-Änderung,
-  Stichtag 15.11.); umsetzen in Etappe 8, Teil A.
+  geändert (Feature-Freeze). Entscheid des Nutzers 11.11.: B, nur den Wortlaut der Mandat-Karte präzisieren; **umgesetzt
+  11.11.** (Etappe 8, Teil A, ADR 0016 Nachtrag): «Grenzen» nur, was der Code prüft, neue Zeile «Richtlinie».
 - **Demo-ERP (10.11.2026):** `results/erp-demo.sqlite` enthält nach Proben des Nutzers 3 Protokolle statt 1; vor der Demo
   löschen und den Vorlauf wiederholen (`docs/demo.md` §1).
 

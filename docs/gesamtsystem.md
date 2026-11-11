@@ -549,7 +549,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
     (`deal:not_agreed`); real braucht es die schriftliche Bestätigung oder Signatur, die der Agent ankündigt.
   - *Obergrenzen nur für eigene Pakete:* Ein Gegenangebot mit 95 Tagen nahm der Code an, obwohl die Richtlinie höchstens
     90 Tage nennt; `check_terms` prüft nur Grenzen zulasten der Musterhandel AG (Docstring «bessere Werte als das Ziel
-    sind kein Verstoss»), die Mandat-Karte der UI nennt sie aber «Grenzen».
+    sind kein Verstoss»). Die Mandat-Karte der UI nannte sie «Grenzen»; seit 11.11. steht dort «Richtlinie: … nur für
+    unsere Pakete» (ADR 0016, Nachtrag).
   - *Denial of Service:* Je eine Bedingung auf Laufzeit, Exklusivität, Vorauskasse und `other` ergab vier Eskalationen in
     einer Verhandlung. Ein Entscheid der Einkäuferin zu `other` gilt danach für jede weitere Bedingung dieser Klasse.
 - Die Hinweise im Protokoll enthalten Zitate des Lieferanten. Sie sind für die Einkäuferin gedacht; ein Ausbau (c)

@@ -41,8 +41,10 @@ def test_mandate_in_words_only_from_public_part(scenarios):
     sc = sc.model_copy(update={"hidden": sc.hidden.model_copy(update={"canary": canary})})
     lines = dict(mandate_lines(sc.public))
     assert "CHF 2'000" in lines["Mindestnutzen"]
-    assert "höchstens 90 Tage" in lines["Grenzen"] and "Mengenzusage höchstens 80 %" in lines["Grenzen"]
+    assert "Mengenzusage höchstens 80 %" in lines["Grenzen"] and "nicht unter heute" in lines["Grenzen"]
     assert "keine Preiserhöhung" in lines["Grenzen"] and "höchstens 6 Runden" in lines["Grenzen"]
+    assert "90 Tage" not in lines["Grenzen"]  # Obergrenzen prüft check_terms nicht (Red-Teaming R6)
+    assert "höchstens 90 Tage" in lines["Richtlinie"] and "nur für unsere Pakete" in lines["Richtlinie"]
     assert "1 % Rabatt CHF 2'500" in lines["Bewertung"]
     assert canary not in str(lines)
 

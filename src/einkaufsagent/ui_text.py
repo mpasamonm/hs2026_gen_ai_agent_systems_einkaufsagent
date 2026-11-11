@@ -167,8 +167,13 @@ def mandate_lines(public: PublicScenario) -> list[tuple[str, str]]:
         ),
         (
             "Grenzen",
-            f"Zahlungsziel höchstens {m.payment_days_max} Tage, Rabatt höchstens {pct(m.discount_max_pct)}, "
-            f"Mengenzusage höchstens {pct(m.max_volume_commit_pct)}, {price}, höchstens {m.max_rounds} Runden",
+            f"Mengenzusage höchstens {pct(m.max_volume_commit_pct)}, {price}, Zahlungsziel und Rabatt nicht unter "
+            f"heute, höchstens {m.max_rounds} Runden; prüft der Code bei jedem Angebot und Abschluss",
+        ),
+        (  # Red-Teaming R6 (11.11.): check_terms prüft diese Obergrenzen nicht (Entscheid B, ADR 0016)
+            "Richtlinie",
+            f"Zahlungsziel höchstens {m.payment_days_max} Tage, Rabatt höchstens {pct(m.discount_max_pct)}: nur für "
+            "unsere Pakete; ein Gegenangebot darüber darf der Code annehmen",
         ),
         ("Mindestnutzen", f"{chf(m.min_value_chf)} pro Jahr; darunter kein Abschluss (Walk-away)"),
         (
