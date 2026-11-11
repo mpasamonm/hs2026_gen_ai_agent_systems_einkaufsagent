@@ -245,8 +245,13 @@ Für Folien: Walmart 2021 als Ursprung und Beleg für den Long Tail, Pactum 2026
 
 **Was wir übernehmen und was nicht:** Übernommen: Jede Verhandlung wird protokolliert und ins System zurückgeschrieben
 (unser Protokoll, ADR 0009); viele Lieferanten als Kampagne (unsere Ergebnisfolie, ADR 0012). Nicht übernommen:
-weitere Konditionen wie Kündigungsrecht, Skonto und Rückvergütungen sowie Preisschätzungen aus Marktdaten (D6). Ob
-Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
+weitere Konditionen wie Kündigungsrecht, Skonto und Rückvergütungen sowie Preisschätzungen aus Marktdaten (D6). Dass
+Pactum über Verhandlungen hinweg lernt, ist nur als Herstellerangabe dokumentiert: Anker und Parameter werden über viele
+Verhandlungen angepasst («if suppliers tend to accept the initial offers then the anchor price will decrease», Pactum-Blog,
+datiert 19.12.2025; «every negotiation is an A-B test», CEO Rand im DocuSign-Blog). Eine Konzessionskurve oder ein
+Gegnermodell legt Pactum nicht offen. Als Kennzahlen nennt Pactum Abdeckung («100% of suppliers actively engaged» gegen
+«70 to 80% … never engaged» vorher, 10.04.2026), Tempo, Automatisierung, Zufriedenheit der Lieferanten und Einsparung,
+nicht den Anteil am Spielraum (ADR 0017).
 
 ## 3 Umsetzung
 
@@ -463,6 +468,37 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   im Code; dazu Red-Teaming durch Claude als eigene Zeile, nie als Live-Runde berichtet (erledigt 11.11.2026, 8 Läufe,
   Befunde in §5). Nur, wenn Zeit bleibt:
   `granite4.1:3b`. Gestrichen: Spike Entscheidungsmodell, Bias-Varianten, Variante (c) (nur bei Restzeit, ADR 0014).
+- **Verhandelt der Agent klug? (Analyse 11.11.2026, ADR 0017, `uv run python scripts/analyse_strategie.py`, ohne LLM)**
+  Kurz: **effizient ja, maximierend nein, ausnutzbar wie jede zeitabhängige Taktik; der Schaden endet am Mindestnutzen.**
+  - *Effizienz* = gemeinsamer Überschuss (unser Nutzen − Nettokosten des Lieferanten) ÷ Maximum im Mandat. Der Rabatt
+    verschiebt nur Wert; Wert entsteht aus Zahlungsziel und Mengenzusage. In allen 26 Szenarien hat der Lieferant höhere
+    Kapitalkosten als wir (6–14 % gegen 5 %): Ein Tag Zahlungsziel kostet ihn mehr, als er uns bringt (S04: CHF 75 gegen
+    34), eine Mengenzusage ist ihm mehr wert, als sie uns kostet. Effizient ist also Paket B: heutige Tage, volle
+    Zusage, Rabatt.
+
+    | Finale Läufe (Luna) | Effizienz Dev / Test | Abschluss typisch | Nutzen Ø Dev | davon aus dem Tausch |
+    | --- | --- | --- | --- | --- |
+    | (b) Hybrid | 1.00 / 0.98 | 30 Tage, Rabatt Ø 2,5 %, Zusage 80 % | CHF 4'104 (2,1 % des Volumens) | 88 % |
+    | (a) reines LLM | 0.42 / 0.46 | oft 90 Tage mit Zusage | CHF 2'338 | – (Tage vernichten Wert) |
+
+    (b) braucht dafür kein Gegnermodell: Der Lieferant wählt das für ihn billigste der gleichwertigen Pakete, und das ist
+    das effiziente (MESO als Präferenzermittlung). Der Lieferant zahlt im Schnitt CHF 481 pro Jahr drauf, in seinem Budget.
+  - *Ausnutzbarkeit* (Dev, ökonomischer Kern ohne Forderung, Bedingung und Injection, 9 Szenarien mit ZOPA; Nutzen Σ pro
+    Jahr):
+
+    | Strategie | gegen Simulator | Hinhalten bis R6 | schlechtester Fall | lohnt sich ab |
+    | --- | --- | --- | --- | --- |
+    | **heute:** linear, jede Antwort ohne Abschluss = ein Schritt | 9/11, Anteil 0.72, CHF 36'870 | 0.05, 15'995 | 15'645 (−58 %) | – |
+    | Schritt nur auf ein Gegenangebot | gleich | 5/11, 0.78 | 15'645 (Scheinkonzessionen) | nie |
+    | Boulware (spät nachgeben) | 0.76, 37'895 (+3 %) | 0.05 | 15'645 | gleich ausnutzbar |
+    | reziprok (Tit-for-Tat) | 8/11, 0.79, 34'595 (−6 %) | 5/11, 0.78 | 22'100 (−40 %) | ab ~26 % strategischer Lieferanten |
+    | fester Anspruch (Mitte) | 8/11, 0.54, 26'845 (−27 %) | gleich | 26'845 | ab ~47 % |
+
+    Ursache: Eine zeitabhängige Kurve, die in einer bekannten Runde den Mindestnutzen erreicht, gibt einem Hardliner alles
+    (Baarslag et al. 2013, ANAC 2011). Die strategischen Lieferanten sind Code mit vollem Wissen; Menschen zeigen erst die
+    Live-Runden.
+  - *Kennzahl:* Der Anteil am Spielraum misst nur die Verteilung. Für (b) passt das, weil die Abschlüsse effizient sind;
+    für (a) ist ein Teil des tiefen Anteils Ineffizienz.
 
 ## 5 Erkenntnisse und Limitationen
 
@@ -528,6 +564,21 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   2,25 % unter einer Laufzeit-Bedingung an; nach «weiterverhandeln» bot der Agent B mit 2 % an, CHF 625 pro Jahr weniger,
   obwohl B mit 2,25 % laut Spielkarte auch ohne Bedingung annehmbar war. Das weiss nur, wer die verdeckten Werte kennt;
   die Eval deckt den Pfad nicht ab (Einordnung in `docs/demo.md`, ADR 0012, Nachtrag).
+- **Die Strategie maximiert nicht und ist ausnutzbar** (ADR 0017): Sie ist ein «Conceder Linear» ohne Gegnermodell
+  (BOA-Rahmen). Wer bis zur letzten Runde ablehnt, holt den ganzen Spielraum; reziprokes Nachgeben würde den Schaden
+  begrenzen, kostet aber gegen ehrliche Lieferanten 6 % (§4). Belegt ist, dass Menschen Maschinen stärker ausnutzen
+  (Karpus et al. 2021, de Melo et al. 2016); dass Lieferanten Bot-Muster über Kampagnen lernen, ist nicht belegt, nur
+  argumentiert («Markets learn players», TWS Partners, 10.09.2026). Was hält: Unter den Mindestnutzen kommt niemand, weil
+  die Grenze im Code liegt; ein LLM mit der Grenze nur im Prompt gibt unter Druck nach (Chaudhury et al., NeurIPS 2026,
+  Workshop).
+- **Das Mandatsziel «60 Tage» ist gegen kleine Lieferanten ein schlechter Tausch:** Ihre Kapitalkosten sind höher als
+  unsere, ein längeres Zahlungsziel vernichtet gemeinsamen Wert. (b) landet deshalb fast immer beim heutigen Zahlungsziel
+  mit Rabatt gegen Mengenzusage. Real verlängerte Walmart um +35 Tage; ob das effizient war, hängt an den Kapitalkosten
+  der Lieferanten, die Antwort der Praxis wäre Supply-Chain-Finance (nicht modelliert). In der EU sind B2B-Fristen über 60
+  Tage nur ausdrücklich vereinbart und nicht grob nachteilig zulässig (Richtlinie 2011/7/EU; unverified, nicht im Original
+  nachgelesen).
+- **Die Hauptkennzahl misst Verteilung:** Anteil am Spielraum sagt nichts über Effizienz, Einigung über alle Lieferanten,
+  Aufwand oder Robustheit; die Effizienz rechnet `scripts/analyse_strategie.py` nach (§4).
 - Der Agent fragt nicht von sich aus nach einer Gegenleistung, und ein Gegenangebot, das nicht reicht, beantwortet
   `offer_engine` mit dem nächsten Schritt der Kurve, ohne dessen Inhalt zu nutzen. Für Pactum ist eine solche Frage
   2024–2026 ebenfalls nicht belegt (2.5); eine Änderung wäre ein Prompt- und Strategieumbau mit neuer Messung
@@ -540,7 +591,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   Grenzen, alle wegen des Feature-Freeze unverändert:
   - *Berechenbare Kurve:* Ablehnen, Zögern («muss ich noch abklären»), eine unbekannte Paketwahl und jede Eskalation mit
     «weiterverhandeln» kosten je einen Konzessionsschritt. Wer das weiss, wartet bis zur letzten Runde und schliesst auf
-    dem Mindestnutzen ab (S04: Anteil am Spielraum 0.00 statt 0.84 in der Eval).
+    dem Mindestnutzen ab (S04: Anteil am Spielraum 0.00 statt 0.84 in der Eval). Offline über das Dev-Set gemessen: Anteil
+    0.72 → 0.05, Nutzen −58 % (§4, ADR 0017).
   - *Abschluss ohne echte Zustimmung:* Viermal wurde gebucht, was der Lieferant so nicht meinte: Verweis auf eine
     Bedingung aus einer früheren Nachricht (`parse_response` sieht nur die aktuelle Antwort), «klingt fair, schicken Sie
     es schriftlich», eine Bestätigung mit widersprüchlicher Paketwahl (bei einer Annahme auf unsere Annahme prüft der
@@ -598,7 +650,11 @@ Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe ei
 - der Agent fragt nach einer Gegenleistung bzw. danach, welches Paket am nächsten liegt, wenn der Lieferant alle ablehnt
   (Medvec/Galinsky, PON 15.10.2020); Prompt-Änderung mit neuer Messung;
 - verhaltensabhängige Konzession (Faratin et al. 1998): ein unter Bedingung angenommenes Paket nach «weiterverhandeln»
-  einmal ohne Bedingung erneut anbieten; messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
+  einmal ohne Bedingung erneut anbieten; messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt;
+- robustere Bietstrategie (ADR 0017): reziprok nachgeben, Frist nicht ablesbar, Annahmeregel AC_combi (Baarslag et al.
+  2014), gemessen mit strategischen Lieferanten in der Eval (`scripts/analyse_strategie.py` als Vorlage);
+- Lernen über die Kampagne wie Pactum nach eigenen Angaben (Anker und Aggressivität aus früheren Verhandlungen anpassen;
+  die Protokolle schreibt (b) schon, ADR 0015).
 
 ## 7 Verworfene Alternativen
 
@@ -629,6 +685,9 @@ Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe ei
 | Jev (TypeSafe) | nicht im Proxy, eigener Key, Betrieb in den USA | 0011 |
 | Multi-Agent (z.B. Verhandler und Prüfer als eigene Agenten) | kein Koordinationsproblem; die Prüfung ist Code, ein zweiter Agent wäre mehr Angriffsfläche (OWASP ASI07) | – |
 | Trace in LangSmith als Hauptdemo | zeigt Technik statt Kernthese; bleibt Backup | 0012 |
+| Reziproke Konzession (Tit-for-Tat) jetzt einbauen | gegen den Simulator 6 % schlechter, lohnt erst ab ~26 % strategischer Lieferanten; alle Zahlen und die Demo ändern sich vor der Abgabe | 0017 |
+| Boulware-Kurve (spät nachgeben) | +3 % gegen den Simulator, gegen Hinhalten gleich ausnutzbar | 0017 |
+| Fester Anspruch ohne Nachgeben | unangreifbar, aber 27 % weniger Nutzen und ein Abschluss weniger | 0017 |
 
 ## 8 Was wir gewählt haben und warum
 

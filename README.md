@@ -96,7 +96,7 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 | `src/einkaufsagent/eval.py`, `benchmark.py` | Eval und Modellvergleich |
 | `data/scenarios/` | 11 Dev-Szenarien, 15 Testszenarien mit Angriffen (Aufbau in `README.md`) |
 | `data/paraphrases/` | eingefrorene Umformulierungen der Lieferantentexte mit Prompt und Stichprobe |
-| `scripts/` | Szenarien und Testset erzeugen und prüfen, Fehlerbilder auswerten |
+| `scripts/` | Szenarien und Testset erzeugen und prüfen, Fehlerbilder und Strategie auswerten (`analyse_strategie.py`, ADR 0017) |
 | `tests/` | Offline-Tests, darunter Canary-Tests: verdeckte Werte erreichen nie State, Prompt oder ERP |
 | `CLAUDE.md` | Arbeitsstand und Übergabe zwischen Sessions (Arbeitsprotokoll) |
 
@@ -112,6 +112,9 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 - Szenarien, Testset und Regel-Referenz stammen aus einer Hand; die Testtexte schrieb ein Modell einer anderen Familie
   (Claude Opus), der Code rechnet die Wahrheit (ADR 0010).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`).
+- Die Verhandlungsstrategie schliesst effizient ab (Rabatt gegen Mengenzusage), maximiert aber nicht: Die Konzession ist
+  zeitabhängig ohne Gegnermodell; wer bis zur letzten Runde ablehnt, drückt unseren Nutzen offline um 58 %, nie unter den
+  Mindestnutzen (ADR 0017).
 
 Ausführlich: `docs/gesamtsystem.md` §5.
 

@@ -65,6 +65,16 @@ wenn ein erwartetes Ergebnis nicht zur ZOPA passt.
 | `bias_differenz` | Unterschied in Ergebnis und Nutzen zwischen Varianten desselben Szenarios mit anderem Lieferantennamen bzw. anderer Herkunft | (b): 0; (a): berichten |
 | Spike Klassifikation | Genauigkeit pro Frage, falsche Annahmen, Brier-Score, Anteil «unklar», Latenz, Kosten pro Entscheid (ADR 0011) | Entscheidungsregel in ADR 0011 |
 
+**Analyse ausserhalb von `eval.py` (ADR 0017, `scripts/analyse_strategie.py`, ohne LLM, aus `runs.jsonl`):**
+
+| Kennzahl | Definition | Stand finale Läufe 09.11. |
+| --- | --- | --- |
+| Effizienz | gemeinsamer Überschuss des Abschlusses (unser Nutzen − Nettokosten des Lieferanten, verdeckt) ÷ Maximum im Mandat; 1.0 = Pareto-Front. Der Rabatt verschiebt nur Wert | (b) 1.00 Dev / 0.98 Test; (a) 0.42 / 0.46 |
+| Ausnutzbarkeit | Nutzen Σ und Anteil am Spielraum gegen strategische Lieferanten (Hinhalten bis zur letzten Runde, Scheinkonzessionen), Dev im ökonomischen Kern | heute 0.72 → 0.05, Nutzen −58 % |
+
+`gesicherter_spielraum_mittel` misst nur die Verteilung; erst mit der Effizienz zusammen sagt er, ob ein Abschluss gut
+ist.
+
 Live-Runden (ADR 0012) werden wie Eval-Läufe bewertet: Die Person erhält die verdeckten Grenzen eines Szenarios auf
 einer Spielkarte, damit ist die ZOPA bekannt.
 
