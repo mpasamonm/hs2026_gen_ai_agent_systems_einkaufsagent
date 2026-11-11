@@ -3,7 +3,7 @@
     uv run ea-ui                          # http://127.0.0.1:8080 (nicht localhost) · Mensch als Lieferant · Luna · ERP results/erp-demo.sqlite
     uv run ea-ui --model offline          # ohne Proxy (Vorlage + Regex-Parser), z.B. S11 mit dem Simulator
 
-Links die Sicht des Lieferanten (Chat und Zustimmung; die Person tippt als Lieferant), rechts die interne Sicht des
+Links die Sicht des Lieferanten (Einladung als erste Nachricht, Chat und Zustimmung; die Person tippt als Lieferant), rechts die interne Sicht des
 Einkaufs: das Mandat (zugeklappt, damit es in Live-Runden verdeckt bleibt), bei einer Eskalation die Vorlage für die
 Einkäuferin mit zwei Knöpfen, am Schluss Protokoll und Auswertung gegen die Spielkarte, und die Schritte farbig wie die
 BPMN (orange LLM, blau Code, grün Mensch) mit den Namen der BPMN-Aufgaben. Texte in ``ui_text``. Der Lauf liegt im Server-Prozess (``ui_session.Session``); ein Reload
@@ -22,7 +22,14 @@ from einkaufsagent.config import ROOT, flush_traces
 from einkaufsagent.eval import DEFAULT_SCENARIOS
 from einkaufsagent.scenarios import load_scenarios
 from einkaufsagent.ui_session import MEMORY, OFFLINE, Session, Settings
-from einkaufsagent.ui_text import explain_step, mandate_lines, node_label, report_help, violations_de
+from einkaufsagent.ui_text import (
+    explain_step,
+    invitation_text,
+    mandate_lines,
+    node_label,
+    report_help,
+    violations_de,
+)
 
 # Farben aus docs/process/gen_bpmn_v4.py (Rand, Fläche)
 COL = {
@@ -111,7 +118,9 @@ def index() -> None:
                     ui.button("Ja, zugestimmt", on_click=lambda: answer_agree(True)).props("color=green-8")
                     ui.button("Nein", on_click=lambda: answer_agree(False)).props("color=red-8 outline")
             with ui.row().classes("w-full no-wrap items-center"):
-                box = ui.input(placeholder="Antwort als Lieferant, Enter sendet").classes("flex-grow")
+                box = ui.input(
+                    placeholder="Freie Antwort: Paket wählen, eigener Vorschlag oder ablehnen · Enter sendet"
+                ).classes("flex-grow")
                 send_btn = ui.button("Senden", icon="send", on_click=lambda: send())
             box.on("keydown.enter", lambda: send())
 
@@ -216,6 +225,13 @@ def index() -> None:
     def add(e: dict[str, Any]) -> None:
         match e["type"]:
             case "start":
+                with (
+                    chat
+                ):  # Einladung per E-Mail vor dem Chat: Vorlage der Seite, nicht vom Agenten (ADR 0016)
+                    ui.chat_message(
+                        invitation_text(STATE["scenarios"][e["scenario"]].public),
+                        name="Einladung per E-Mail · vor dem Chat (Vorlage, nicht vom Agenten)",
+                    ).props("bg-color=grey-3").classes("w-full")
                 who = "Mensch" if e["human"] else "Simulator"
                 with steps:
                     ui.label(

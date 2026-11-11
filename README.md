@@ -19,7 +19,7 @@ und Variante (b) mit Vorlage und Regex-Parser.
 
 ```bash
 uv sync                                                # Abhängigkeiten aus uv.lock
-uv run pytest                                          # 89 Tests, offline
+uv run pytest                                          # 90 Tests, offline
 uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 Dev-Szenarien: Erfolg 0.91
 uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
 uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext

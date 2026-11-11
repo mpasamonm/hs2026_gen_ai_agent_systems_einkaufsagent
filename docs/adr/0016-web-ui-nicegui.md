@@ -119,3 +119,39 @@ bleibt. Mit Luna nicht neu gemessen, weil sich nur Texte und Anordnung ändern; 
 
 **Kippt, wenn** Personen in den Live-Runden rechts mitlesen und ihr Verhalten danach ausrichten: dann eine Ansicht
 `/lieferant` nur mit Chat und Zustimmung (Variante B), vor dem Stichtag 15.11.
+
+## Nachtrag 11.11.2026: Einladung vor dem Chat (Gegenstand und freie Antwort sichtbar)
+
+**Anlass.** In einer Probe des Nutzers (S04, Luna, 10.11.2026) entstand das Gefühl, nur unter den drei Paketen wählen zu
+können. Das Protokoll zeigt: Der Agent lud in jeder Runde zum Gegenvorschlag ein («Bitte wählen Sie eines der folgenden
+Pakete oder unterbreiten Sie uns einen Gegenvorschlag»), und der Nutzer konterte auch («90 Tage mit 2 % Rabatt»), aber
+ohne Mengenzusage und damit für ihn teurer als jedes unserer Pakete (Befund in `docs/demo.md` §1). Gefehlt hat der
+Rahmen: worum es geht und was die drei Grössen bedeuten. Real erfährt der Lieferant das aus der Einladung per E-Mail
+(Walmart-Ablauf, Schritt 3, `docs/gesamtsystem.md` §2.5); die fehlte bei uns.
+
+Trennende Achse: **wo der Lieferant den Rahmen der Verhandlung erfährt.**
+
+| Alternative | Grund |
+| --- | --- |
+| U1: Hinweis unter dem Eingabefeld | wiederholt nur den Satz des Agenten; erklärt weder den Gegenstand noch die Mengenzusage |
+| **E: Einladung als erste Nachricht links (gewählt)** | entspricht der E-Mail im realen Ablauf; zeigt Gegenstand (ADR 0001, Nachtrag 11.11.) und freie Antwort auf der Seite, auch im Video |
+| U2: Schnellantworten, die das Eingabefeld vorbefüllen | realistisch (Pactum mischt Klick-Optionen und Freitext), aber mehr bewegliche Teile in der Demo; bleibt Kippoption |
+| U3: Agent fragt von sich aus nach einer Gegenleistung | Prompt-Änderung (Feature-Freeze, neue Messung); 2024–2026 auch bei Pactum nicht belegt; Limitation und Ausbau in `docs/gesamtsystem.md` §5 und §6 |
+
+**Entscheid des Nutzers (11.11.2026): E.**
+- `ui_text.invitation_text` erzeugt die Einladung aus dem öffentlichen Teil des Szenarios: Gegenstand (Konditionen für
+  alle Bestellungen der nächsten 12 Monate, Volumen im Vorjahr), heutige Konditionen, Bedeutung von Zahlungsziel, Rabatt
+  und Mengenzusage, «Antworten Sie frei: Wählen Sie ein Paket, machen Sie einen eigenen Vorschlag oder lehnen Sie ab»,
+  Hinweis auf die Einkäuferin. Kein Ziel, keine Grenze, kein Mindestnutzen (Test mit Canary und Mandatswerten).
+- Grau als erste Nachricht im Chat, beschriftet «Einladung per E-Mail · vor dem Chat (Vorlage, nicht vom Agenten)»; sie
+  steht auch beim Simulator da, der sie nicht liest.
+- Platzhalter des Eingabefelds: «Freie Antwort: Paket wählen, eigener Vorschlag oder ablehnen · Enter sendet».
+- Spielkarten mit dem Gegenstand und dem Satz, dass eigene Werte und Tauschgeschäfte erlaubt sind (`docs/demo.md` §4).
+- Graph, Prompts, Regeln, Eval und `live.py` unverändert; die Einladung erreicht keinen Prompt und kein Protokoll.
+
+**Prüfung.** 90 Tests grün (1 neu), ruff sauber. Headless-Browser offline (S04, Simulator, 1600 × 1000 px): Einladung über
+der ersten Nachricht des Agenten, Platzhalter sichtbar, Verlauf und Auswertung unverändert (Abschluss nach Runde 1,
+CHF 5'250, Anteil 0.84). Mit Luna nicht neu gemessen, weil sich nur der Text der Seite ändert.
+
+**Kippt, wenn** die Einladung in der Demo-Probe am Beamer zu viel Platz frisst (dann auf zwei Sätze kürzen); U2, wenn
+Personen in den Live-Runden trotz Einladung nur Pakete wählen oder nie über die Mengenzusage verhandeln.

@@ -1,6 +1,6 @@
 # Einkaufsagent – Gesamtsystem und Begründungen
 
-Stand: 10.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
+Stand: 11.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
 Prüfung. Jede Person muss das Gesamtsystem erklären können (Projektbeschrieb, Anhang A). Ein schriftlicher Bericht
 ist laut Projektbeschrieb nicht verlangt; dieses Dokument ist das Projektartefakt «zur Nachvollziehbarkeit» und die
 Vorlage für die Folien.
@@ -32,8 +32,10 @@ die Prüfungsthemen aus dem Projektbeschrieb, die der Abschnitt abdeckt.
 - Die fiktive Musterhandel AG, ein Schweizer Detailhändler, hat rund 600 Lieferanten. Das dreiköpfige
   Einkaufsteam betreut die 50 grössten aktiv. Die übrigen rund 450 mit je unter CHF 250'000 Jahresvolumen
   («Long Tail») verhandelt niemand nach; viele haben seit Jahren 30 Tage Zahlungsziel und keinen Rabatt.
-- Ein Agent verhandelt diese Konditionen im Auftrag des Einkaufs nach, strikt innerhalb eines Mandats. Ergebnis:
-  neue Konditionen im ERP mit Protokoll, ein dokumentiertes «kein Deal» oder eine Übergabe an die Einkäuferin.
+- Ein Agent verhandelt diese Konditionen im Auftrag des Einkaufs nach, strikt innerhalb eines Mandats. Gegenstand
+  sind die Jahreskonditionen im Rahmenvertrag: Sie gelten für alle Bestellungen der nächsten 12 Monate, nicht für eine
+  einzelne Lieferung (2.1). Ergebnis: neue Konditionen im ERP mit Protokoll, ein dokumentiertes «kein Deal» oder eine
+  Übergabe an die Einkäuferin.
 - **Braucht es dafür einen Agenten?** Ja: mehrere Runden, deren nächster Schritt von der freien Antwort des
   Lieferanten abhängt, dazu Werkzeuge (ERP) und Rückfragen an einen Menschen. Ein Serienbrief kann freie Antworten
   nicht verarbeiten. Aber: Über Zahlen soll das Sprachmodell nicht entscheiden (Abschnitt 2.4).
@@ -46,6 +48,25 @@ Quellen: Artefakt 1 und 4 in `docs/sw4-artefakte.md`, ADR 0001.
 
 Verhandelt werden drei Konditionen: Zahlungsziel (Tage), Rabatt (%) und Mengenzusage (% des Vorjahresvolumens).
 
+**Gegenstand: Jahreskonditionen, nicht einzelne Bestellungen** (ADR 0001, Nachtrag 11.11.2026). Die Konditionen gelten
+im ERP für alle Bestellungen der nächsten 12 Monate (Laufzeit des Rahmenvertrags):
+
+| Kondition | Bedeutung | Für uns | Für den Lieferanten |
+| --- | --- | --- | --- |
+| Zahlungsziel | Tage ab jeder Rechnung | Working Capital (Kapitalkostensatz) | Finanzierungskosten |
+| Rabatt | % auf jeden Rechnungsbetrag | Einsparung | Marge |
+| Mengenzusage | verbindliche Mindestabnahme der Musterhandel AG über die 12 Monate, in % des Vorjahresvolumens | Abnahmerisiko (Risikokostensatz) | Planungssicherheit |
+
+Deshalb rechnet der Nutzen pro Jahr (2.2). Die Laufzeit selbst verhandelt der Agent nicht; eine Bedingung dazu geht an
+die Einkäuferin (S11, ADR 0008). **Nicht pro Bestellung**, weil (1) einmal verhandelt jede Bestellung des Jahres
+profitiert, während ein Gespräch pro Bestellung im Long Tail wenig bringt und den Lieferanten jedes Mal bindet,
+(2) Mengenzusage und Zahlungsziel nur über einen Zeitraum Sinn ergeben (bei einer Bestellung ist die Menge die
+Bestellung), (3) ein Jahreswert pro Szenario messbar ist und (4) Verhandeln pro Bestellung ein anderer Prozess ist
+(operative Beschaffung mit Angebotsanfrage, ADR 0002). Pactum trennt die beiden Fälle ebenso: Kampagnen für Konditionen
+pro Lieferant, ein eigener Agent für einzelne Bedarfsanforderungen (2.5).
+
+Warum diese drei Konditionen:
+
 1. **Mehr Spielraum für beide Seiten.** Beim Preis gewinnt eine Seite genau das, was die andere verliert. Mehrere
    Konditionen lassen sich tauschen, weil beide Seiten sie unterschiedlich bewerten: Ein KMU schätzt eine
    Mengenzusage (Planungssicherheit) oft höher, als sie uns kostet; uns ist ein längeres Zahlungsziel (Working
@@ -55,7 +76,7 @@ Verhandelt werden drei Konditionen: Zahlungsziel (Tage), Rabatt (%) und Mengenzu
    eine bekannte richtige Antwort.
 4. **Wenig Risiko.** Keine Sortiments- oder Preisentscheide, kein Vertragsrecht.
 
-Verworfen: freies Preisfeilschen (D6, ADR 0001).
+Verworfen: freies Preisfeilschen (D6, ADR 0001) und Verhandeln pro Bestellung (ADR 0001, Nachtrag 11.11.2026).
 
 ### 2.2 Nutzenfunktion und Mandat
 
@@ -123,6 +144,7 @@ angekündigt, 2021 in Kanada durchgeführt, danach ausgeweitet).
 | --- | --- | --- |
 | Lieferanten | Long Tail, den der Einkauf sonst nicht verhandelt | gleich |
 | Inhalt | Zahlungsziel, Rabatte, Rückvergütungen, Mengenzusagen u.a. | Zahlungsziel, Rabatt, Mengenzusage |
+| Gegenstand | Kampagnen für Konditionen pro Lieferant («supplier-level terms»); daneben ein eigener Agent für einzelne Bedarfsanforderungen | Jahreskonditionen für 12 Monate, keine einzelnen Bestellungen |
 | Vorgehen | Einkauf gibt Ziele und Prioritäten vor; Lieferanten erhalten kombinierte Vorschläge, in denen sie eine Kondition gegen eine andere tauschen | Mandat, 2–3 Pakete, Code rechnet |
 | Gegenüber | echte Lieferanten; laut Presse 2023 vor allem Ausrüstung (z.B. Einkaufswagen); laut Pactum bis 2'000 gleichzeitig | fiktive Firma, simulierte Lieferanten (Lebensmittel) |
 | Ziel | Einsparungen im Betrieb | Forschungsfrage: reines LLM gegen Hybrid |
@@ -150,7 +172,7 @@ beziehen, ist widersprüchlich. Am Pilot arbeiteten 5 Einkäufer sowie Finance, 
 | --- | --- | --- | --- |
 | 1 | Der Einkauf legt Ziele, Grenzen und erlaubte Tauschgeschäfte fest; im Pilot bauten Pactum-Analysten daraus Skripte, heute konfiguriert laut Pactum das Team des Kunden die Kampagne (Einführung 2–4 Wochen) | Einkauf | Mandat im Szenario (`public.mandate`), Konzessionskurve in `offer_engine` |
 | 2 | Daten aus ERP oder CSV (Kontakte, Konditionen, Spend); Start als Kampagne, durch Auslöser (Zeit, Rohstoffpreis) oder in Coupa/Ariba durch eine Bedarfsanforderung | System | `load_context` aus dem ERP-Adapter; die Kampagne ist bei uns die Eval über 15 Lieferanten |
-| 3 | E-Mail im Namen des Kunden mit Link; Chat im Branding des Kunden, einige Tage gültig, auf jedem Gerät | Bot → Lieferant | erste Nachricht mit KI-Hinweis und Paketen; **keine E-Mail** |
+| 3 | E-Mail im Namen des Kunden mit Link; Chat im Branding des Kunden, einige Tage gültig, auf jedem Gerät | Bot → Lieferant | Einladung als Vorlage über dem Chat (Gegenstand, heutige Konditionen, freie Antwort; ADR 0016, Nachtrag 11.11.), danach erste Nachricht mit KI-Hinweis und Paketen; **keine E-Mail** |
 | 4 | Der Lieferant chattet (Freitext, Zahlen, Auswahl) und wählt unter mehreren gleichwertigen Angeboten oder kontert | Lieferant ↔ Bot | Chat, MESO-Pakete (Pactum nennt es «multiple equivalent simultaneous offers») |
 | 5 | Alles ausserhalb der Regeln geht mit Kontext an eine Person; der Lieferant kann einen Einkäufer verlangen | Bot → Einkauf | `escalate` → `ask_buyer` (ADR 0008, 0015) |
 | 6 | Vertrag automatisch erzeugt und digital signiert, ERP bzw. Coupa/Ariba nachgeführt; der Einkauf sieht Live-Dashboard und Audit-Trail | System, Einkauf | `record_outcome` mit Protokoll; **keine Signatur, kein Dashboard** (die Ergebnisfolie steht für die Kampagne) |
@@ -160,7 +182,8 @@ Eine Freigabe durch einen Menschen ist nicht überall vorgesehen: bei Walmart ni
 Nicht belegt gefunden (unverified): ob der Einkauf die Lieferanten vorher ankündigt, ob sich der Bot ausdrücklich als
 Bot zu erkennen gibt, und wie Preiserhöhungen von Lieferanten hereinkommen.
 
-**Stand 2026** (Recherche vom 19.10.2026; Walmart 2021 ist der Ursprung, nicht mehr der Stand):
+**Stand 2026** (Recherchen vom 19.10. und 10./11.11.2026; Walmart 2021 ist der Ursprung, nicht mehr der Stand, ebenso
+die einzige Schritt-für-Schritt-Beschreibung eines Pactum-Gesprächs aus einer Demo von 2020):
 - **Walmart:** Die letzte belastbare Ausweitung meldete Bloomberg im April 2023 (USA, Chile, Südafrika, nur Waren für
   den Eigenbedarf). Seither gibt es keine Primärquelle von Walmart; Pactum führt Walmart weiter als Kunden, ob der
   Einsatz noch läuft, ist nicht belegt (unverified). Walmarts eigener Agent «Marty» (Juli 2025) unterstützt Lieferanten
@@ -175,12 +198,41 @@ Bot zu erkennen gibt, und wie Preiserhöhungen von Lieferanten hereinkommen.
   now verified automatically before it flows into downstream purchase orders and contracts» (also jeder Abschluss, nicht
   jedes Angebot; frühere Stände dieses Dokuments schrieben «jedes Angebot», korrigiert am 10.11.2026); «anything outside
   the defined rules escalates to a person with the context to decide»; Audit-Trail, über 40 Sprachen, E-Mail als Kanal.
-- **Markt:** Zip, Fairmarkit, Arkestro, SAP Joule und Coupa analysieren oder schlagen vor; autonom über Konditionen
-  verhandelt praktisch nur Pactum (seit Dez. 2025 auch im Coupa-Marketplace). Agent gegen Agent (der Lieferant hat
-  ebenfalls einen KI-Agenten) ist im Betrieb nicht belegt; Pactum nennt es als nächste Entwicklung (Dez. 2025).
+- **Gesprächsführung bei Pactum 2025/2026** (Herstellerangaben; Produktseiten ohne Datum, abgerufen 11.11.2026): Der Bot
+  bietet mehrere gleichwertige Angebote und Tauschgeschäfte selbst an («offering trade-offs such as early payment
+  discounts or volume commitments»), und der Lieferant kann eigene Werte nennen: «The Campaigns agent asks a supplier for
+  2%, the supplier offers 1.5%, and the agent agrees because it is inside the buyer's range.» Bei einer Einzelbeschaffung
+  antwortet der Agent auf ein Angebot des Lieferanten mit drei neuen Angeboten («replies with three offers trading price
+  against payment terms»). Die Oberfläche mischt Klick-Optionen, Freitext und Tabellen; Knöpfe nur, «when that is more
+  efficient than engaging in a free-text argument» (Pactum-Blog 19.12.2025, aktualisiert 27.10.2026). Der Lieferant kann
+  pausieren und intern abklären (Pactum 01.07.2026). Dass der Bot von sich aus nach einer Gegenleistung fragt («what
+  could I, as a supplier, do», Demo 2020), fanden wir für 2024–2026 nicht.
+- **Gegenstand:** Pactum trennt «Campaigns» für Konditionen pro Lieferant («Supplier-level terms that used to need months
+  of one-by-one outreach are settled in weeks», «especially valuable at annual contract renewals»; Beispiel «a tail spend
+  campaign across 1,240 suppliers under $250k a year») und einen Agenten für einzelne Bedarfsanforderungen vor der
+  Bestellung («Single-Source Negotiation»). Unser Fall entspricht den Kampagnen (2.1, ADR 0001, Nachtrag).
+- **Markt:** Neben Pactum verhandeln 2026 weitere Bots selbst mit Lieferanten, laut Herstellern oder Presse: Nibble im
+  Chat mit Freitext ohne Ja/Nein-Knöpfe, auch über Jahreskonditionen; Vertice über Verlängerungen von Software-Verträgen;
+  Gain und Duvo im Detailhandel (Modern Retail, 22.06.2026). Zip, Fairmarkit, Arkestro, SAP Joule, Tacto und Levelpath
+  unterstützen eher die Einkäufer; Coupa bindet Pactum ein (seit Dez. 2025 im Coupa-Marketplace; AstraZeneca laut
+  SiliconANGLE, 14.05.2026). Frühere Stände dieses Dokuments schrieben, autonom verhandle praktisch nur Pactum; das ist
+  überholt (korrigiert am 11.11.2026).
+- **Bot gegen Bot:** im Betrieb nur bei Keelvar belegt, und nur als Herstellerangabe: Seit Dez. 2025 bieten Agenten der
+  Lieferanten in strukturierten Ausschreibungen mit hinterlegter Preislogik, im Juli 2026 rund 1'420 Events (Whitepaper
+  «The Two-sided Agentic Market in Enterprise Procurement», Aug. 2026); kein Chat mit freiem Text. Pactum nennt es als
+  nächste Entwicklung (Dez. 2025). In Experimenten nehmen LLM-Agenten oft das erste Angebot an und lassen sich per Prompt
+  Injection umlenken (Microsoft Magentic Marketplace, 05.11.2025; Vaccaro et al., arXiv 2503.06416). Frühere Stände
+  schrieben «im Betrieb nicht belegt» (korrigiert am 11.11.2026).
+- **Unabhängige Belege** zur Gesprächsführung sind dünn. Herold et al. (J. Purchasing & Supply Management 31(4), 2025)
+  liessen Menschen als Lieferanten gegen einen Chatbot auf ChatGPT-Basis verhandeln: Ein kompetitiver Bot holte mehr
+  Rabatt und Zahlungsziel, einem kooperativen vertrauten die Lieferanten mehr (Volltext nicht zugänglich, Details
+  unverified). Ahold Delhaize USA behält im Pilot «full oversight of each negotiation and interaction» (CPO Strategy,
+  22.07.2026).
 
 | Pactum 2026 | Bei uns |
 | --- | --- |
+| Einladung per E-Mail mit Link | Einladung als Vorlage über dem Chat der Web-UI, keine E-Mail |
+| mehrere gleichwertige Angebote; der Lieferant kann eigene Werte nennen | MESO-Pakete; ein Gegenangebot nimmt der Code an, wenn es im Mandat liegt und mindestens so viel wert ist wie unser nächstes Angebot (AC_next), sonst folgen neue Pakete |
 | Aggressivität pro Lieferant oder Kategorie | Konzessionskurve in `offer_engine` (Anspruchsniveau bis Mindestnutzen) |
 | automatische Prüfung jedes Abschlusses vor Bestellung und Vertrag | `assess_response` (Annahme nur im Mandat), `record_outcome` bucht nur einen geprüften Abschluss; zusätzlich prüft `mandate_guard` jede Nachricht |
 | Eskalation, was ausserhalb der Regeln liegt | Eskalationsregel (ADR 0008) |
@@ -475,6 +527,12 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   2,25 % unter einer Laufzeit-Bedingung an; nach «weiterverhandeln» bot der Agent B mit 2 % an, CHF 625 pro Jahr weniger,
   obwohl B mit 2,25 % laut Spielkarte auch ohne Bedingung annehmbar war. Das weiss nur, wer die verdeckten Werte kennt;
   die Eval deckt den Pfad nicht ab (Einordnung in `docs/demo.md`, ADR 0012, Nachtrag).
+- Der Agent fragt nicht von sich aus nach einer Gegenleistung, und ein Gegenangebot, das nicht reicht, beantwortet
+  `offer_engine` mit dem nächsten Schritt der Kurve, ohne dessen Inhalt zu nutzen. Für Pactum ist eine solche Frage
+  2024–2026 ebenfalls nicht belegt (2.5); eine Änderung wäre ein Prompt- und Strategieumbau mit neuer Messung
+  (Feature-Freeze). In einer Probe (S04, 10.11.2026) bot ein Mensch ein Gegenangebot ohne Mengenzusage an, das für ihn
+  teurer war als jedes unserer Pakete (Anteil am Spielraum 1.30); der Agent nahm richtig an. Seither erklären die
+  Einladung in der Web-UI und die Spielkarten Gegenstand und Grössen (ADR 0016, Nachtrag 11.11.; `docs/demo.md`).
 - Die Hinweise im Protokoll enthalten Zitate des Lieferanten. Sie sind für die Einkäuferin gedacht; ein Ausbau (c)
   dürfte nur die typisierten Felder (Paketwahl, Konditionen) in einen Prompt geben (OWASP ASI06).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
@@ -484,10 +542,11 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 **Demo (ADR 0012)**: Ablauf, Fallbacks, Aufzeichnung und Spielkarten in `docs/demo.md`. Zeitplan der Präsentation
 (Entscheid des Nutzers, 09.11.2026): 6 Minuten Folien, 4 Minuten Demo, Fragen nicht eingerechnet. Der Projektbeschrieb
 nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 7 ist die Kürzungsstelle.
-- **Live «Ein Lieferant greift den Agenten an»:** Ein Teammitglied spielt den Lieferanten in der Web-UI (`uv run ea-ui`,
-  Browser `http://127.0.0.1:8080`) mit der Spielkarte S04 und versucht, den Agenten zu manipulieren; wer allein vorführt,
-  spielt beide Seiten (ADR 0012, Nachtrag 10.11.). Rahmen wie bei Walmart/Pactum (§2.5): Die Seite zeigt links, was der
-  Lieferant sieht (den Chat), und rechts, was nur der Einkauf sieht: das Mandat (zugeklappt, die Moderation zeigt es), die
+- **Live «Ein Lieferant greift den Agenten an»:** Die vortragende Person führt allein vor: Sie spielt den Lieferanten in
+  der Web-UI (`uv run ea-ui`, Browser `http://127.0.0.1:8080`) mit der Spielkarte S04 und versucht, den Agenten zu
+  manipulieren, moderiert und entscheidet an der grünen Karte als Einkäuferin; den Wechsel sagt sie laut (ADR 0012,
+  Nachtrag 10.11., präzisiert 11.11.). Rahmen wie bei Walmart/Pactum (§2.5): Die Seite zeigt links, was der Lieferant
+  sieht (die Einladung als Vorlage und den Chat), und rechts, was nur der Einkauf sieht: das Mandat (zugeklappt, die Moderation zeigt es), die
   Schritte mit den Namen der BPMN-Aufgaben und die Auswertung mit Erklärungen (ADR 0016, Nachtrag 10.11.). Rechts erscheint
   pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
   Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start zeigt das ERP das
@@ -515,6 +574,8 @@ Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe ei
 - Entscheidungsmodell mit eigener Kalibrierung auf eigenen Daten, falls der Spike knapp ausfällt (ADR 0011);
 - Kampagne als parallele Instanzen (`Send`) mit Dashboard nach dem Vorbild Walmart;
 - weitere Konditionen (Skonto, Rückvergütungen) erst mit echten Lieferantendaten;
+- der Agent fragt nach einer Gegenleistung bzw. danach, welches Paket am nächsten liegt, wenn der Lieferant alle ablehnt
+  (Medvec/Galinsky, PON 15.10.2020); Prompt-Änderung mit neuer Messung;
 - verhaltensabhängige Konzession (Faratin et al. 1998): ein unter Bedingung angenommenes Paket nach «weiterverhandeln»
   einmal ohne Bedingung erneut anbieten; messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
 
@@ -525,6 +586,7 @@ Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe ei
 | StandortScout (Recherche-Agent) | abhängig von einem Alpha-MCP-Server, aufwendige Datenaufbereitung | 0001 |
 | Invoice Guard (Fallback) | D1-Kriterium nicht erfüllt: das reine LLM ist nicht fast fehlerfrei | 0006 |
 | Freies Preisfeilschen | weniger realistisch, schlechter messbar | 0001 |
+| Verhandeln pro Bestellung bzw. Bedarfsanforderung (wie Pactum «Single-Source») | anderer Prozess (operative Beschaffung), wenig Wert pro Gespräch, Mengenzusage ohne Sinn; Jahreskonditionen wirken auf jede Bestellung | 0001 |
 | Bestellprozess mit Angebotsanfrage (Team-Entwurf) | anderer Prozess (operative Beschaffung) | 0001, 0002 |
 | Ein Paket nach dem anderen | widerspricht MESO, verrät die Reihenfolge der Zugeständnisse | 0002 |
 | LLM klassifiziert die Antwort und routet direkt | Fehlklassifikation bucht falsche Deals; Prompt Injection wirkt auf den Router | 0002 |
@@ -664,6 +726,16 @@ Paketwahl (eingeflossen ins Protokoll, ADR 0009).
   [Talking Logistics, ca. 05/2023](https://talkinglogistics.com/2023/05/01/negotiating-with-a-chatbot-a-walmart-procurement-case-study/);
   [Fortune, 27.04.2021](https://fortune.com/2021/04/27/a-i-startup-pactum-negotiating-software-saving-walmart-money/);
   [MIT CTL, 28.07.2025](https://ctl.mit.edu/news/how-ai-reshaping-supplier-negotiations).
+- Verhandlungsbots 2024–2026 (Recherche 10./11.11.2026, Zitate am 11.11. nachgelesen):
+  [Pactum, Campaigns](https://pactum.com/campaigns-agents) (FAQ und Bildtexte, ohne Datum);
+  [Pactum, Product](https://pactum.com/product) (Bildtext Einzelbeschaffung, ohne Datum);
+  [Pactum, The Significance of Supplier UI/UX in Autonomous Negotiations](https://pactum.com/blog/the-significance-of-supplier-ui-ux-in-autonomous-negotiations)
+  (19.12.2025, aktualisiert 27.10.2026); [Nibble, Procurement](https://nibbletechnology.com/procurement) (abgerufen
+  10.11.2026); Modern Retail (22.06.2026, Gain und Duvo); SiliconANGLE (14.05.2026, AstraZeneca mit Coupa und Pactum);
+  CPO Strategy (22.07.2026, Ahold Delhaize USA); Keelvar, Whitepaper «The Two-sided Agentic Market in Enterprise
+  Procurement» (Aug. 2026); Microsoft Research, Magentic Marketplace (05.11.2025); Vaccaro et al., arXiv:2503.06416;
+  Herold et al. (2025), *Journal of Purchasing and Supply Management* 31(4), DOI 10.1016/j.pursup.2025.101012
+  (Volltext nicht gelesen); Medvec, V. & Galinsky, A., PON (15.10.2020). Ausführliche Notizen lokal in `kontext/`.
 - OWASP: [Top 10 for LLM Applications 2026](https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/) (Aug. 2026);
   [Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) (Dez. 2025).
 - Willison, S. (2023). [The Dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/).

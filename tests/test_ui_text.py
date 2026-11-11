@@ -8,6 +8,7 @@ from einkaufsagent.ui_text import (
     NODE_DE,
     REPORT_HELP,
     explain_step,
+    invitation_text,
     mandate_lines,
     node_label,
     report_help,
@@ -54,3 +55,16 @@ def test_report_help_and_violations():
         "R2: Mengenzusage über dem Maximum (volume_commit)",
         "deal: gebucht ohne Zustimmung des Lieferanten (not_agreed)",
     ]
+
+
+def test_invitation_names_subject_but_nothing_from_mandate_or_hidden(scenarios):
+    sc = scenarios["S04"]
+    canary = "CANARY-invitation"
+    sc = sc.model_copy(update={"hidden": sc.hidden.model_copy(update={"canary": canary})})
+    text = invitation_text(sc.public)
+    assert sc.public.context.supplier_name in text and "nächsten 12 Monate" in text
+    assert "30 Tage Zahlungsziel, 0 % Rabatt, keine Mengenzusage" in text and "CHF 250'000" in text
+    assert "eigenen Vorschlag" in text and "verbindlich abnehmen" in text
+    m = sc.public.mandate  # Ziel, Grenzen und Mindestnutzen bleiben verdeckt
+    for secret in (f"{m.target_payment_days} Tage", f"{m.payment_days_max} Tage", "CHF 2'000", canary):
+        assert secret not in text

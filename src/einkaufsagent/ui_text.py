@@ -126,13 +126,33 @@ def violations_de(codes: list[str]) -> list[str]:
     return out
 
 
+def _today(public: PublicScenario) -> str:
+    cur = public.context.current_terms
+    return f"{cur.payment_days} Tage Zahlungsziel, {pct(cur.discount_pct)} Rabatt, " + (
+        f"Mengenzusage {pct(cur.volume_commit_pct)}" if cur.volume_commit_pct else "keine Mengenzusage"
+    )
+
+
+def invitation_text(public: PublicScenario) -> str:
+    """Einladung per E-Mail vor dem Chat (Walmart-Ablauf, Schritt 3; ADR 0016, Nachtrag 11.11.): Gegenstand, heutige
+    Konditionen, Bedeutung der drei Grössen, freie Antwort. Vorlage der Seite, nicht vom Agenten; nennt nichts aus dem
+    Mandat (kein Ziel, keine Grenze, kein Mindestnutzen) und geht an keinen Prompt."""
+    ctx = public.context
+    return (
+        f"Guten Tag. Die Musterhandel AG möchte mit {ctx.supplier_name} die Konditionen für alle Bestellungen der "
+        f"nächsten 12 Monate neu vereinbaren (Volumen im Vorjahr: {chf(ctx.annual_volume_chf)}). Heute gelten "
+        f"{_today(public)}. Verhandelt werden das Zahlungsziel (Tage ab Rechnung), der Rabatt (% auf jede Rechnung) "
+        "und die Mengenzusage (welchen Anteil des Vorjahresvolumens wir Ihnen verbindlich abnehmen). Sie verhandeln "
+        "im Chat mit unserem KI-Agenten. Antworten Sie frei: Wählen Sie ein Paket, machen Sie einen eigenen "
+        "Vorschlag oder lehnen Sie ab. Was der Agent nicht entscheiden darf, gibt er an unsere Einkäuferin weiter."
+    )
+
+
 def mandate_lines(public: PublicScenario) -> list[tuple[str, str]]:
     """Mandat der Einkäuferin in Worten, als (Titel, Text). Nur öffentliche Daten des Szenarios."""
     ctx, m = public.context, public.mandate
-    cur, a = ctx.current_terms, ctx.annual_volume_chf
-    today = f"{cur.payment_days} Tage Zahlungsziel, {pct(cur.discount_pct)} Rabatt, " + (
-        f"Mengenzusage {pct(cur.volume_commit_pct)}" if cur.volume_commit_pct else "keine Mengenzusage"
-    )
+    a = ctx.annual_volume_chf
+    today = _today(public)
     price = (
         f"Preiserhöhung höchstens {pct(m.max_price_change_pct)}"
         if m.max_price_change_pct

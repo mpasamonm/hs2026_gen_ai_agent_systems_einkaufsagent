@@ -97,8 +97,11 @@ bleibt eine Seite mit beiden Sichten, aber beschriftet (ADR 0016, Nachtrag 10.11
 - **Rollen:** Agent (Musterhandel AG, verhandelt im Chat), Lieferant (Verkaufsleiter der Lieferfirma, sieht nur den Chat,
   kennt nur seine Spielkarte), Einkäuferin (hat das Mandat festgelegt, entscheidet nur Eskalationen), Moderation (sagt, dass
   das Publikum beide Seiten sieht). Je ein Satz für die Moderation in `docs/demo.md` §1.
-- **Wer spielt:** ein Teammitglied den Lieferanten mit den vier geprüften Sätzen statt einer Person aus dem Publikum; führt
-  die vortragende Person allein vor, spielt sie beide Seiten und sagt den Wechsel laut. Grund: In 4 Minuten kosten Anwerben
+- **Wer spielt** (präzisiert am 11.11.2026 nach dem Entscheid des Nutzers vom 10.11.): Die vortragende Person führt allein
+  vor. Sie spielt den Lieferanten mit den vier geprüften Sätzen (aus der Windows-Zwischenablage, Win+V), moderiert und
+  entscheidet an der grünen Karte als Einkäuferin; den Wechsel sagt sie laut. Ein Teammitglied als Lieferant bleibt eine
+  Option, eine Person aus dem Publikum nicht. Ob die übrigen Teile der Präsentation im Team laufen, ist damit nicht
+  gesagt. Grund: In 4 Minuten kosten Anwerben
   und unvorhersehbare Eingaben zu viel Zeit; die Demo ist ein Vorzeigen des Mechanismus, keine Messung (die Messung gegen
   Menschen sind die Live-Runden). Das Publikum darf es in der Fragerunde probieren.
 - **Ehrlich bleiben:** Mit Luna liess auch (a) keinen Angriff durch (ADR 0010, Nachtrag Testset). Die Demo sagt deshalb
