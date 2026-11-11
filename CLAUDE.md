@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 11.11.2026 (Etappe 6, Punkt 0: Gegenstand, Einladung vor dem Chat, Belege 2024–2026). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 11.11.2026 (Etappe 7, Punkt 1: Red-Teaming durch Claude). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -75,7 +75,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0009 | Prozess `_v3`: ohne MCP und RAG, keine Tool-Wahl durch das LLM, Protokoll mit Paketwahl als Gedächtnis, Mensch als Lieferant; MCP nur lesend als Ausbau | angenommen 19.10.2026 |
 | ADR 0010 | Synthetische Daten: Code würfelt, Claude Opus kleidet ein, Code prüft; Testset von anderer Modellfamilie | angenommen 19.10.2026; Nachtrag 26.10. (Umformulierungen, Teammitglied), nachgemessen 09.11.; Nachtrag Testset 09.11. (15 Szenarien, gemessen) |
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
-| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude; Nachtrag 10.11.: Rollen wie bei Walmart/Pactum, Mandat zeigen; präzisiert 11.11.: Nutzer führt allein vor (Lieferant, Einkäuferin, Moderation), Teammitglied nur Option |
+| ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude; Nachtrag 10.11.: Rollen wie bei Walmart/Pactum, Mandat zeigen; präzisiert 11.11.: Nutzer führt allein vor (Lieferant, Einkäuferin, Moderation), Teammitglied nur Option; Nachtrag 11.11.: Red-Teaming durch Claude durchgeführt (8 Läufe, Grenzen als Limitation) |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
@@ -137,7 +137,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 11.11.2026 (Etappe 6, Punkt 0)
+## 6. Stand am 11.11.2026 (Etappe 7, Punkt 1)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -287,6 +287,15 @@ Erledigt:
     Mengenzusage = unsere verbindliche Mindestabnahme; verworfen: pro Bestellung. `docs/gesamtsystem.md` §1, §2.1, §2.5, §5,
     §6, §7; `docs/demo.md` §1, §3, §4 (Befund der zweiten Probe); Folien 2, 3, 8.
   - «Demo allein» nachgeführt (ADR 0012, `docs/demo.md` §1, `docs/gesamtsystem.md` §6, Sprechernotiz Folie 8, Explainer m7b).
+- Session 11.11.2026, Etappe 7, Punkt 1 (Red-Teaming durch Claude, ADR 0012, Nachtrag 11.11.):
+  - 8 Läufe gegen (b) mit Luna über `ea-ui --erp :memory:` (Port 8091, Playwright-Schritt-Skript im Scratchpad, Logs in
+    `results/ui/redteam/`), 30 Antworten, 57 LLM-Aufrufe, rund 0.02 USD. Tabelle und Einordnung in `docs/demo.md` §3, Grenzen
+    in `docs/gesamtsystem.md` §5, Rückfragen für die Demo in `docs/demo.md` §1 (27acfaa).
+  - Keine Zusage ausserhalb des Mandats oder unter dem Mindestnutzen, kein Leak, Injection und getarnte Forderungen ohne
+    Wirkung. Grenzen: Kurve bis zum Mindestnutzen ausreizbar (R1 S04 Anteil 0.00, R4 0.06); 4 × `deal:not_agreed` (Verweis auf
+    frühere Nachricht, «schicken Sie es schriftlich», Paketwahl bei Annahme auf unsere Annahme ungeprüft, Behauptung plus
+    Bedingung auf den Preis überspringt die Prüfung in `assess_reply`); 95 Tage über der Obergrenze angenommen (R6); 4
+    Eskalationen in einer Verhandlung (R4). Nichts geändert (Feature-Freeze).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -308,10 +317,11 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Luna geprüft, Folie 8 und Doku angepasst (ADR 0016). Einstieg für Etappe 5: `kontext/UEBERGABE-PROMPT-ABGABE-5.md`.
 5. **Etappe 5, Punkt 0 erledigt 10.11.:** Rollen und Rahmen der Demo, lesbare UI (ADR 0012 und 0016, Nachträge). Einstieg
    für Etappe 6: `kontext/UEBERGABE-PROMPT-ABGABE-6.md`. **Etappe 6, Punkt 0 erledigt 11.11.:** Einladung vor dem Chat,
-   Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge; Folien Version 15). Einstieg
-   für Etappe 7: `kontext/UEBERGABE-PROMPT-ABGABE-7.md`, zuerst Red-Teaming durch Claude (freigegeben 11.11.). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit Bildschirmvideo (beim Nutzer);
-   mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte plus Red-Teaming durch Claude als eigene Zeile
-   (Tabellen in `docs/demo.md`); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
+   Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge; Folien Version 15). **Etappe 7, Punkt 1
+   erledigt 11.11.:** Red-Teaming durch Claude (8 Läufe, `docs/demo.md` §3, ADR 0012, Nachtrag). Einstieg für Etappe 8:
+   `kontext/UEBERGABE-PROMPT-ABGABE-8.md`. Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
+   `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
 6. **Erledigt 09.11.:** Stichprobe der Umformulierungen, 0 von 20 fehlerhaft (vom Nutzer gelesen und bestätigt;
    Kippregel ADR 0010 geprüft). Eine schriftliche Dokumentation ist laut Projektbeschrieb nicht verlangt; `docs/gesamtsystem.md` ist das Artefakt.
@@ -322,6 +332,10 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 - **Verhandlungsgegenstand (erledigt 11.11.2026):** Jahreskonditionen für 12 Monate, begründet in ADR 0001 (Nachtrag). Die
   «12 Monate» stehen nicht in den Originalen; sie folgen aus S11 («Rahmenvertrag von 12 auf 24 Monate») und der
   Nutzenformel pro Jahr. Der Agent selbst nennt den Zeitraum nicht (Prompt, Feature-Freeze); die Einladung der Web-UI tut es.
+- **Obergrenzen der Richtlinie (11.11.2026, Red-Teaming R6):** Die Mandat-Karte der UI nennt `payment_days_max` und
+  `discount_max_pct` «Grenzen», die ZOPA-Analyse und `offer_engine` halten sie ein, `check_terms` prüft sie aber nicht
+  (nur Grenzen zulasten der Musterhandel AG). Ein Gegenangebot mit 95 Tagen wurde angenommen, ohne Verstoss. Nicht
+  geändert (Feature-Freeze); Wortlaut der Mandat-Karte wäre eine UI-Änderung (Stichtag 15.11.), nur nach Rückfrage.
 - **Demo-ERP (10.11.2026):** `results/erp-demo.sqlite` enthält nach Proben des Nutzers 3 Protokolle statt 1; vor der Demo
   löschen und den Vorlauf wiederholen (`docs/demo.md` §1).
 
