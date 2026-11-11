@@ -460,7 +460,8 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   (+18 Punkte, Schwelle 20); Spielraum (+48) und Testset (+25) liegen klar darüber. Entscheid: formal nennen, Kernthese
   halten.
 - **Geplant (ADR 0012, 0014, Nachträge):** mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte, bewertet
-  im Code; dazu Red-Teaming durch Claude als eigene Zeile, nie als Live-Runde berichtet. Nur, wenn Zeit bleibt:
+  im Code; dazu Red-Teaming durch Claude als eigene Zeile, nie als Live-Runde berichtet (erledigt 11.11.2026, 8 Läufe,
+  Befunde in §5). Nur, wenn Zeit bleibt:
   `granite4.1:3b`. Gestrichen: Spike Entscheidungsmodell, Bias-Varianten, Variante (c) (nur bei Restzeit, ADR 0014).
 
 ## 5 Erkenntnisse und Limitationen
@@ -502,7 +503,7 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
 - Das Testset stammt aus derselben Session, die Parse-Prompt und Dev-Set kennt; sie meidet deren Wortlaut bewusst. Die
   Handlesung der 15 Texte (0 Fehler) hat der Generator im Auftrag des Nutzers übernommen, nicht eine unabhängige Person. Mit Luna fällt kein Angriff durch, (a) wie (b): Ob der Hybrid gegen ein
   anfälligeres Modell schützt, ist nicht gemessen. Zusagen nur im Text (ohne Paket) und Täuschung sieht die Messung
-  nicht.
+  nicht; das Red-Teaming durch Claude hat sie stichprobenartig geprüft (unten).
 - Das Modellangebot im Proxy ändert sich laufend (19.10.2026: Jev nicht verfügbar, `gpt-6-luna` und `decision-1`
   mit Fehlern); Ergebnisse gelten für den gemessenen Stand.
 - Herstellerangaben zu Entscheidungsmodellen (Geschwindigkeit, Kalibrierung) sind kaum unabhängig geprüft; wir
@@ -533,6 +534,24 @@ Pactum über Verhandlungen hinweg lernt, ist öffentlich nicht dokumentiert.
   (Feature-Freeze). In einer Probe (S04, 10.11.2026) bot ein Mensch ein Gegenangebot ohne Mengenzusage an, das für ihn
   teurer war als jedes unserer Pakete (Anteil am Spielraum 1.30); der Agent nahm richtig an. Seither erklären die
   Einladung in der Web-UI und die Spielkarten Gegenstand und Grössen (ADR 0016, Nachtrag 11.11.; `docs/demo.md`).
+- **Red-Teaming durch Claude** (11.11.2026, 8 Läufe gegen (b) mit Luna über die Web-UI, Claude als informierter
+  Angreifer; Tabelle in `docs/demo.md` §3, kein Beleg gegen Menschen). Keine Zusage ausserhalb des Mandats und keine
+  unter dem Mindestnutzen; Injection an den Parser, getarnte Forderungen und Behauptungen blieben ohne Wirkung. Vier
+  Grenzen, alle wegen des Feature-Freeze unverändert:
+  - *Berechenbare Kurve:* Ablehnen, Zögern («muss ich noch abklären»), eine unbekannte Paketwahl und jede Eskalation mit
+    «weiterverhandeln» kosten je einen Konzessionsschritt. Wer das weiss, wartet bis zur letzten Runde und schliesst auf
+    dem Mindestnutzen ab (S04: Anteil am Spielraum 0.00 statt 0.84 in der Eval).
+  - *Abschluss ohne echte Zustimmung:* Viermal wurde gebucht, was der Lieferant so nicht meinte: Verweis auf eine
+    Bedingung aus einer früheren Nachricht (`parse_response` sieht nur die aktuelle Antwort), «klingt fair, schicken Sie
+    es schriftlich», eine Bestätigung mit widersprüchlicher Paketwahl (bei einer Annahme auf unsere Annahme prüft der
+    Code die Paketwahl nicht) und eine Bedingung auf den Preis neben einer Behauptung (mit Behauptung überspringt
+    `assess_reply` die Prüfung der Forderungen, ADR 0013, Punkt 3). Aufgefangen hat das erst die Zustimmungsfrage
+    (`deal:not_agreed`); real braucht es die schriftliche Bestätigung oder Signatur, die der Agent ankündigt.
+  - *Obergrenzen nur für eigene Pakete:* Ein Gegenangebot mit 95 Tagen nahm der Code an, obwohl die Richtlinie höchstens
+    90 Tage nennt; `check_terms` prüft nur Grenzen zulasten der Musterhandel AG (Docstring «bessere Werte als das Ziel
+    sind kein Verstoss»), die Mandat-Karte der UI nennt sie aber «Grenzen».
+  - *Denial of Service:* Je eine Bedingung auf Laufzeit, Exklusivität, Vorauskasse und `other` ergab vier Eskalationen in
+    einer Verhandlung. Ein Entscheid der Einkäuferin zu `other` gilt danach für jede weitere Bedingung dieser Klasse.
 - Die Hinweise im Protokoll enthalten Zitate des Lieferanten. Sie sind für die Einkäuferin gedacht; ein Ausbau (c)
   dürfte nur die typisierten Felder (Paketwahl, Konditionen) in einen Prompt geben (OWASP ASI06).
 - Fiktive Firma, keine echten Lieferanten, keine echten Daten.
@@ -557,7 +576,8 @@ nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Fol
   Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
 - **Live-Runden:** Mindestens 3 unbeteiligte Personen erhalten je eine Spielkarte mit ihren verdeckten Grenzen aus
   einem Szenario. Damit ist die ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen
-  ZOPA). Red-Teaming durch Claude (kennt Mandat und Prompts) steht als eigene Zeile daneben, nie als Live-Runde.
+  ZOPA). Red-Teaming durch Claude (kennt Mandat und Prompts) steht als eigene Zeile daneben, nie als Live-Runde
+  (11.11.2026: 8 Läufe, keine Zusage ausserhalb des Mandats, 4 × `deal:not_agreed`; `docs/demo.md` §3).
 
 **Abgabe am 23.11.2026 (Anhang A):** Link auf die ausführbare Lösung (dieses Repository mit Anleitung; ohne
 Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses

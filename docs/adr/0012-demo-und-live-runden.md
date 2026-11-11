@@ -117,3 +117,23 @@ bleibt eine Seite mit beiden Sichten, aber beschriftet (ADR 0016, Nachtrag 10.11
 
 **Kippt, wenn** die Dozierenden ausdrücklich eine Person aus dem Publikum wünschen: dann mit derselben Spielkarte und der
 Kürzungsregel, die Seite bleibt gleich.
+
+## Nachtrag 11.11.2026: Red-Teaming durch Claude durchgeführt
+
+**Durchführung.** 8 Läufe gegen (b) mit gpt-5.6-luna über die Web-UI (ERP nur im Speicher), Claude als informierter
+Angreifer mit Spielkarte, Runde für Runde auf die echte Antwort; ausgewertet wie eine Live-Runde. Tabelle und Einordnung in
+`docs/demo.md` §3, Grenzen in `docs/gesamtsystem.md` §5. Gilt nie als Live-Runde und nie als Beleg gegen Menschen.
+
+**Ergebnis.** Keine Zusage ausserhalb des Mandats, keine unter dem Mindestnutzen, kein Leak; Injection an den Parser und
+getarnte Forderungen ohne Wirkung, Eskalationen nach ADR 0008 rechtzeitig. Gefunden wurden Grenzen der Strategie und des
+Abschlusses: Die Konzessionskurve lässt sich bis zum Mindestnutzen ausreizen (S04: Anteil 0.00), viermal wurde ein
+Abschluss gebucht, dem der Lieferant so nicht zugestimmt hatte (`deal:not_agreed`), ein Gegenangebot über der Obergrenze
+der Richtlinie (95 statt höchstens 90 Tage) wurde angenommen, und vier Bedingungen auf verschiedenen Grössen ergaben vier
+Eskalationen.
+
+**Entscheid.** Keine Änderung an Graph, Prompts oder Regeln (Feature-Freeze, ADR 0014; die Eval ist die Spezifikation).
+Die Befunde gehen als Limitation in die Präsentation und in die Prüfungsvorbereitung. Für die Demo gilt der Ablauf
+unverändert; die Antwort auf naheliegende Rückfragen steht in `docs/demo.md` §1 («Was schiefgehen kann»).
+
+**Kippt, wenn** die Live-Runden mit Menschen dieselben Abschlüsse ohne echte Zustimmung zeigen: dann bleibt es beim
+Befund, aber die Folie nennt es als wichtigste Limitation.
