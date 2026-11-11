@@ -319,7 +319,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    für Etappe 6: `kontext/UEBERGABE-PROMPT-ABGABE-6.md`. **Etappe 6, Punkt 0 erledigt 11.11.:** Einladung vor dem Chat,
    Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge; Folien Version 15). **Etappe 7, Punkt 1
    erledigt 11.11.:** Red-Teaming durch Claude (8 Läufe, `docs/demo.md` §3, ADR 0012, Nachtrag). Einstieg für Etappe 8:
-   `kontext/UEBERGABE-PROMPT-ABGABE-8.md`. Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   `kontext/UEBERGABE-PROMPT-ABGABE-8.md`: Teil A Wortlaut der Mandat-Karte (Entscheid B), Teil B Untersuchung «Verhandelt der
+   Agent klug, wie funktioniert so etwas real (Lieferanten lernen das Muster), ist der Use-Case richtig bemessen?» mit
+   Einschätzung; Entscheid des Nutzers offen. Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -335,7 +337,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
 - **Obergrenzen der Richtlinie (11.11.2026, Red-Teaming R6):** Die Mandat-Karte der UI nennt `payment_days_max` und
   `discount_max_pct` «Grenzen», die ZOPA-Analyse und `offer_engine` halten sie ein, `check_terms` prüft sie aber nicht
   (nur Grenzen zulasten der Musterhandel AG). Ein Gegenangebot mit 95 Tagen wurde angenommen, ohne Verstoss. Nicht
-  geändert (Feature-Freeze); Wortlaut der Mandat-Karte wäre eine UI-Änderung (Stichtag 15.11.), nur nach Rückfrage.
+  geändert (Feature-Freeze). Entscheid des Nutzers 11.11.: B, nur den Wortlaut der Mandat-Karte präzisieren (UI-Änderung,
+  Stichtag 15.11.); umsetzen in Etappe 8, Teil A.
 - **Demo-ERP (10.11.2026):** `results/erp-demo.sqlite` enthält nach Proben des Nutzers 3 Protokolle statt 1; vor der Demo
   löschen und den Vorlauf wiederholen (`docs/demo.md` §1).
 
