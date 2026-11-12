@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 10, Punkt 0: ERP mit Vorgeschichte in der Web-UI). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 10, Punkt 0: ERP mit Vorgeschichte in der Web-UI; Einkäuferin kann freigeben). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -77,8 +77,8 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0011 | `ibm/granite4.1:3b` als Ablationszeile; Spike Klassifikation (Luna, tev1, Regeln) | angenommen 19.10.2026; Spike gestrichen, granite optional (ADR 0014) |
 | ADR 0012 | Demo «Greift den Agenten an», Ergebnisfolie als Kampagne, Live-Runden mit Spielkarte | angenommen 19.10.2026; Nachtrag 09.11.: Demo über Web-UI (Terminal als Fallback), Befund aus der Probe, ≥ 3 Live-Runden plus Red-Teaming durch Claude; Nachtrag 10.11.: Rollen wie bei Walmart/Pactum, Mandat zeigen; präzisiert 11.11.: Nutzer führt allein vor (Lieferant, Einkäuferin, Moderation), Teammitglied nur Option; Nachtrag 11.11.: Red-Teaming durch Claude durchgeführt (8 Läufe, Grenzen als Limitation) |
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
-| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
-| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
+| ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.); Nachtrag 12.11.: zweite Ausnahme «freigeben» (Graph, nicht Prompts, Regeln oder Eval) |
+| ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread); Nachtrag 12.11.: dritter Entscheid «freigeben» (Entscheid B: Bedingung annehmen, der Code bucht, was der Lieferant zugesagt hat; verworfen: so lassen, Übernahme im Chat; BPMN `_v5`) |
 | ADR 0017 | Strategie lassen, Geschichte schärfen: (b) schliesst effizient ab (Pareto 1.00 Dev / 0.98 Test, Rabatt gegen Mengenzusage), maximiert nicht, ist für einen informierten Lieferanten ausnutzbar (Anteil 0.72 → 0.05, Nutzen −57 %, schlechtester Fall −58 %, nie unter dem Mindestnutzen); reziprok, Boulware, fester Anspruch nur gerechnet (`scripts/analyse_strategie.py`) | angenommen 11.11.2026 (Entscheid A); kippt, wenn in Demo-Probe oder Live-Runden ≥ 1 von 4 Personen von sich aus hinhält |
 | ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen; Nachtrag 11.11.: Mandat-Karte «Grenzen» nur, was der Code prüft, Zeile «Richtlinie» (Entscheid B); Nachtrag 12.11.: ERP mit Vorgeschichte als Standard (Entscheid M2: die Einkäuferin sieht eine frühere Verhandlung am Start und in der Eskalation, der Agent nicht) |
 
@@ -87,10 +87,12 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Graph `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
   `negotiate` ist ein LLM-Node (`LLMPolicy`, strukturierte Ausgabe `AgentTurn`); er bündelt die
   BPMN-Schritte Strategie, Pakete, Formulieren, Extrahieren und Bewerten.
-- Graph `src/einkaufsagent/graph_b.py` (Variante b, `_v4`): `load_context (ERP) → offer_engine → narrate → mandate_guard
+- Graph `src/einkaufsagent/graph_b.py` (Variante b, `_v5`): `load_context (ERP) → offer_engine → narrate → mandate_guard
   (→ template_message) → send_and_wait → parse_response → assess_response →` neue Runde / Gegenangebot annehmen /
   `escalate → ask_buyer (interrupt)` / `record_outcome → notify_supplier`. Nach `ask_buyer`: «weiterverhandeln» →
-  `offer_engine` (dieselbe Grösse wird nicht erneut eskaliert), «abbrechen» → `record_outcome`. ERP-Adapter in `erp.py`
+  `offer_engine` (dieselbe Grösse wird nicht erneut eskaliert), «freigeben» → `record_outcome` als Abschluss
+  (`buyer_approved`; nur wenn `escalate` mit `hybrid.approvable_terms` freigebbare Konditionen fand: Bedingung auf einer
+  Grösse ausserhalb des Mandats, keine weitere Forderung, Konditionen im Mandat), «abbrechen» → `record_outcome`. ERP-Adapter in `erp.py`
   (SQLite, eine Verbindung pro Lauf; Eval `:memory:`, Demo `--erp PFAD`); Metrik `korrekt_gebucht` (nur b). Runner im
   Terminal in `live.py`: `--live` (Simulator, Einkäuferin entscheidet), `--human` (`HumanSupplier`, sieht nur Text,
   Ereignis `human`). Web-UI `ea-ui` (`ui.py`, `ui_session.py`, `ui_text.py`, NiceGUI 3.18.0, ADR 0016; links Sicht des Lieferanten mit Einladung als Vorlage vor dem Chat, rechts intern mit Mandat-Karte zugeklappt): `Session` startet `run_live` im
@@ -120,16 +122,18 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   `docs/eval-metriken.md` (`extraktion_korrekt` nur b; nur Testset: `angriffe_zugestellt`, `angriff_erfolgsquote`,
   `nutzen_unter_angriff`, `nutzen_ohne_angriff`, `fehlalarme`). Benchmark: `benchmark.py`.
   Modellprüfung: `check_models.py`.
-- Prozess: gültig ist `einkaufsagent-prozess_v4.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
-  LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v4.py`; jede Änderung als neue Datei
-  `_v5`, danach validieren und rendern.
+- Prozess: gültig ist `einkaufsagent-prozess_v5.bpmn` im Root (Kopie in `docs/process/`). Zuordnung BPMN →
+  LangGraph in `docs/process/README.md`. Generator `docs/process/gen_bpmn_v5.py`; jede Änderung als neue Datei
+  `_v6`, danach validieren und rendern.
 
 **Invarianten – nie brechen**
 - Verdeckte Lieferantenparameter (`hidden` im Szenario) gelangen nie in den Graph-State, einen Prompt,
   LangSmith-Metadaten oder das ERP. Simulator, Mensch und ERP kommen per Closure in den Graphen; die Canary-Tests in
   `tests/test_graph_and_isolation.py` und `tests/test_variant_b.py` (auch DB-Dump) müssen grün bleiben. Ebenso erreichen
   Muster und Ziel eines Angriffs (`Scenario.attack`) nie Agent, Parser oder Narrator (`tests/test_testset.py`).
-- In `ask_buyer` steht nichts vor `interrupt()`; Nebenwirkungen (Protokoll, Zwischenbescheid) gehören in `escalate`.
+- In `ask_buyer` steht nichts vor `interrupt()`; Nebenwirkungen (Protokoll, Zwischenbescheid, freigebbare Konditionen)
+  gehören in `escalate`. «freigeben» bucht nur, was `escalate` berechnet hat; die Einkäuferin setzt nie eigene Zahlen
+  (neues Mandat = neue Verhandlung, ADR 0015).
 - Die Web-UI ist nur Darstellung (ADR 0014, 0016): keine Änderung an Graph, Prompts, Regeln oder Eval für die UI; ohne
   `emit` bleibt die Terminal-Ausgabe byte-gleich (`test_emit_does_not_change_terminal_output`); die Spielkarte erscheint
   erst in der Auswertung.
@@ -325,6 +329,16 @@ Erledigt:
     `add_history`), `ui.py`, `ui_text.history_lines`; 93 Tests grün (3 neu), ruff sauber; Headless-Browser offline (S11
     zweimal) und mit Luna (vier Demo-Sätze: R4, CHF 4'000, 0.52, keine Verstösse, rund 21 s). `docs/demo.md` §1, README,
     `docs/gesamtsystem.md`, Sprechernotiz Folie 7 (Folien Version 26).
+  - Probe des Nutzers: «warum kann ich nach ‹Einverstanden› weiterchatten?» (Annahme braucht die Bestätigung; «ok nein mit
+    6%» als Gegenangebot mit 0 Tagen gelesen, Lesefehler bei Verweis auf die vorherige Nachricht; danach Rückfall hinter das
+    beste Gegenangebot, Kurve ohne Gedächtnis; beides nicht eingetragen, nur erklärt). Frage «Wo kann die Einkäuferin
+    übersteuern?» → Entscheid des Nutzers **B** (ADR 0015 und 0014, Nachträge 12.11.): dritter Entscheid «freigeben». Gebaut
+    in `hybrid.py` (`approvable_terms`, `approval_text`, `notify_text`), `graph_b.py` (`escalate`, `ask_buyer`,
+    `normalize_decision`), `live.py` (`f`, Spielkarte), `ui.py`/`ui_text.py` (Knopf nur mit Freigabe), BPMN `_v5` (moddle,
+    bpmnlint, bpmn-js je 0; Generator byte-gleich). 98 Tests grün (5 neu); Offline-Eval (b) Dev/Test mit und ohne
+    `--paraphrase` gleich wie vorher (Summary und `runs.jsonl`); Headless-Browser S11 freigeben, S08 ohne Knopf; Luna mit dem
+    Satz des Nutzers: Paket B gebucht, keine Verstösse. `docs/demo.md` (Ablauf drei Knöpfe, Rückfrage «übersteuern»),
+    `docs/gesamtsystem.md` §3.1, §3.2, §3.4, §5, §6, README.
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -353,7 +367,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Version 22, Ziel ausdrücklich in `docs/gesamtsystem.md` §2.2). Einstieg für Etappe 10: `kontext/UEBERGABE-PROMPT-ABGABE-10.md`
    (zuerst Punkt 0: Modell-Auswahl in der UI, Demo üben ohne Spuren im ERP). **Etappe 10, Punkt 0 erledigt 12.11.:**
    Modell-Auswahl erklärt (keine Änderung), ERP mit Vorgeschichte als Standard der UI (Entscheid M2, ADR 0016 Nachtrag;
-   Sprechernotiz Folie 7, Folien Version 26). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   Sprechernotiz Folie 7, Folien Version 26); dazu «freigeben» als dritter Entscheid der Einkäuferin (ADR 0015 Nachtrag,
+   BPMN `_v5`). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -435,8 +450,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
   Protokolle), drei Wiederholungen grün. Vermutlich ein Rücksprung der WSL-Uhr: `erp._now()` ist Ortszeit auf die Sekunde,
   sortiert wird nach `recorded_at, rowid`. Nicht geändert (Feature-Freeze); bei Wiederholung nur nach `rowid` sortieren.
 - `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
-- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v4.bpmn` im Root
-  (byte-gleich, gültig seit 09.11.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v5`.
+- BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v5.bpmn` im Root
+  (byte-gleich, gültig seit 12.11.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v6`.
   Namensfalle: Datei `_v1` = «Prozess v2» (ADR 0002). Im Team nur Dateinamen verwenden.
 - Rendern braucht unter WSL `libasound2t64` (ohne sudo: `apt-get download`, `dpkg -x`, `LD_LIBRARY_PATH`), siehe
   `docs/process/README.md`.
@@ -501,8 +516,8 @@ uv run ea-ui                                      # Web-UI für die Demo: http:/
 uv run ea-ui --model offline                      # Web-UI ohne Proxy (Simulator, z.B. S11)
 # Finale Läufe der Abgabe (14 Stück, --out docs/ergebnisse/<datum>): Befehle in docs/ergebnisse/2026-11-09/README.md
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
-cd docs/process && npm install && python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn \
-  && node validate.mjs ../../einkaufsagent-prozess_v4.bpmn \
+cd docs/process && npm install && python3 gen_bpmn_v5.py ../../einkaufsagent-prozess_v5.bpmn \
+  && node validate.mjs ../../einkaufsagent-prozess_v5.bpmn \
   && uv run --no-project --with playwright==1.63.0 python render.py \
-     ../../einkaufsagent-prozess_v4.bpmn ../../einkaufsagent-prozess_v4.png
+     ../../einkaufsagent-prozess_v5.bpmn ../../einkaufsagent-prozess_v5.png
 ```

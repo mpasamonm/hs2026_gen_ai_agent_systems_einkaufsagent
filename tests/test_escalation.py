@@ -2,10 +2,17 @@
 
 from langgraph.types import Command
 
+from einkaufsagent.domain import Terms, check_deal
 from einkaufsagent.erp import ErpAdapter
 from einkaufsagent.extract import ParsedReply, ParseResult, RuleParser, Sent, Statement
 from einkaufsagent.graph_b import HybridAgent, build_graph, normalize_decision
-from einkaufsagent.hybrid import BUYER_REJECTION, ESCALATION_HOLD, assess_reply
+from einkaufsagent.hybrid import (
+    APPROVAL_PREFIX,
+    BUYER_REJECTION,
+    ESCALATION_HOLD,
+    approvable_terms,
+    assess_reply,
+)
 from einkaufsagent.narrate import TemplateNarrator
 from einkaufsagent.policies import RuleBasedPolicy
 from einkaufsagent.supplier_sim import SupplierSimulator
@@ -38,7 +45,8 @@ def test_graph_halts_at_ask_buyer_with_brief_and_protocol(scenarios):
     [irq] = first["__interrupt__"]
     assert graph.get_state(cfg).next == ("ask_buyer",)
     brief = irq.value
-    assert brief["optionen"] == ["weiterverhandeln", "abbrechen"]
+    assert brief["optionen"] == ["weiterverhandeln", "freigeben", "abbrechen"]
+    assert brief["freigabe"].startswith("Abschluss zu ") and "Mindestnutzen" in brief["freigabe"]
     assert "Bedingung" in brief["grund"] and brief["verlauf"] and brief["letzte_antwort"]
     assert first["outcome"] == "escalated" and first["transcript"][-1]["text"] == ESCALATION_HOLD
     [p] = erp.protocols(sc.public.context.supplier_id)
@@ -96,6 +104,67 @@ def test_anything_but_continue_means_abort():
     )
     assert normalize_decision("ja") == ("abbrechen", "")
     assert normalize_decision(None) == ("abbrechen", "")
+    assert normalize_decision("freigeben") == ("abbrechen", "")  # nur, wenn die Vorlage es anbietet
+    assert normalize_decision({"decision": "Freigeben"}, approvable=True) == ("freigeben", "")
+
+
+def test_approve_books_agreed_package_and_notifies(scenarios):
+    """ADR 0015, Nachtrag 12.11.: «freigeben» bucht genau das Paket, das der Lieferant unter Bedingung annimmt."""
+    sc = scenarios["S11"]
+    ctx, m = sc.public.context, sc.public.mandate
+    graph, cfg, erp, first = start(sc, "s11-freigabe")
+    sent = first["sent"]["packages"]
+    chosen = first["parsed"]["chosen_package"]
+    expected = Terms.model_validate(sent["ABC".index(chosen)] if chosen else sent[0])
+    final = graph.invoke(Command(resume={"decision": "freigeben", "note": "24 Monate ok"}), cfg)
+    assert final["outcome"] == "deal" and final["end_reason"] == "buyer_approved"
+    deal = Terms.model_validate(final["deal_terms"])
+    assert deal == expected and not check_deal(deal, ctx, m)
+    assert final["transcript"][-1]["text"].startswith(APPROVAL_PREFIX)
+    assert deal.short() in final["transcript"][-1]["text"]
+    [p] = erp.protocols(ctx.supplier_id)
+    assert p["status"] == "deal" and p["end_reason"] == "buyer_approved"
+    assert p["buyer_decision"] == "freigeben" and p["buyer_note"] == "24 Monate ok"
+    assert any("Bedingung ausserhalb des Mandats" in n for n in p["notes"])  # die Bedingung als Vermerk
+    assert erp.current_terms(ctx.supplier_id) == deal
+    assert "24 Monate ok" not in " ".join(t["text"] for t in final["transcript"])  # Notiz bleibt intern
+
+
+def test_no_approval_for_demand_outside_mandate(scenarios):
+    """Eine wiederholte Preisforderung lässt sich nicht freigeben (neues Mandat = neue Verhandlung, ADR 0015)."""
+    sc = scenarios["S08"]
+    graph, cfg, erp, first = start(sc, "s08-freigabe")
+    [irq] = first["__interrupt__"]
+    assert irq.value["optionen"] == ["weiterverhandeln", "abbrechen"] and irq.value["freigabe"] is None
+    final = graph.invoke(Command(resume={"decision": "freigeben"}), cfg)
+    assert final["outcome"] == "escalated" and final["buyer_decision"] == "abbrechen"
+    assert erp.current_terms(sc.public.context.supplier_id) == sc.public.context.current_terms
+
+
+def test_approvable_terms_only_within_mandate_and_without_other_demands(scenarios):
+    sc = scenarios["S04"]
+    ctx, m = sc.public.context, sc.public.mandate
+    packages = RuleBasedPolicy().packages(RuleBasedPolicy().value_at(1, ctx, m), ctx, m)
+    offer = Sent("offer", packages)
+    term = Statement(kind="condition", quantity="contract_term", value=24, quote="nur bei 24 Monaten")
+    price = Statement(kind="demand", quantity="price", value=3.0, quote="plus 3 % Preis")
+
+    def at(reply, **kw):
+        return approvable_terms(ParsedReply(reply_type=reply, **kw), offer, "contract_term", ctx, m)
+
+    assert at("accept", chosen_package="B", statements=[term]) == packages[1]
+    assert at("accept", chosen_package="B", statements=[term, price]) is None  # weitere Forderung
+    assert at("accept", statements=[term]) is None  # mehrere Pakete, keine Paketwahl
+    assert at("reject", statements=[term]) is None
+    inside = packages[0]
+    outside = inside.model_copy(update={"payment_days": ctx.current_terms.payment_days - 10})
+    assert at("counter", counter_terms=inside, statements=[term]) == inside
+    assert at("counter", counter_terms=outside, statements=[term]) is None  # nicht im Mandat
+    accept_sent = Sent("accept", [inside])
+    parsed = ParsedReply(reply_type="accept", statements=[term])
+    assert approvable_terms(parsed, accept_sent, "contract_term", ctx, m) == inside
+    assert approvable_terms(parsed, offer, "price", ctx, m) is None  # Grösse im Mandat: nie freigeben
+    assert approvable_terms(None, offer, "contract_term", ctx, m) is None
 
 
 def test_buyer_rejected_quantity_is_rejected_not_escalated(scenarios):

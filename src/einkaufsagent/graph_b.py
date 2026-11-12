@@ -1,4 +1,4 @@
-"""Variante (b) als LangGraph-Graph nach BPMN `_v4`: das LLM formuliert und extrahiert, der Code entscheidet.
+"""Variante (b) als LangGraph-Graph nach BPMN `_v5`: das LLM formuliert und extrahiert, der Code entscheidet.
 
     START → load_context → offer_engine → narrate → mandate_guard ─ ok ───────────→ send_and_wait
                                ▲                                └ Verstoss → template_message ─┘     │
@@ -8,6 +8,7 @@
                                                    ├─ Einigung / kein Deal → record_outcome → notify_supplier → END
                                                    └─ Eskalation → escalate → ask_buyer (interrupt)
                                                         ├─ weiterverhandeln → offer_engine
+                                                        ├─ freigeben → record_outcome (Abschluss) → notify_supplier
                                                         └─ abbrechen → record_outcome → notify_supplier → END
 
 LLM-Nodes: ``narrate`` (sieht nur die Pakete) und ``parse_response`` (sieht nur die Antwort und was gesendet wurde).
@@ -20,7 +21,8 @@ Ausgang das Protokoll und bucht einen Abschluss (ADR 0015).
 Eskalation (ADR 0015): ``escalate`` (Code) bereitet die Vorlage für die Einkäuferin auf und schreibt das Protokoll mit
 Status «escalated»; ``ask_buyer`` enthält nur ``interrupt()``, weil LangGraph den Node beim Fortsetzen von vorn startet.
 Der Runner setzt mit ``Command(resume={"decision": ..., "note": ...})`` und derselben ``thread_id`` fort. Die Eval
-setzt nicht fort und wertet den Halt als Eskalation.
+setzt nicht fort und wertet den Halt als Eskalation. «freigeben» (ADR 0015, Nachtrag 12.11.) gibt es nur, wenn
+``escalate`` freigebbare Konditionen berechnet hat (``hybrid.approvable_terms``); dann bucht der Code genau diese.
 """
 
 from __future__ import annotations
@@ -36,11 +38,14 @@ from einkaufsagent.domain import Context, Mandate, Terms
 from einkaufsagent.erp import ErpAdapter, Exchange
 from einkaufsagent.extract import ParsedReply, Parser, ParseResult, Sent
 from einkaufsagent.hybrid import (
+    BUYER_APPROVE,
     BUYER_OPTIONS,
     BUYER_REJECTION,
     ESCALATION_HOLD,
     UNCLEAR_RETRY,
     accept_text,
+    approvable_terms,
+    approval_text,
     assess_reply,
     check_message,
     escalation_brief,
@@ -91,10 +96,11 @@ class HybridState(TypedDict, total=False):
     deal_terms: dict[str, Any] | None
     escalation: dict[str, Any] | None  # Vorlage für die Einkäuferin (Payload des Interrupts)
     escalation_quantity: str | None  # betroffene Grösse der eskalierten Forderung oder Bedingung
+    approvable: dict[str, Any] | None  # was «freigeben» bucht (Terms); None = keine Freigabe möglich
     buyer_rejected: Annotated[
         list[str], operator.add
     ]  # von der Einkäuferin abgelehnt: nicht erneut eskalieren
-    buyer_decision: str | None  # weiterverhandeln | abbrechen
+    buyer_decision: str | None  # weiterverhandeln | freigeben | abbrechen
     buyer_note: str | None  # freie Notiz der Einkäuferin, nur fürs Protokoll (geht an niemanden)
 
 
@@ -137,15 +143,18 @@ def history(state: HybridState) -> list[str]:
     return lines
 
 
-def normalize_decision(answer: Any) -> tuple[str, str]:
+def normalize_decision(answer: Any, approvable: bool = False) -> tuple[str, str]:
     """Antwort der Einkäuferin aus ``Command(resume=...)``: Dict mit ``decision`` und ``note`` oder nur der Text.
-    Alles ausser «weiterverhandeln» gilt als «abbrechen» (sicherer Ausgang: es wird nichts zugesagt)."""
+    «freigeben» gilt nur, wenn die Vorlage es angeboten hat; alles andere ausser «weiterverhandeln» gilt als
+    «abbrechen» (sicherer Ausgang: es wird nichts zugesagt)."""
     if isinstance(answer, dict):
         decision, note = str(answer.get("decision", "")), str(answer.get("note") or "")
     else:
         decision, note = str(answer or ""), ""
     decision = decision.strip().lower()
-    return ("weiterverhandeln" if decision == BUYER_OPTIONS[0] else "abbrechen"), note.strip()
+    if decision == BUYER_OPTIONS[0] or (decision == BUYER_APPROVE and approvable):
+        return decision, note.strip()
+    return BUYER_OPTIONS[1], note.strip()
 
 
 def build_graph(agent: HybridAgent, supplier: Supplier, erp: ErpAdapter):
@@ -320,6 +329,19 @@ def build_graph(agent: HybridAgent, supplier: Supplier, erp: ErpAdapter):
 
     def escalate(state: HybridState) -> dict:
         ctx, m = _cm(state)
+        parsed = state.get("parsed")
+        sent = state.get("sent")
+        approvable = (
+            approvable_terms(
+                ParsedReply.model_validate(parsed) if parsed else None,
+                Sent(sent["kind"], _terms(sent["packages"])),
+                state.get("escalation_quantity"),
+                ctx,
+                m,
+            )
+            if sent
+            else None
+        )
         brief = escalation_brief(
             supplier_name=ctx.supplier_name,
             round_=state["round"],
@@ -328,14 +350,21 @@ def build_graph(agent: HybridAgent, supplier: Supplier, erp: ErpAdapter):
             notes=state.get("notes", []),
             last_reply=state["transcript"][-1]["text"],
             history=history(state),
+            approval=approval_text(approvable, ctx, m) if approvable else None,
         )
         _record(state)  # Status «escalated»; ein späteres record_outcome ersetzt das Protokoll
         hold = {"role": "agent", "round": state["round"], "action": "escalate", "text": ESCALATION_HOLD}
-        return {"escalation": brief, "transcript": [hold]}
+        return {
+            "escalation": brief,
+            "approvable": approvable.model_dump() if approvable else None,
+            "transcript": [hold],
+        }
 
     def ask_buyer(state: HybridState) -> dict:
         # Nur der Interrupt: beim Fortsetzen startet dieser Node von vorn (LangGraph-Doku, ADR 0015).
-        decision, note = normalize_decision(interrupt(state["escalation"]))
+        answer = interrupt(state["escalation"])
+        approvable = state.get("approvable")
+        decision, note = normalize_decision(answer, approvable is not None)
         update: dict = {"buyer_decision": decision, "buyer_note": note or None}
         update["notes"] = [f"Einkäuferin: {decision}" + (f" ({note})" if note else "")]
         if decision == "weiterverhandeln":
@@ -344,9 +373,13 @@ def build_graph(agent: HybridAgent, supplier: Supplier, erp: ErpAdapter):
                 "outcome": None,
                 "end_reason": None,
                 "escalation": None,
+                "approvable": None,
                 "prefix": [BUYER_REJECTION if q else UNCLEAR_RETRY],
                 "buyer_rejected": [q] if q else [],
             }
+        elif decision == BUYER_APPROVE:
+            # Der Code bucht, was escalate berechnet hat; das Mandat bleibt (ADR 0015, Nachtrag 12.11.).
+            update |= {"outcome": "deal", "deal_terms": approvable, "end_reason": "buyer_approved"}
         return update
 
     def record_outcome(state: HybridState) -> dict:
@@ -357,7 +390,7 @@ def build_graph(agent: HybridAgent, supplier: Supplier, erp: ErpAdapter):
         outcome = state["outcome"]
         deal = Terms.model_validate(state["deal_terms"]) if state.get("deal_terms") else None
         action = "walk_away" if state.get("end_reason") in ("round_limit", "no_packages") else "notify"
-        text = notify_text(outcome, deal)
+        text = notify_text(outcome, deal, approved=state.get("end_reason") == "buyer_approved")
         return {"transcript": [{"role": "agent", "round": state["round"], "action": action, "text": text}]}
 
     def after_offer_engine(state: HybridState) -> Literal["narrate", "record_outcome"]:

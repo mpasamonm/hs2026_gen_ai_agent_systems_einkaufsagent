@@ -117,7 +117,8 @@ class Session:
 
     def decide(self, decision: str, note: str = "") -> bool:
         """Entscheid der Einkäuferin: beantwortet die Frage nach dem Entscheid und die nach der Notiz auf einmal."""
-        return self._answer("decision", "w" if decision == "weiterverhandeln" else "a", note.strip())
+        letter = {"weiterverhandeln": "w", "freigeben": "f"}.get(decision, "a")
+        return self._answer("decision", letter, note.strip())
 
     def agree(self, yes: bool) -> bool:
         """Hat der Lieferant dem gebuchten Abschluss zugestimmt? (Prüfung ``deal:not_agreed``)"""

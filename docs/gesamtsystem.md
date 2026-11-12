@@ -327,9 +327,9 @@ nicht den Anteil am Spielraum (ADR 0017).
 
 ### 3.1 Prozess (BPMN)
 
-- **Gültig seit 09.11.2026:** `einkaufsagent-prozess_v4.bpmn` (ADR 0002, 0007–0009, 0014, 0015). Abgelöst: `_v3`,
-  `_v2` und `_v1`. Farben: orange = LLM, blau = Code, grün = Mensch.
-- **Ablauf nach `_v4`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP-Adapter: Stammdaten, heutige
+- **Gültig seit 12.11.2026:** `einkaufsagent-prozess_v5.bpmn` (ADR 0002, 0007–0009, 0014, 0015). Abgelöst: `_v4`
+  (zwei Entscheide der Einkäuferin), `_v3`, `_v2` und `_v1`. Farben: orange = LLM, blau = Code, grün = Mensch.
+- **Ablauf nach `_v5`:** Die Einkäuferin legt das Mandat fest → Kontext laden (ERP-Adapter: Stammdaten, heutige
   Konditionen) → Pakete berechnen (Code) → Angebot formulieren (LLM) → Nachricht prüfen (Code; bei Verstoss oder
   LLM-Fehler geht ein Standardtext hinaus) → senden und Antwort abwarten → Antwort extrahieren (LLM) → Antwort bewerten
   (Code) mit diesen Ausgängen:
@@ -341,7 +341,9 @@ nicht den Anteil am Spielraum (ADR 0017).
   - **Mandat reicht nicht oder Antwort unklar** (auch: Extraktion gescheitert) → Eskalation: Der Code bereitet eine
     Vorlage auf (Grund, Zitat der Forderung, Verlauf), schreibt das Protokoll mit Status «eskaliert» und schickt dem
     Lieferanten einen Zwischenbescheid. Der Graph hält an (`interrupt()`); die Einkäuferin entscheidet
-    «weiterverhandeln» (Mandat bleibt, die Forderung wird zurückgewiesen und nicht erneut eskaliert) oder «abbrechen».
+    «weiterverhandeln» (Mandat bleibt, die Forderung wird zurückgewiesen und nicht erneut eskaliert), «freigeben» (sie
+    nimmt eine Bedingung ausserhalb des Mandats an; der Code bucht, was der Lieferant zugesagt hat, nur im Mandat) oder
+    «abbrechen». «freigeben» gibt es nur bei einer Bedingung ohne weitere Forderung (ADR 0015, Nachtrag 12.11.).
 - **Eskalationsregel (ADR 0008):** Eskaliert wird, wenn das Mandat schweigt, nicht wenn jemand widerspricht.
   Behauptungen wie «Ihre Einkäuferin hat 150 % freigegeben» weist der Agent zurück und verhandelt weiter; eine
   überzogene Forderung lehnt er zuerst ab. Eskalation nur bei einer Bedingung, die das Mandat nicht regelt (z.B.
@@ -355,10 +357,10 @@ nicht den Anteil am Spielraum (ADR 0017).
   0012).
 - **Fehlerbehandlung:** Scheitert ein LLM-Schritt nach den Retries, greifen Fail-safes: ohne Angebotstext der
   Standardtext, ohne auswertbare Antwort die Eskalation. Fällt das LLM aus, verhandelt der Agent mit Vorlagen weiter und
-  übergibt, was er nicht lesen kann. `_v4` zeichnet beides als Fehler-Grenzereignisse.
-- Der Ablauf wurde fünfmal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
+  übergibt, was er nicht lesen kann. Seit `_v4` sind beide als Fehler-Grenzereignisse gezeichnet.
+- Der Ablauf wurde sechsmal überarbeitet: Team-Entwurf → Prozess v2 (ADR 0002) → schlanke Fassung (ADR 0007) →
   Feedback vom 11.10.2026 (Eskalationsregel, ADR 0008) → `_v3` ohne MCP und RAG (ADR 0009) → `_v4` wie gebaut
-  (ADR 0015). Was sich jeweils änderte und warum, steht in den ADRs.
+  (ADR 0015) → `_v5` mit «freigeben» (ADR 0015, Nachtrag 12.11.). Was sich jeweils änderte und warum, steht in den ADRs.
 
 ### 3.2 Bausteine des Moduls und wo sie im System stehen
 
@@ -369,7 +371,7 @@ nicht den Anteil am Spielraum (ADR 0017).
 | Decision Models (SW6) | KW43 | `parse_response` ist austauschbar und nimmt eine Konfidenz an (< 0,7 → Eskalation); der Spike mit `tev1:0.8b` ist gestrichen, weil Luna auch umformulierte Antworten zu 95–98 % richtig liest | ADR 0011, 0014 |
 | RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response`; SW7 Folie 44 verlangt genau diesen aktiven Entscheid, Folie 2 nennt die strukturierte DB gleichrangig | ADR 0009 |
 | Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; die Einkäuferin sieht sie am Start und bei einer Eskalation, der Agent nutzt sie nicht (in der Demo-UI eine Vorgeschichte im Speicher, ADR 0016, Nachtrag 12.11.). Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
-| Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11. (ADR 0015) |
+| Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet in der Web-UI oder im Terminal «weiterverhandeln», «freigeben» (Bedingung annehmen, der Code bucht) oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11., «freigeben» 12.11. (ADR 0015) |
 | Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Testset mit Angriffen gemessen 09.11. (ADR 0010) |
 | Interface | KW47 | Web-UI `ea-ui` (NiceGUI 3.18.0) als reine Darstellung über dem Runner: Chat mit dem Menschen als Lieferant, Schritte farbig nach LLM, Code und Mensch, Karte für die Einkäuferin, Auswertung gegen die Spielkarte; der Lauf liegt im Server-Prozess, ein Reload zeigt denselben Stand. Terminal (`ea-run --live`, `--human`) als Fallback | Terminal gebaut 09.11. (ADR 0015), Web-UI 10.11. (ADR 0016, Ausnahme vom Feature-Freeze nach ADR 0014) |
 
@@ -400,10 +402,11 @@ nicht den Anteil am Spielraum (ADR 0017).
   pydantic 2.13.5 (gepinnt in `pyproject.toml`).
 - Graph Variante (a) in `src/einkaufsagent/graph_a.py`: `load_context → negotiate ⇄ send_and_wait → finalize`.
 - `LLMPolicy` (Variante a) und `RuleBasedPolicy` (Referenz ohne LLM) in `policies.py`.
-- Graph Variante (b) in `graph_b.py` nach `_v4`: `load_context` (ERP) → `offer_engine` (Pakete aus `RuleBasedPolicy`) →
+- Graph Variante (b) in `graph_b.py` nach `_v5`: `load_context` (ERP) → `offer_engine` (Pakete aus `RuleBasedPolicy`) →
   `narrate` (LLM, sieht nur Pakete und Runde) → `mandate_guard` (Code; bei Befund `template_message`) → `send_and_wait`
   → `parse_response` (LLM, strukturierte Ausgabe `ParsedReply`) → `assess_response` (Code, ADR 0008) → neue Runde,
-  Gegenangebot annehmen, `escalate` → `ask_buyer` (`interrupt()`) oder `record_outcome` → `notify_supplier`.
+  Gegenangebot annehmen, `escalate` → `ask_buyer` (`interrupt()`; weiterverhandeln, freigeben oder abbrechen) oder
+  `record_outcome` → `notify_supplier`.
   Code-Schritte in `hybrid.py`, Parser in `extract.py` (austauschbar: LLM, Regeln, später Entscheidungsmodell mit
   Konfidenz), Narrator in `narrate.py`, ERP-Adapter in `erp.py` (SQLite: Lieferant, Konditionen, Protokoll, Runden),
   Runner im Terminal in `live.py` (`HumanSupplier`, Einkäuferin, farbige Ausgabe); Web-UI darüber in `ui.py` und
@@ -628,7 +631,10 @@ nicht den Anteil am Spielraum (ADR 0017).
   richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
   warten Eskalationen Tage; dann `SqliteSaver` (Kippregel ADR 0015). Die Eval setzt nach einer Eskalation nicht fort;
-  der Pfad «weiterverhandeln» ist nur mit Tests und im Terminal geprüft.
+  die Pfade «weiterverhandeln» und «freigeben» sind nur mit Tests, im Terminal und in der UI geprüft.
+- Die Einkäuferin kann eine Bedingung freigeben, aber keine eigenen Zahlen setzen; andere Zahlen sind ein neues Mandat und
+  damit eine neue Verhandlung (ADR 0015, Nachtrag 12.11.). Eine wiederholte Forderung über das Mandat hinaus lässt sich
+  deshalb nicht freigeben. Ausbau: Übernahme im Chat durch die Einkäuferin.
 - Die Konzession von `offer_engine` folgt einer festen Kurve über die Runden (zeitabhängige Taktik nach Faratin et al.
   1998) und reagiert nicht auf Signale des Lieferanten. In der Demo-Probe (S04, 09.11.2026) nahm der Lieferant Paket B mit
   2,25 % unter einer Laufzeit-Bedingung an; nach «weiterverhandeln» bot der Agent B mit 2 % an, CHF 625 pro Jahr weniger,
@@ -692,7 +698,8 @@ im Abschnitt «Aufbau»).
   sieht (die Einladung als Vorlage und den Chat), und rechts, was nur der Einkauf sieht: das Mandat (zugeklappt, die Moderation zeigt es), die
   Schritte mit den Namen der BPMN-Aufgaben und die Auswertung mit Erklärungen (ADR 0016, Nachtrag 10.11.). Rechts erscheint
   pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
-  Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start und in der grünen Karte
+  Einkäuferin über die grüne Karte (weiterverhandeln, freigeben oder abbrechen), empfohlen ist «weiterverhandeln» (ADR 0012,
+  Nachtrag; «freigeben» seit 12.11., ADR 0015). Am Start und in der grünen Karte
   zeigt das ERP eine frühere Verhandlung mit dem Lieferanten (Langzeitgedächtnis); die Einkäuferin entscheidet mit dieser
   Vorgeschichte, der Agent nutzt sie nicht. Die Vorgeschichte entsteht vor jedem Lauf offline mit dem Simulator im
   Speicher, damit jede Probe gleich startet (ADR 0016, Nachtrag 12.11.). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im

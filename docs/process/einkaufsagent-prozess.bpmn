@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_Einkaufsagent" targetNamespace="http://bpmn.io/schema/bpmn" exporter="gen_bpmn_v4.py" exporterVersion="4.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_Einkaufsagent" targetNamespace="http://bpmn.io/schema/bpmn" exporter="gen_bpmn_v5.py" exporterVersion="5.0">
   <bpmn:collaboration id="Collaboration_Einkaufsagent">
     <bpmn:participant id="Participant_Musterhandel" name="Musterhandel AG (fiktiv): Konditionen-Nachverhandlung" processRef="Process_Einkaufsagent" />
-    <bpmn:participant id="Participant_Lieferant" name="Lieferant (Eval: simuliert, Demo: Mensch im Terminal)" />
+    <bpmn:participant id="Participant_Lieferant" name="Lieferant (Eval: simuliert, Demo: Mensch in der Web-UI)" />
     <bpmn:messageFlow id="MsgFlow_Angebot" name="Angebot (2–3 Pakete)" sourceRef="Task_SendWait" targetRef="Participant_Lieferant" />
     <bpmn:messageFlow id="MsgFlow_Antwort" name="Antwort" sourceRef="Participant_Lieferant" targetRef="Task_SendWait" />
     <bpmn:messageFlow id="MsgFlow_Annahme" name="Annahme (Vorlage)" sourceRef="Task_Accept" targetRef="Participant_Lieferant" />
@@ -42,6 +42,7 @@
         <bpmn:flowNodeRef>Task_EskPrep</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GW_Weiter</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_Accept</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_JoinBuyer</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GW_JoinFinal</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_Record</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_Notify</bpmn:flowNodeRef>
@@ -63,7 +64,7 @@
       </bpmn:dataOutputAssociation>
     </bpmn:userTask>
     <bpmn:userTask id="Task_EskEntscheid" name="Eskalation entscheiden">
-      <bpmn:documentation>LangGraph: ask_buyer, enthält nur interrupt(payload); beim Fortsetzen startet der Node von vorn. Der Runner im Terminal setzt mit Command(resume={decision, note}) und derselben thread_id fort. Entscheide: weiterverhandeln (Mandat bleibt, die Forderung wird zurückgewiesen und nicht erneut eskaliert) oder abbrechen. Die Notiz geht nur ins Protokoll. Die Eval setzt nicht fort und wertet den Halt als Eskalation (ADR 0015).</bpmn:documentation>
+      <bpmn:documentation>LangGraph: ask_buyer, enthält nur interrupt(payload); beim Fortsetzen startet der Node von vorn. Der Runner (Web-UI oder Terminal) setzt mit Command(resume={decision, note}) und derselben thread_id fort. Entscheide: weiterverhandeln (Mandat bleibt, Bedingung bzw. Forderung wird zurückgewiesen und nicht erneut eskaliert); freigeben (nur angeboten, wenn escalate freigebbare Konditionen berechnet hat: Bedingung auf einer Grösse ausserhalb des Mandats, keine weitere Forderung oder Bedingung, Konditionen im Mandat und mindestens beim Mindestnutzen; der Code bucht diese Konditionen, die Bedingung steht als Vermerk im Protokoll, das Mandat bleibt) oder abbrechen. Die Notiz geht nur ins Protokoll. Die Eval setzt nicht fort und wertet den Halt als Eskalation (ADR 0015, Nachtrag 12.11.2026).</bpmn:documentation>
       <bpmn:incoming>Flow_18</bpmn:incoming>
       <bpmn:outgoing>Flow_19</bpmn:outgoing>
     </bpmn:userTask>
@@ -71,6 +72,7 @@
       <bpmn:incoming>Flow_19</bpmn:incoming>
       <bpmn:outgoing>Flow_20</bpmn:outgoing>
       <bpmn:outgoing>Flow_21</bpmn:outgoing>
+      <bpmn:outgoing>Flow_21b</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:serviceTask id="Task_Kontext" name="Kontext laden">
       <bpmn:documentation>LangGraph: load_context. Stammdaten und heutige Konditionen über den ERP-Adapter (SQLite, ohne MCP; ADR 0009, 0015). Frühere Protokolle zeigt der Runner in der Demo an; der Graph nutzt sie nicht (Variante c gestrichen, ADR 0014).</bpmn:documentation>
@@ -128,7 +130,7 @@
       <bpmn:outgoing>Flow_11</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:task id="Task_SendWait" name="Angebot senden, Antwort abwarten">
-      <bpmn:documentation>LangGraph: send_and_wait. Vor die Nachricht kommen Zurückweisungen aus Vorlagen. Eval: regelbasierter Simulator; Demo und Live-Runden: Mensch als Lieferant im Terminal, sieht nur den Text (ADR 0015).</bpmn:documentation>
+      <bpmn:documentation>LangGraph: send_and_wait. Vor die Nachricht kommen Zurückweisungen aus Vorlagen. Eval: regelbasierter Simulator; Demo und Live-Runden: Mensch als Lieferant in der Web-UI (Terminal als Fallback), sieht nur den Text (ADR 0015, 0016).</bpmn:documentation>
       <bpmn:incoming>Flow_11</bpmn:incoming>
       <bpmn:outgoing>Flow_12</bpmn:outgoing>
     </bpmn:task>
@@ -168,7 +170,7 @@
       <bpmn:outgoing>Flow_16b</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:scriptTask id="Task_EskPrep" name="Eskalation aufbereiten (Code)">
-      <bpmn:documentation>LangGraph: escalate. Vorlage für die Einkäuferin ohne LLM (ADR 0014): Grund nach ADR 0008, Zitat der Forderung, Verlauf und letzte Antwort. Schreibt das Protokoll mit Status «escalated» und sendet dem Lieferanten einen Zwischenbescheid. Nichts davon steht in ask_buyer, weil dieser Node beim Fortsetzen neu startet.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: escalate. Vorlage für die Einkäuferin ohne LLM (ADR 0014): Grund nach ADR 0008, Zitat der Forderung, Verlauf und letzte Antwort. Schreibt das Protokoll mit Status «escalated» und sendet dem Lieferanten einen Zwischenbescheid. Berechnet ohne LLM, welche Konditionen die Einkäuferin freigeben könnte (oder keine). Nichts davon steht in ask_buyer, weil dieser Node beim Fortsetzen neu startet.</bpmn:documentation>
       <bpmn:incoming>Flow_16b</bpmn:incoming>
       <bpmn:outgoing>Flow_18</bpmn:outgoing>
     </bpmn:scriptTask>
@@ -183,14 +185,19 @@
       <bpmn:incoming>Flow_A1</bpmn:incoming>
       <bpmn:outgoing>Flow_A2</bpmn:outgoing>
     </bpmn:task>
+    <bpmn:exclusiveGateway id="GW_JoinBuyer">
+      <bpmn:incoming>Flow_21</bpmn:incoming>
+      <bpmn:incoming>Flow_21b</bpmn:incoming>
+      <bpmn:outgoing>Flow_21c</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
     <bpmn:exclusiveGateway id="GW_JoinFinal">
       <bpmn:incoming>Flow_15</bpmn:incoming>
-      <bpmn:incoming>Flow_21</bpmn:incoming>
+      <bpmn:incoming>Flow_21c</bpmn:incoming>
       <bpmn:incoming>Flow_23</bpmn:incoming>
       <bpmn:outgoing>Flow_24</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:serviceTask id="Task_Record" name="Ergebnis und Protokoll erfassen">
-      <bpmn:documentation>LangGraph: record_outcome über den ERP-Adapter, auf allen Ausgängen, idempotent pro Verhandlung: Konditionen bei Deal gebucht; Protokoll mit Startpaketen, Reaktion und Paketwahl pro Runde, Ergebnis, Hinweisen sowie Entscheid und Notiz der Einkäuferin. Langzeitgedächtnis (ADR 0015); Metrik korrekt_gebucht.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: record_outcome über den ERP-Adapter, auf allen Ausgängen, idempotent pro Verhandlung: Konditionen bei Deal gebucht (auch nach Freigabe durch die Einkäuferin); Protokoll mit Startpaketen, Reaktion und Paketwahl pro Runde, Ergebnis, Hinweisen sowie Entscheid und Notiz der Einkäuferin. Langzeitgedächtnis (ADR 0015); Metrik korrekt_gebucht.</bpmn:documentation>
       <bpmn:incoming>Flow_24</bpmn:incoming>
       <bpmn:outgoing>Flow_25</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DOA_ERP">
@@ -198,7 +205,7 @@
       </bpmn:dataOutputAssociation>
     </bpmn:serviceTask>
     <bpmn:sendTask id="Task_Notify" name="Ergebnis mitteilen">
-      <bpmn:documentation>LangGraph: notify_supplier. Vorlage: Bestätigung, Absage oder Abbruch nach Rücksprache mit der Einkäuferin.</bpmn:documentation>
+      <bpmn:documentation>LangGraph: notify_supplier. Vorlage: Bestätigung (nach einer Freigabe mit Verweis auf die Rücksprache mit der Einkäuferin), Absage oder Abbruch nach Rücksprache mit der Einkäuferin.</bpmn:documentation>
       <bpmn:incoming>Flow_25</bpmn:incoming>
       <bpmn:outgoing>Flow_26</bpmn:outgoing>
     </bpmn:sendTask>
@@ -259,9 +266,13 @@
     <bpmn:sequenceFlow id="Flow_20" name="weiterverhandeln (Mandat bleibt)" sourceRef="GW_Freigabe" targetRef="GW_JoinLoop">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.buyer_decision == &quot;weiterverhandeln&quot;</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="Flow_21" name="abbrechen" sourceRef="GW_Freigabe" targetRef="GW_JoinFinal">
+    <bpmn:sequenceFlow id="Flow_21" name="abbrechen" sourceRef="GW_Freigabe" targetRef="GW_JoinBuyer">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.buyer_decision == &quot;abbrechen&quot;</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_21b" name="freigeben (Bedingung annehmen)" sourceRef="GW_Freigabe" targetRef="GW_JoinBuyer">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.buyer_decision == &quot;freigeben&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_21c" sourceRef="GW_JoinBuyer" targetRef="GW_JoinFinal" />
     <bpmn:sequenceFlow id="Flow_22" name="neue Runde: Runde &lt; max. Runden, Paket offen, keine endgültige Absage" sourceRef="GW_Weiter" targetRef="GW_JoinLoop">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">state.round &lt; state.mandate.max_rounds and state.packages_left &gt; 0 and not state.supplier_final</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -322,6 +333,7 @@ ERP-Adapter ohne MCP, Richtlinie ohne RAG (ADR 0009). Eine Instanz pro Lieferant
       <bpmndi:BPMNShape id="Task_EskPrep_di" bpmnElement="Task_EskPrep" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="2070" y="330" width="100" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="GW_Weiter_di" bpmnElement="GW_Weiter" isMarkerVisible="true"><dc:Bounds x="1965" y="615" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2020" y="668" width="90" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Accept_di" bpmnElement="Task_Accept" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="1750" y="600" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_JoinBuyer_di" bpmnElement="GW_JoinBuyer" isMarkerVisible="true"><dc:Bounds x="2235" y="345" width="50" height="50" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="GW_JoinFinal_di" bpmnElement="GW_JoinFinal" isMarkerVisible="true"><dc:Bounds x="2235" y="465" width="50" height="50" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Record_di" bpmnElement="Task_Record" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="2330" y="450" width="100" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Notify_di" bpmnElement="Task_Notify" bioc:stroke="#0b5394" bioc:fill="#dceaf8" color:border-color="#0b5394" color:background-color="#dceaf8"><dc:Bounds x="2480" y="450" width="100" height="80" /></bpmndi:BPMNShape>
@@ -360,7 +372,9 @@ ERP-Adapter ohne MCP, Richtlinie ohne RAG (ADR 0009). Eine Instanz pro Lieferant
       <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18"><di:waypoint x="2120" y="330" /><di:waypoint x="2120" y="200" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19"><di:waypoint x="2170" y="160" /><di:waypoint x="2235" y="160" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20"><di:waypoint x="2260" y="135" /><di:waypoint x="2260" y="90" /><di:waypoint x="590" y="90" /><di:waypoint x="590" y="465" /><bpmndi:BPMNLabel><dc:Bounds x="2040" y="72" width="200" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="2260" y="185" /><di:waypoint x="2260" y="465" /><bpmndi:BPMNLabel><dc:Bounds x="2268" y="270" width="50" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="2260" y="185" /><di:waypoint x="2260" y="345" /><bpmndi:BPMNLabel><dc:Bounds x="2268" y="270" width="50" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21b_di" bpmnElement="Flow_21b"><di:waypoint x="2285" y="160" /><di:waypoint x="2340" y="160" /><di:waypoint x="2340" y="370" /><di:waypoint x="2285" y="370" /><bpmndi:BPMNLabel><dc:Bounds x="2348" y="200" width="145" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21c_di" bpmnElement="Flow_21c"><di:waypoint x="2260" y="395" /><di:waypoint x="2260" y="465" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22"><di:waypoint x="1990" y="665" /><di:waypoint x="1990" y="720" /><di:waypoint x="590" y="720" /><di:waypoint x="590" y="515" /><bpmndi:BPMNLabel><dc:Bounds x="650" y="725" width="420" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_A1_di" bpmnElement="Flow_A1"><di:waypoint x="1965" y="640" /><di:waypoint x="1850" y="640" /><bpmndi:BPMNLabel><dc:Bounds x="1858" y="600" width="100" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_A2_di" bpmnElement="Flow_A2"><di:waypoint x="1750" y="640" /><di:waypoint x="1590" y="640" /><di:waypoint x="1590" y="515" /></bpmndi:BPMNEdge>

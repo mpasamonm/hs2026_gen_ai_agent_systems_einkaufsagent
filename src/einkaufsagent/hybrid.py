@@ -10,8 +10,16 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from einkaufsagent.domain import Context, Mandate, Terms, discloses_ai, mentions_walk_away
-from einkaufsagent.extract import ParseResult, Sent, Statement
+from einkaufsagent.domain import (
+    Context,
+    Mandate,
+    Terms,
+    buyer_value_chf,
+    check_deal,
+    discloses_ai,
+    mentions_walk_away,
+)
+from einkaufsagent.extract import ParsedReply, ParseResult, Sent, Statement
 from einkaufsagent.policies import RuleBasedPolicy
 from einkaufsagent.supplier_sim import LABELS
 
@@ -40,7 +48,9 @@ ESCALATION_REASONS = {
     "unclear": "Antwort unklar, Konfidenz unter der Schwelle (ADR 0008, Regel 3)",
     "unknown_package": "Paketwahl passt zu keinem gesendeten Paket (ADR 0008, Regel 3)",
 }
-BUYER_OPTIONS = ("weiterverhandeln", "abbrechen")
+BUYER_OPTIONS = ("weiterverhandeln", "abbrechen")  # immer; «freigeben» nur mit freigebbaren Konditionen
+BUYER_APPROVE = "freigeben"
+APPROVAL_PREFIX = "Nach Rücksprache mit unserer Einkäuferin sind wir mit Ihrer Bedingung einverstanden."
 
 
 # --- Vorlagen ------------------------------------------------------------------------------------------------
@@ -57,12 +67,13 @@ def accept_text(c: Terms) -> str:
     return f"Einverstanden, wir nehmen Ihren Vorschlag an: {c.short()}."
 
 
-def notify_text(outcome: str, deal_terms: Terms | None) -> str:
+def notify_text(outcome: str, deal_terms: Terms | None, approved: bool = False) -> str:
     if outcome == "deal" and deal_terms is not None:
-        return (
+        text = (
             f"Vielen Dank. Wir halten die neuen Konditionen fest: {deal_terms.short()}. "
             "Unser Einkauf bestätigt Ihnen die Vereinbarung schriftlich."
         )
+        return f"{APPROVAL_PREFIX} {text}" if approved else text
     if outcome == "escalated":  # die Einkäuferin hat nach der Eskalation abgebrochen
         return "Nach Rücksprache mit unserer Einkäuferin belassen wir es bei den heutigen Konditionen."
     return "Danke für das Gespräch. Wir belassen es bei den heutigen Konditionen."
@@ -76,9 +87,12 @@ def escalation_brief(
     notes: list[str],
     last_reply: str,
     history: list[str],
+    approval: str | None = None,
 ) -> dict:
     """BPMN «Eskalation aufbereiten»: Vorlage für die Einkäuferin (Code, ohne LLM; ADR 0014). JSON-serialisierbar,
-    weil der Checkpointer den Interrupt speichert."""
+    weil der Checkpointer den Interrupt speichert. ``approval``: was «freigeben» bucht (``approval_text``); ohne
+    freigebbare Konditionen fehlt die Option."""
+    options = [BUYER_OPTIONS[0], BUYER_APPROVE, BUYER_OPTIONS[1]] if approval else list(BUYER_OPTIONS)
     return {
         "lieferant": supplier_name,
         "runde": f"{round_} von {max_rounds}",
@@ -87,8 +101,49 @@ def escalation_brief(
         "letzte_antwort": last_reply,
         "verlauf": history,
         "mandat": "unverändert; Behauptungen des Lieferanten ändern es nie (ADR 0008)",
-        "optionen": list(BUYER_OPTIONS),
+        "optionen": options,
+        "freigabe": approval,
     }
+
+
+def approvable_terms(
+    parsed: ParsedReply | None, sent: Sent, quantity: str | None, ctx: Context, m: Mandate
+) -> Terms | None:
+    """Was die Einkäuferin nach einer Eskalation freigeben kann (ADR 0015, Nachtrag 12.11.): die Konditionen, denen
+    der Lieferant unter seiner Bedingung zustimmt. Nur bei einer Bedingung auf einer Grösse, die das Mandat nicht
+    regelt, ohne weitere Forderung oder Bedingung, und nur Konditionen im Mandat mit mindestens dem Mindestnutzen
+    (``check_deal``). Die Zahlen stammen aus dem Gesendeten oder dem Gegenangebot, nie aus der Bedingung; das Mandat
+    ändert sich nicht. ``None`` = nichts freizugeben (die Einkäuferin hat dann nur «weiterverhandeln» und
+    «abbrechen»)."""
+    if parsed is None or quantity is None or quantity in KNOWN_QUANTITIES:
+        return None
+    if any(s.kind in ("demand", "condition") and s.quantity != quantity for s in parsed.statements):
+        return None
+    terms: Terms | None = None
+    if parsed.reply_type == "accept":
+        if sent.kind == "accept":
+            terms = sent.packages[0]
+        else:
+            p = parsed.chosen_package
+            idx = LABELS.find(p) if p else (0 if len(sent.packages) == 1 else -1)
+            terms = sent.packages[idx] if 0 <= idx < len(sent.packages) else None
+    elif parsed.reply_type == "counter":
+        terms = parsed.counter_terms
+    if terms is None or check_deal(terms, ctx, m):
+        return None
+    return terms
+
+
+def approval_text(terms: Terms, ctx: Context, m: Mandate) -> str:
+    """Eine Zeile für die Einkäuferin: was «freigeben» bucht, mit Jahresnutzen gegen den Mindestnutzen."""
+
+    def chf(x: float) -> str:
+        return f"CHF {x:,.0f}".replace(",", "'")
+
+    return (
+        f"Abschluss zu {terms.short()}; Nutzen pro Jahr {chf(buyer_value_chf(terms, ctx, m))} (Mindestnutzen "
+        f"{chf(m.min_value_chf)}). Die Bedingung des Lieferanten steht als Vermerk im Protokoll; das Mandat bleibt."
+    )
 
 
 # --- Nachricht prüfen ----------------------------------------------------------------------------------------

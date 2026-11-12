@@ -202,13 +202,20 @@ def ask_buyer_in_terminal(brief: dict, ask: Ask, out: Out, emit: Emit | None = N
     out(paint(HUMAN, f"  Letzte Antwort: {brief['letzte_antwort']}"))
     for note in brief["hinweise"]:
         out(paint(HUMAN, f"  Hinweis: {note}"))
+    # «freigeben» nur, wenn escalate freigebbare Konditionen berechnet hat (ADR 0015, Nachtrag 12.11.)
+    choices = {"w": "weiterverhandeln", "a": "abbrechen"}
+    prompt = "  Entscheid [w = weiterverhandeln, a = abbrechen]: "
+    if brief.get("freigabe"):
+        out(paint(HUMAN, f"  Freigeben heisst: {brief['freigabe']}"))
+        choices = {"w": "weiterverhandeln", "f": "freigeben", "a": "abbrechen"}
+        prompt = "  Entscheid [w = weiterverhandeln, f = freigeben, a = abbrechen]: "
     choice = ""
-    while choice not in ("w", "a"):
+    while choice not in choices:
         emit({"type": "ask", "what": "decision"})
-        choice = ask(paint(HUMAN, "  Entscheid [w = weiterverhandeln, a = abbrechen]: ")).strip().lower()[:1]
+        choice = ask(paint(HUMAN, prompt)).strip().lower()[:1]
     emit({"type": "ask", "what": "note"})
     note = ask(paint(HUMAN, "  Notiz fürs Protokoll (optional, geht nicht an den Lieferanten): ")).strip()
-    return {"decision": "weiterverhandeln" if choice == "w" else "abbrechen", "note": note}
+    return {"decision": choices[choice], "note": note}
 
 
 def run_live(
@@ -338,7 +345,11 @@ def report(
             )
         else:
             last = sim.replies[-1] if sim and sim.replies else None
-            agreed = last is not None and last.event in ("accept", "confirm") and same_terms(last.terms, dt)
+            # Nach «freigeben» gilt die Zusage unter Bedingung (beim Simulator ein Gegenangebot mit Bedingung)
+            agreeing = ("accept", "confirm")
+            if final.get("end_reason") == "buyer_approved":
+                agreeing += ("counter",)
+            agreed = last is not None and last.event in agreeing and same_terms(last.terms, dt)
         if not agreed:
             violations.append("deal:not_agreed")
         value = buyer_value_chf(dt, ctx, m)

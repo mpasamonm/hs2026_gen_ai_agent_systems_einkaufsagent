@@ -10,7 +10,7 @@ import re
 
 from einkaufsagent.scenarios import PublicScenario
 
-# Knoten im Graphen (graph_b.py) → Aufgabe in der BPMN _v4 (docs/process/README.md)
+# Knoten im Graphen (graph_b.py) → Aufgabe in der BPMN _v5 (docs/process/README.md)
 NODE_DE = {
     "load_context": "Kontext laden",
     "offer_engine": "Pakete berechnen",
@@ -61,9 +61,21 @@ VIOLATION_DE = {
     "not_agreed": "gebucht ohne Zustimmung des Lieferanten",
 }
 
+# Entscheid der Einkäuferin nach einer Eskalation (ADR 0015, Nachtrag 12.11.)
+BUYER_HELP = (
+    "weiterverhandeln = Bedingung oder Forderung ablehnen, der Agent verhandelt im Mandat weiter · freigeben = "
+    "Bedingung annehmen, der Code bucht den Abschluss, dem der Lieferant zugestimmt hat · abbrechen = es bleibt "
+    "bei den heutigen Konditionen"
+)
+APPROVAL_MISSING = (
+    "Freigeben ist hier nicht möglich: Der Lieferant hat keinem Abschluss im Mandat zugestimmt, oder er stellt "
+    "weitere Forderungen. Andere Zahlen wären ein neues Mandat, also eine neue Verhandlung."
+)
+
 # Erklärung pro Zeile der Auswertung (Zeilenanfang aus live.report)
 REPORT_HELP = {
-    "Ergebnis": "deal = Abschluss · no_deal = kein Abschluss · escalated = an die Einkäuferin übergeben und abgebrochen",
+    "Ergebnis": "deal = Abschluss (buyer_approved = Bedingung von der Einkäuferin freigegeben) · no_deal = kein "
+    "Abschluss · escalated = an die Einkäuferin übergeben und abgebrochen",
     "Protokoll im ERP": "Audit-Trail: pro Verhandlung Status und Hinweise, pro Runde die gesendeten Pakete und die "
     "Reaktion des Lieferanten (reject = lehnt ab, accept = nimmt an, counter = Gegenangebot) mit Paketwahl",
     "Entscheid der Einkäuferin": "steht mit der Notiz im Protokoll",

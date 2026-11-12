@@ -26,6 +26,8 @@ from einkaufsagent.eval import DEFAULT_SCENARIOS
 from einkaufsagent.scenarios import load_scenarios
 from einkaufsagent.ui_session import DEMO, MEMORY, OFFLINE, Session, Settings
 from einkaufsagent.ui_text import (
+    APPROVAL_MISSING,
+    BUYER_HELP,
     explain_step,
     history_lines,
     invitation_text,
@@ -149,10 +151,14 @@ def index() -> None:
                     "bis die Einkäuferin entscheidet."
                 ).classes("help")
                 esc_body = ui.column().classes("gap-1")
+                ui.label(BUYER_HELP).classes("help")
                 note = ui.input("Notiz fürs Protokoll (geht nicht an den Lieferanten)").classes("w-full")
                 with ui.row():
                     ui.button("weiterverhandeln", on_click=lambda: decide("weiterverhandeln")).props(
                         "color=green-8"
+                    )
+                    approve_btn = ui.button("freigeben", on_click=lambda: decide("freigeben")).props(
+                        "color=blue-8"
                     )
                     ui.button("abbrechen", on_click=lambda: decide("abbrechen")).props("color=red-8 outline")
             with ui.card().classes("w-full") as report:
@@ -282,9 +288,14 @@ def index() -> None:
                     ui.label(f"Letzte Antwort: {b['letzte_antwort']}").style("white-space:pre-wrap")
                     for h in b["hinweise"]:
                         ui.label(f"Hinweis: {h}").classes("font-bold")
+                    if b.get("freigabe"):
+                        ui.label(f"Freigeben heisst: {b['freigabe']}").style(f"color:{COL['human'][0]}")
+                    else:
+                        ui.label(APPROVAL_MISSING).classes("help")
                     with ui.expansion("Verlauf").classes("w-full"):
                         for line in b["verlauf"]:
                             ui.label(line)
+                approve_btn.set_visibility(bool(b.get("freigabe")))
             case "report":
                 view["report"] = True
                 report_body.clear()

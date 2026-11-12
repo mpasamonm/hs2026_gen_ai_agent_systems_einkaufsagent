@@ -91,3 +91,14 @@ Terminal-Ausgabe bleibt byte-gleich (`tests/test_live.py`). Eine neue Abhängigk
 **Kippt, wenn** die Zeit für Live-Runden, Generalprobe und Prüfungsvorbereitung knapp wird; Annahme als Stichtag: Die UI
 ist am 15.11.2026 (Ende der Bauzeit laut Zeitplan oben) mit Luna durchgespielt, sonst Demo im Terminal. Live-Runden neu:
 mindestens 3 mit unbeteiligten Personen statt 5–10, dazu Red-Teaming durch Claude als eigene Zeile (ADR 0012, Nachtrag).
+
+## Nachtrag 12.11.2026: zweite Ausnahme vom Feature-Freeze («freigeben»)
+
+Entscheid des Nutzers vom 12.11.2026: Nach einer Eskalation bekommt die Einkäuferin einen dritten Entscheid «freigeben»
+(ADR 0015, Nachtrag 12.11.). Grund: Ohne ein Ja ist Human-in-the-loop nur ein Nein-Knopf, und genau danach fragen
+Demo und Prüfung.
+
+Die Ausnahme ändert den Graphen (`escalate`, `ask_buyer`), aber weder Prompts noch Bewertungsregeln (`assess_reply`) noch
+den Eval-Pfad. Die Eval hält vor dem Entscheid an; die Offline-Läufe sind gleich wie vorher, deshalb gibt es keine neue
+Messung. Die Web-UI zeigt die neue Option nur an, sie steuert nichts Eigenes. Weitere Ausnahmen nur nach Rückfrage; der
+Stichtag 15.11. bleibt.

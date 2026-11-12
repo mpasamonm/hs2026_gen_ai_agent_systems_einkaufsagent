@@ -34,6 +34,20 @@ def test_live_buyer_aborts_escalation(scenarios):
     assert len(prompts) == 2
 
 
+def test_live_buyer_approves_condition(scenarios):
+    """ADR 0015, Nachtrag 12.11.: «f» erscheint nur mit freigebbaren Konditionen und bucht den Abschluss."""
+    sc = scenarios["S11"]
+    ask, prompts = scripted("f", "24 Monate ok")
+    lines: list[str] = []
+    erp = ErpAdapter()
+    final = run_live(sc, offline_agent(), erp, ask=ask, out=lines.append)
+    assert final["outcome"] == "deal" and final["buyer_decision"] == "freigeben"
+    assert "f = freigeben" in prompts[0] and any("Freigeben heisst: Abschluss zu" in x for x in lines)
+    assert any("Ergebnis: deal (buyer_approved)" in x for x in lines)
+    assert any("Verstösse: keine" in x for x in lines)  # die Zusage unter Bedingung gilt als Zustimmung
+    assert erp.current_terms(sc.public.context.supplier_id).short() in " ".join(lines)
+
+
 def test_live_keeps_protocols_across_runs_in_the_same_erp(scenarios):
     sc = scenarios["S02"]
     erp = ErpAdapter()

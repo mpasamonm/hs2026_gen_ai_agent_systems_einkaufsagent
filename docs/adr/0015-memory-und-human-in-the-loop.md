@@ -117,3 +117,63 @@ Hintergrund-Thread; `ask` blockiert dort, bis die Person im Browser antwortet, g
 
 Neu kippt die Regel, wenn die UI einen Neustart des Prozesses überdauern oder mehrere Verhandlungen gleichzeitig führen
 soll: dann `interrupt()` für den Lieferanten und `SqliteSaver` (erste Kippregel).
+
+
+## Nachtrag 12.11.2026: Die Einkäuferin kann eine Bedingung freigeben (Entscheid B)
+
+**Anlass:** Probe des Nutzers in der Web-UI. Der Lieferant schrieb «Paket B nehmen wir, aber nur, wenn Sie den Vertrag
+auf 24 Monate verlängern.»; der Agent eskalierte richtig (ADR 0008, Regel 1). Die Einkäuferin konnte aber nur Nein
+(«weiterverhandeln») oder Ende («abbrechen») wählen. Damit fehlte das Ja, obwohl die Eskalation genau für Entscheide da
+ist, die das Mandat nicht abdeckt. Die Frage des Nutzers: Wo kann die Einkäuferin einlenken oder übersteuern?
+
+**Widerspruch zum Entscheid oben** («ein neues Mandat ist eine neue Verhandlung, kein Pfad im Agenten»): B hält ihn ein.
+Freigegeben wird nur die Bedingung auf einer Grösse, die das Mandat nicht regelt (Laufzeit, Exklusivität usw.). Die Zahlen
+kommen aus dem, was der Lieferant zugesagt hat, und müssen im Mandat liegen. Andere Zahlen bleiben eine neue Verhandlung.
+
+Trennende Achse: Wer spricht nach dem Entscheid mit dem Lieferanten und wer bucht, der Agent mit dem Entscheid als Daten
+oder ein Mensch (Übergabe)?
+
+| Alternative | Inhalt | Bewertung |
+| --- | --- | --- |
+| A: so lassen | Übernahme ausserhalb des Systems (Telefon, Mail) nach «abbrechen» | kein Umbau; aber die Einkäuferin kann nie Ja sagen, und der Agent schreibt nach «abbrechen» «belassen es bei den heutigen Konditionen» |
+| **B: dritter Entscheid «freigeben» (gewählt)** | Der Code bucht die Konditionen, denen der Lieferant unter seiner Bedingung zugestimmt hat | kleinster Umbau; Zahlen weiter aus dem Code; Eval unverändert, weil sie am Interrupt anhält |
+| C: Übernahme im Chat | Die Einkäuferin schreibt selbst im Chat und bucht über ein Formular | am realistischsten für komplexe Fälle (Pactum: «escalates to a person with the context to decide»); aber die Buchung kommt nicht mehr aus dem Code, 1–2 Tage Aufwand, und in der Demo spielt eine Person drei Rollen im selben Fenster |
+| Mandat im Lauf ändern (LangGraph «edit state») | Die Einkäuferin setzt neue Grenzen, der Agent verhandelt weiter | schon oben verworfen: Grenzen entstünden im Gespräch statt im Mandat |
+
+**So ist es gebaut:**
+- `hybrid.approvable_terms`: freigebbar nur bei einer Bedingung auf einer Grösse ausserhalb des Mandats, ohne weitere
+  Forderung oder Bedingung auf einer anderen Grösse. Die Konditionen sind das gewählte Paket, unsere angenommene Annahme
+  oder das Gegenangebot, und nur, wenn `check_deal` nichts findet (im Mandat, mindestens Mindestnutzen). Sonst `None`.
+- `escalate` berechnet das ohne LLM und legt es als `approvable` in den State. Die Vorlage bekommt das Feld `freigabe`
+  (Konditionen, Jahresnutzen gegen Mindestnutzen), und `optionen` enthält «freigeben» nur dann.
+- In `ask_buyer` steht weiterhin nur `interrupt()` vor allem anderen. Danach gilt `normalize_decision(answer,
+  approvable)`: «freigeben» nur, wenn angeboten, sonst wie bisher alles ausser «weiterverhandeln» als «abbrechen». Bei
+  «freigeben» setzt der Node den Abschluss (`end_reason` `buyer_approved`); `record_outcome` bucht, und `notify_supplier`
+  schreibt «Nach Rücksprache mit unserer Einkäuferin sind wir mit Ihrer Bedingung einverstanden. …».
+- Die Bedingung selbst steht als Hinweis im Protokoll, weil das ERP keine Laufzeit kennt; die schriftliche Bestätigung
+  macht der Einkauf.
+- Terminal: «f = freigeben» erscheint nur mit Freigabe. Web-UI: Knopf «freigeben» nur dann, mit einer Erklärung der
+  drei Entscheide. Spielkarte: Beim Simulator zählt nach einer Freigabe die Zusage unter Bedingung als Zustimmung.
+- BPMN `_v5`: dritter Ausgang «freigeben (Bedingung annehmen)» über ein Join-Gateway zu «Ergebnis und Protokoll erfassen».
+
+**Geprüft am 12.11.2026:**
+- 98 Tests grün (5 neu: Freigabe bucht das Paket, keine Freigabe bei wiederholter Forderung, Regeln von
+  `approvable_terms`, Terminal und UI).
+- Offline-Eval (b) auf Dev und Testset, je mit und ohne `--paraphrase`, × 3: Summary und jede Zeile in `runs.jsonl` gleich
+  wie vorher.
+- Headless-Browser offline: S11 → «freigeben» → Abschluss gebucht, keine Verstösse; S08 (wiederholte Preisforderung) →
+  kein Knopf «freigeben».
+- Luna mit dem Satz des Nutzers (S04, Mensch per Skript): Annahme Paket B mit Bedingung auf der Laufzeit → Eskalation →
+  «freigeben» → Paket B gebucht, keine Verstösse.
+- Keine neue Messung mit Luna: Prompts, Bewertungsregeln und Eval-Pfad sind unverändert.
+
+**Grenzen:**
+- Die Einkäuferin kann nur freigeben, was der Lieferant zugesagt hat, aber keine eigenen Zahlen setzen (das wäre C oder
+  eine neue Verhandlung).
+- Eine wiederholte Forderung über das Mandat hinaus (S08) lässt sich nicht freigeben.
+- Der Zwischenbescheid sagt weiterhin «sie meldet sich bei Ihnen», obwohl nach dem Entscheid der Agent schreibt.
+
+**Kippt, wenn:**
+- die Einkäuferin in Demo oder Live-Runden andere Zahlen setzen will: dann C als Übergabe;
+- Freigaben derselben Bedingung häufig werden: dann gehört die Grösse ins Mandat (z.B. «Laufzeit bis 24 Monate
+  erlaubt»), und der Agent entscheidet selbst.

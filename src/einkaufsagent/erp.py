@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS protocol (
     start_packages TEXT NOT NULL,      -- JSON: Pakete der ersten Runde
     deal_terms TEXT,                   -- JSON: gebuchte Konditionen, nur bei deal
     notes TEXT NOT NULL,               -- JSON: Hinweise für die Einkäuferin
-    buyer_decision TEXT,               -- weiterverhandeln | abbrechen (nach Eskalation)
+    buyer_decision TEXT,               -- weiterverhandeln | freigeben | abbrechen (nach Eskalation)
     buyer_note TEXT,
     recorded_at TEXT NOT NULL
 );

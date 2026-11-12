@@ -60,6 +60,24 @@ def test_escalation_decided_in_ui_with_simulator(scenarios, tmp_path):
     assert len(log.splitlines()) == len(ses.events)
 
 
+def test_buyer_approves_in_ui(scenarios, tmp_path):
+    sc = scenarios["S11"]
+    ses = Session(
+        sc, Settings("S11", human=False, model=OFFLINE, erp=MEMORY), log_dir=tmp_path, echo=lambda s: None
+    )
+    ses.start()
+    wait_for(ses, "decision")
+    brief = next(e for e in ses.events if e["type"] == "escalation")["brief"]
+    assert "freigeben" in brief["optionen"] and brief["freigabe"]
+    assert ses.decide("freigeben", "24 Monate ok")
+    wait_for(ses, None)
+    report = ses.events[-1]
+    assert (
+        report["outcome"] == "deal" and report["end_reason"] == "buyer_approved" and not report["violations"]
+    )
+    assert "Entscheid der Einkäuferin: freigeben (24 Monate ok)" in report["lines"]
+
+
 class AcceptsPackageB:
     """Steht für das LLM: liest die Antwort des Menschen als Annahme von Paket B."""
 
