@@ -24,7 +24,7 @@ uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 D
 uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
 uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext
 uv run ea-run --scenario S11 --variant b --policy rule --live   # Eskalation, Einkäuferin entscheidet im Terminal
-uv run ea-ui --model offline --erp :memory:            # Web-UI offline: http://127.0.0.1:8080, «Simulator», S11
+uv run ea-ui --model offline                           # Web-UI offline: http://127.0.0.1:8080, «Simulator», S11
 ```
 
 Mit Zugang zum FHNW-LiteLLM (Modell `gpt-5.6-luna`) und optional LangSmith:
@@ -77,6 +77,9 @@ knapp unter der selbst gesetzten Schwelle von 20 Punkten. Spielraum (+48) und Te
 (ADR 0013, Nachtrag).
 
 Alle Läufe vom selben Code-Stand mit Befehlen, Kosten und Fehlläufen: [`docs/ergebnisse/2026-11-09/`](docs/ergebnisse/2026-11-09/README.md).
+Sie liefen auf Commit `3ac6beb`. Danach kamen nur die Web-UI, die Vorgeschichte im ERP der UI und der Entscheid
+«freigeben» nach einer Eskalation dazu; der Eval-Pfad blieb gleich. Die sechs Läufe ohne LLM ergeben auf dem Stand der
+Vorabgabe (12.11.2026) dieselben `runs.jsonl`, bis auf die Laufzeit.
 Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 
 ## Wo was liegt
@@ -84,7 +87,7 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 | Pfad | Inhalt |
 | --- | --- |
 | `docs/gesamtsystem.md` | Gesamtsystem und Begründungen: Grundlage für Präsentation und Prüfung |
-| `docs/adr/` | 15 Architekturentscheide mit Alternativen und «kippt, wenn» (Index in `README.md`) |
+| `docs/adr/` | 17 Architekturentscheide mit Alternativen und «kippt, wenn» (Index in `README.md`) |
 | `einkaufsagent-prozess_v5.bpmn`, `.png` | gültiger Soll-Prozess (BPMN 2.0); Zuordnung BPMN → LangGraph in `docs/process/README.md`; `_v1`–`_v4` als Historie |
 | `docs/eval-metriken.md` | Definition und Zielwert jeder Metrik |
 | `docs/ergebnisse/` | versionierte Ergebnisse der finalen Läufe |
@@ -105,8 +108,9 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
 
 ## Limitationen in Kürze
 
-- Gemessen gegen einen regelbasierten Simulator mit synthetischen Texten; gegen Menschen gibt es nur einzelne
-  Live-Runden. Externe Validität ist die Hauptlimitation.
+- Gemessen gegen einen regelbasierten Simulator mit synthetischen Texten. Live-Runden mit unbeteiligten Personen stehen
+  noch aus (Stand 12.11.2026); bisher gibt es eigene Proben und ein Red-Teaming durch Claude (`docs/demo.md` §3).
+  Externe Validität ist die Hauptlimitation.
 - 11 Dev- und 15 Testszenarien × 3 Wiederholungen: Ein Szenario entspricht 9 bzw. 6,7 Prozentpunkten; Unterschiede
   unter etwa 20 Punkten nicht interpretieren.
 - Mit `gpt-5.6-luna` scheitert kein Angriff, auch nicht gegen (a); der Sicherheitsgewinn von (b) ist strukturell, mit

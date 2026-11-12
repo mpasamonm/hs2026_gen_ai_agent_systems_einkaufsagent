@@ -1,6 +1,6 @@
 # Einkaufsagent – Gesamtsystem und Begründungen
 
-Stand: 11.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
+Stand: 12.11.2026. Gemeinsame Grundlage für die Abschlusspräsentation (23.11.2026), die Demo und die mündliche
 Prüfung. Jede Person muss das Gesamtsystem erklären können (Projektbeschrieb, Anhang A). Ein schriftlicher Bericht
 ist laut Projektbeschrieb nicht verlangt; dieses Dokument ist das Projektartefakt «zur Nachvollziehbarkeit» und die
 Vorlage für die Folien.
@@ -387,7 +387,8 @@ nicht den Anteil am Spielraum (ADR 0017).
 - **Proxy-Stand 19.10.2026:** neu u.a. `azure_ai/claude-haiku-5-5` (Function Calling ok), das offene
   `ibm/granite4.1:3b` auf der Ollama-Instanz der FHNW und das Entscheidungsmodell `tev1:0.8b`; Jev ist nicht im Proxy.
   Luna bleibt Arbeitsmodell: Ein Anthropic-Agent wäre befangen, weil Claude Opus die Testtexte schreibt (ADR 0010).
-- **Kleines Modell (ADR 0011):** `granite4.1:3b` läuft als zusätzliche Zeile in (a) und (b). Hypothese: Im Hybrid
+- **Kleines Modell (ADR 0011):** `granite4.1:3b` war als zusätzliche Zeile in (a) und (b) geplant; gemessen ist sie
+  nicht (nur bei Restzeit, ADR 0014). Hypothese: Im Hybrid
   genügt ein 3B-Modell, weil es nur noch kurze Texte liest und schreibt. Das wäre der Weg zu vertraulichen Konditionen
   ohne Cloud-Anbieter.
 - **Entscheidungsmodelle (SW6, ADR 0011):** Sie liefern statt Text eine Wahl mit Wahrscheinlichkeit. Der geplante
@@ -396,7 +397,7 @@ nicht den Anteil am Spielraum (ADR 0017).
   an; ein Entscheidungsmodell bleibt Ausbau.
 - Apertus nur als Referenzzeile (D2); im LiteLLM gibt es kein Apertus-Chatmodell.
 
-### 3.4 Technik (Stand 09.11.2026)
+### 3.4 Technik (Stand 12.11.2026)
 
 - Python 3.12 mit uv; langgraph 1.2.12, langchain-core 1.6.6, langchain-openai 1.6.7, langsmith 0.14.4,
   pydantic 2.13.5 (gepinnt in `pyproject.toml`).
@@ -578,18 +579,20 @@ nicht den Anteil am Spielraum (ADR 0017).
 **Erkenntnisse bisher**
 - **Die Kernthese trägt (ADR 0013).** Mit demselben Modell verhandelt der Hybrid besser als das reine LLM: Abschluss
   1.00 statt 0.76, gesicherter Spielraum 0.715 statt 0.195, alle Angebote mit Zahlen statt 14 %, halbe Kosten pro
-  Erfolg. Bei Luna ist es ein Qualitäts-, kein Sicherheitsgewinn: Luna hat auch allein keine Verstösse.
+  Erfolg. Bei Luna ist es vor allem ein Qualitätsgewinn: Am 19.10. hatte Luna auch allein keine Verstösse; in den
+  finalen Läufen schloss (a) zweimal unter dem Mindestnutzen ab (T10), (b) nie.
 - **Der Restfehler sitzt im Lesen, und er endet sicher.** Alle Fehlläufe von (b) entstanden in `parse_response`
   (Bedingung falsch gelesen, Forderung übersehen) und wurden zu einer unnötigen oder verpassten Eskalation, nie zu
   einer Zusage ausserhalb des Mandats. Auch gegen Umformulierungen liest Luna 95–99 % der Antworten richtig; ein
   Regex-Parser fällt auf 10 % (ADR 0010, Nachmessung).
 - **Auf neuen Texten hält die Kernthese, und die Angriffe scheitern (ADR 0010, Nachtrag Testset).** Auf 15 zurückgehaltenen
-  Szenarien mit Angriffen erreicht (b) 0.98, (a) 0.64. Kein Angriff erreicht sein Ziel, auch nicht gegen (a) mit Luna;
+  Szenarien mit Angriffen erreicht (b) 0.98, (a) 0.64 (finale Läufe: 0.73). Kein Angriff erreicht sein Ziel, auch nicht gegen (a) mit Luna;
   der strukturelle Schutz von (b) ist mit diesem Modell nicht messbar. Der Preis der Abwehr sind Eskalationen: Ein
   Angriff, der in jeder Antwort wiederkehrt, gilt als wiederholte Forderung, und der Content-Filter des Proxys macht eine
   Antwort «nicht auswertbar». Beides endet sicher, kostet aber Zeit der Einkäuferin (Denial of Service). Bewusst nicht
   korrigiert: Eine Regeländerung nach Blick auf das Testset würde es entwerten (ADR 0013, Nachtrag).
-- Das reine LLM hält mit Luna das Mandat ein, verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
+- Das reine LLM hielt mit Luna im Benchmark vom 06.10. das Mandat ein (in den finalen Läufen 2 Verstösse in T10),
+  verhandelt aber schlecht: 0,18 gegenüber 0,72 gesichertem Spielraum
   der Regel-Referenz und 83 % Angebotstexte ohne Konditionen. Sicherheit allein hängt vom Modell ab (Luna 0,
   Mistral 4 Verstösse).
 - Bis zum 10. Szenario löste die Regel-Referenz ohne LLM alles. Mit S11 (Bedingung nur im Text) scheitert sie:
@@ -628,7 +631,7 @@ nicht den Anteil am Spielraum (ADR 0017).
   Punkte vor (a), knapp unter der selbst gesetzten Schwelle von 20 (ADR 0006); der Leistungsbeleg ist deshalb der
   gesicherte Spielraum und das zurückgehaltene Testset (ADR 0013, Nachtrag finale Läufe).
 - `mandate_guard` prüft, dass jede Zahl ein Paketwert ist und jedes Paket vorkommt, aber nicht, ob eine Zahl beim
-  richtigen Paket steht. Täuschung über den Text misst erst ein kalibrierter LLM-Judge (KW47).
+  richtigen Paket steht. Täuschung über den Text würde erst ein kalibrierter LLM-Judge messen (Ausbau, nicht gebaut).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`); nach einem Neustart ist sie verloren. Real
   warten Eskalationen Tage; dann `SqliteSaver` (Kippregel ADR 0015). Die Eval setzt nach einer Eskalation nicht fort;
   die Pfade «weiterverhandeln» und «freigeben» sind nur mit Tests, im Terminal und in der UI geprüft.
@@ -717,8 +720,8 @@ im Abschnitt «Aufbau»).
 Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses
 Dokument, ADRs, BPMN, Eval-Ergebnisse unter `docs/ergebnisse/`) und die Präsentation als PDF. Die Folien liegen als
 Slides-Artifact vor (7 Hauptfolien, 9 Backup-Folien mit Sprechernotizen) und werden von dort als PDF exportiert. Der
-Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe eingerichtet; der Veröffentlichungs-Check vom
-09.11.2026 fand keine Secrets und keine Kursunterlagen in der Historie.
+Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe eingerichtet; die Veröffentlichungs-Checks
+vom 09.11. und 12.11.2026 fanden keine Secrets und keine Kursunterlagen in der Historie.
 
 **Ausbaumöglichkeiten**
 - nur lesender MCP-Server über dem ERP-Adapter, damit die Einkäuferin Protokolle aus ihrem Chat-Client abfragt
@@ -803,13 +806,13 @@ relevante Eigenschaften» (Anhang A).
 | Qualität | Eval mit bekannter Wahrheit, Ablation, pass^k (`docs/eval-metriken.md`); zurückgehaltenes Testset mit 15 Szenarien (ADR 0010) | – | – |
 | Robustheit | Wiederholungen, Umformulierungen der Lieferantentexte (`--paraphrase`), neue Texte im Testset, bindendes Rundenlimit (T07) | Live-Runden gegen Menschen | paarweises Kippen der Extraktion (ADR 0014) |
 | Sicherheit | Bauweise, siehe unten; Testset mit 6 Angriffen und 3 harmlosen Texten: Angriffserfolg 0, Fehlalarme 0.33 (ADR 0010) | Denial of Service über wiederholte Angriffe (T09, T11) | – |
-| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet und in `_v4` gezeichnet | – | eigener Retry-Graph |
+| Fehlerbehandlung | Retries im Client (`max_retries=2`), eine Korrekturrunde bei ungültiger Ausgabe; in (b) Fehlerpfade über die Fail-safes (Standardtext, Eskalation), getestet und seit `_v4` gezeichnet | – | eigener Retry-Graph |
 | Bias | – | – | Lieferantennamen tauschen gestrichen (ADR 0014); in (b) entscheidet der Code, Unterschiede kämen nur aus der Extraktion |
 | Transparenz | KI-Hinweis in der ersten Nachricht als Metrik | – | – |
 | Guardrails | Mandatsprüfung im Code, Text gegen Pakete (`mandate_guard`), Standardtext, Regeln im Prompt; Template-Rate als Metrik | Zuordnung Zahl zu Paket | LLM-Judge (nur falls Zeit bleibt) |
 | Tool-Use | Function Calling als Mechanismus der strukturierten Ausgabe | – | Tool-Wahl durch das LLM (ADR 0009) |
 | Memory | State mit `InMemorySaver`; Protokolle im ERP-Adapter, Metrik `korrekt_gebucht` (ADR 0015) | `SqliteSaver`, falls Eskalationen einen Neustart überdauern sollen | LangGraph Store (ein Speicher genügt), Gedächtnis (c) (ADR 0014) |
-| Human-in-the-loop | `escalate` und `ask_buyer` mit `interrupt()`, `Command(resume=…)` im Terminal (ADR 0015) | – | Mandatsänderung durch die Einkäuferin im laufenden Graphen (neues Mandat = neue Verhandlung) |
+| Human-in-the-loop | `escalate` und `ask_buyer` mit `interrupt()`, `Command(resume=…)` in Web-UI und Terminal; die Einkäuferin entscheidet weiterverhandeln, freigeben oder abbrechen (ADR 0015) | – | Mandatsänderung durch die Einkäuferin im laufenden Graphen (neues Mandat = neue Verhandlung) |
 | Multi-Agent | – | – | ein Agent pro Lieferant genügt (Abschnitt 8, SW8 Folien 24 und 26) |
 | Interface | Web-UI `ea-ui` über dem Runner (links Sicht des Lieferanten, rechts intern: Mandat, Schritte in BPMN-Farben mit den Namen der BPMN-Aufgaben, Karte für die Einkäuferin, Auswertung mit Erklärungen; ADR 0016); Terminal als Fallback (`live.py`) | – | LangGraph Studio als Oberfläche (verlangt `interrupt()` für den Lieferanten, ADR 0012) |
 | Tracing | LangSmith EU | – | – |
@@ -849,7 +852,7 @@ individuellen Beitrag.
 
 | Person (GitHub) | Beitrag | Belege |
 | --- | --- | --- |
-| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v4`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ERP-Adapter mit Protokoll, Eskalation mit `interrupt()`, Mensch als Lieferant im Terminal, Testset mit Angriffen, ADR 0001–0015 | Commits bis 19.10.2026 und ab 09.11.2026 |
+| mpasamonm | Use-Case, Prozess (BPMN `_v1`–`_v5`), Varianten (a) und (b), Simulator, Szenarien, Eval und Benchmark, ERP-Adapter mit Protokoll, Eskalation mit `interrupt()` und den Entscheiden der Einkäuferin (inkl. «freigeben»), Mensch als Lieferant im Terminal und in der Web-UI `ea-ui`, Testset mit Angriffen, finale Läufe, Demo-Ablauf, Analyse der Verhandlungsstrategie (`scripts/analyse_strategie.py`), ADR 0001–0017 | Commits bis 19.10.2026 und ab 09.11.2026 |
 | PeisProjects | Umformulierungen der Simulator-Texte: Daten in `data/paraphrases/`, Prüfung im Code, Schalter `--paraphrase`, Metrik `extraktion_korrekt`, Messung vom 26.10.2026 (ADR 0010, Nachtrag) | PR #2, gemergt am 09.11.2026 |
 
 Rückmeldungen im Team: am 11.10.2026 zur Eskalation (eingeflossen in ADR 0008), am 12.10.2026 zur Speicherung der

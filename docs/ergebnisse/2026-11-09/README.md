@@ -10,6 +10,11 @@ Transkript; enthält auch die verdeckten Parameter, weil die Auswertung sie brau
 `docs/eval-metriken.md`. Frühere Messungen mit Abweichungen und Begründungen stehen in den ADRs 0004, 0006, 0008, 0010,
 0013 und 0015; ihre Zahlen bleiben dort unverändert.
 
+**Gültigkeit für spätere Stände:** Nach `3ac6beb` kamen nur die Web-UI (ADR 0016), die Vorgeschichte im ERP der UI und der
+Entscheid «freigeben» nach einer Eskalation (ADR 0015, Nachtrag 12.11.) dazu. Die Eval hält an der Eskalation an und
+erreicht diese Pfade nicht. Geprüft am 12.11.2026 (Vorabgabe): Die sechs Läufe ohne LLM ergeben dieselben `runs.jsonl`,
+in jedem Feld samt Transkript ausser der Laufzeit (`wall_s`, `llm_latencies_s`).
+
 ## Befehle
 
 ```bash
