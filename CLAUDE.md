@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 10, Punkt 0: ERP mit Vorgeschichte in der Web-UI; Einkäuferin kann freigeben). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Vorabgabe als Tag `v0.9-vorabgabe`; davor Etappe 10, Punkt 0: ERP mit Vorgeschichte in der Web-UI, Einkäuferin kann freigeben). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -143,7 +143,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 12.11.2026 (Etappe 9)
+## 6. Stand am 12.11.2026 (Etappe 10, Vorabgabe)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -339,6 +339,20 @@ Erledigt:
     `--paraphrase` gleich wie vorher (Summary und `runs.jsonl`); Headless-Browser S11 freigeben, S08 ohne Knopf; Luna mit dem
     Satz des Nutzers: Paket B gebucht, keine Verstösse. `docs/demo.md` (Ablauf drei Knöpfe, Rückfrage «übersteuern»),
     `docs/gesamtsystem.md` §3.1, §3.2, §3.4, §5, §6, README.
+- Session 12.11.2026, Vorabgabe (Einstieg `kontext/UEBERGABE-PROMPT-ABGABE-11.md`):
+  - Startcheck grün: 98 Tests, ruff sauber, (b) offline 1.00, Regel-Referenz 0.909 mit 3 Verstössen. Die sechs Läufe ohne
+    LLM aus `docs/ergebnisse/2026-11-09/` ergeben auf dem heutigen Stand dieselben `runs.jsonl` (jedes Feld samt Transkript
+    ausser der Laufzeit); vermerkt in README und `docs/ergebnisse/2026-11-09/README.md`.
+  - Abgabefähigkeit gelesen, 12 Doku-Befunde korrigiert (0aadb2b): Zahl der ADRs (17), Gültigkeit der finalen Läufe für den
+    heutigen Stand, Live-Runden noch offen, (a) mit 2 Verstössen in den finalen Läufen (§5), granite nicht gemessen (§3.3),
+    §10 Beiträge, Datumsangaben, ADR-Index (0001, 0016). Prüfungsthemen aus Anhang A über den Wegweiser «Aufbau» abgedeckt.
+  - Veröffentlichungs-Check wiederholt: `.env`, `kontext/`, SQLite und `results/` nie in der Historie (alle Branches), keine
+    Schlüssel in Baum und Historie. Sichtbar bleiben Proxy-Adresse, Commit-E-Mails (auch des Teammitglieds), CLAUDE.md und
+    der Branch `PeisProjects-PeisCommitSpace`.
+  - **Annotierter Tag `v0.9-vorabgabe`** auf 0aadb2b, einzeln gepusht: der Stand, der im schlimmsten Fall so abgegeben
+    wird. Kein GitHub-Release, kein PDF im Repo (Folien noch nicht exportiert).
+  - Persönliches Backup beim Nutzer (Bundle mit Tag, Archiv mit `kontext/` und `results/`, Prüfsummen, Anleitung; ohne
+    `.env`; Folien bleiben auf claude.ai). Wiederherstellung aus dem Bundle im Scratchpad geprüft. Pfad nicht im Repo.
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -368,7 +382,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    (zuerst Punkt 0: Modell-Auswahl in der UI, Demo üben ohne Spuren im ERP). **Etappe 10, Punkt 0 erledigt 12.11.:**
    Modell-Auswahl erklärt (keine Änderung), ERP mit Vorgeschichte als Standard der UI (Entscheid M2, ADR 0016 Nachtrag;
    Sprechernotiz Folie 7, Folien Version 26); dazu «freigeben» als dritter Entscheid der Einkäuferin (ADR 0015 Nachtrag,
-   BPMN `_v5`). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   BPMN `_v5`). **Vorabgabe erledigt 12.11.:** Doku geglättet, Veröffentlichungs-Check, Tag `v0.9-vorabgabe`, persönliches
+   Backup. Einstieg für Etappe 10, Punkte 1–5: `kontext/UEBERGABE-PROMPT-ABGABE-12.md`. Danach SW9 einordnen, sobald die
+   Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
