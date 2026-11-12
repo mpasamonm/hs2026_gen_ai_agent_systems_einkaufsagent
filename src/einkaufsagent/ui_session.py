@@ -6,6 +6,10 @@ Antwort liefert, genau wie ``input()`` im Terminal; Graph, Prompts und Eval blei
 
 Für die Demo wichtig: ``cancel()`` beendet einen laufenden oder wartenden Lauf, damit «Neue Verhandlung» jederzeit
 geht; Eingaben, auf die der Lauf gerade nicht wartet, werden verworfen statt in eine spätere Frage zu rutschen.
+
+ERP (ADR 0016, Nachtrag 12.11.): Standard ist ``DEMO``, ein ERP im Speicher mit Vorgeschichte. Vor jeder Verhandlung
+spielt ``add_history`` still eine frühere Verhandlung mit demselben Lieferanten durch (offline gegen den Simulator).
+So startet jede Verhandlung mit genau einem früheren Protokoll, und nach dem Lauf bleibt nichts zurück.
 """
 
 from __future__ import annotations
@@ -25,7 +29,8 @@ from einkaufsagent.graph_b import HybridAgent
 from einkaufsagent.scenarios import Scenario
 
 OFFLINE = "offline"  # Vorlage + Regex-Parser, ohne Proxy
-MEMORY = ":memory:"
+MEMORY = ":memory:"  # leeres ERP im Speicher
+DEMO = "demo"  # ERP im Speicher mit Vorgeschichte (eine frühere Verhandlung), frisch pro Verhandlung
 STATUS = {
     "supplier": "wartet auf den Lieferanten",
     "decision": "wartet auf die Einkäuferin",
@@ -46,7 +51,7 @@ class Settings:
     scenario: str = "S04"
     human: bool = True  # Mensch als Lieferant, sonst Simulator
     model: str = "gpt-5.6-luna"  # oder OFFLINE
-    erp: str = "results/erp-demo.sqlite"  # oder MEMORY für Proben, dann bleibt nichts zurück
+    erp: str = DEMO  # oder MEMORY (leer) oder eine SQLite-Datei (Protokolle bleiben über Läufe)
 
 
 def make_agent(model: str) -> HybridAgent:
@@ -54,6 +59,19 @@ def make_agent(model: str) -> HybridAgent:
 
     policy, _ = make_policy("rule" if model == OFFLINE else None, None if model == OFFLINE else model, "b")
     return policy
+
+
+def add_history(sc: Scenario, erp: ErpAdapter) -> None:
+    """Vorgeschichte für die Demo: eine frühere Verhandlung mit diesem Lieferanten ins ERP schreiben.
+
+    Offline (Vorlage + Regex-Parser) gegen den Simulator, ohne Ausgabe und reproduzierbar; eine Eskalation bricht die
+    Einkäuferin ab. Mit Luna entstünde dasselbe Protokoll, weil es nur festhält, was der Code bestimmt (Pakete,
+    Antworttyp, Paketwahl, Ergebnis). Verdeckte Werte des Lieferanten gelangen so wenig ins ERP wie in jedem Lauf.
+    """
+    from einkaufsagent.live import run_live
+
+    answers = iter(["a", ""])  # Entscheid «abbrechen», keine Notiz
+    run_live(sc, make_agent(OFFLINE), erp, ask=lambda _: next(answers, ""), out=lambda _: None)
 
 
 class Session:
@@ -156,9 +174,13 @@ class Session:
             if self._log:
                 self._log.parent.mkdir(parents=True, exist_ok=True)
             agent = self._agent or make_agent(self.settings.model)
-            if self.settings.erp != MEMORY:
+            if self.settings.erp in (MEMORY, DEMO):
+                erp = ErpAdapter(MEMORY)
+            else:
                 Path(self.settings.erp).parent.mkdir(parents=True, exist_ok=True)
-            erp = ErpAdapter(self.settings.erp)
+                erp = ErpAdapter(self.settings.erp)
+            if self.settings.erp == DEMO:
+                add_history(self.sc, erp)
             self.final = run_live(
                 self.sc, agent, erp, human=self.settings.human, ask=self._ask, out=self._echo, emit=self._emit
             )

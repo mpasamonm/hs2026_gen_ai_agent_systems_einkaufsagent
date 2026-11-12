@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 9: Geschichte der 10 Minuten, 7 Hauptfolien). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 10, Punkt 0: ERP mit Vorgeschichte in der Web-UI). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -80,7 +80,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
 | ADR 0017 | Strategie lassen, Geschichte schärfen: (b) schliesst effizient ab (Pareto 1.00 Dev / 0.98 Test, Rabatt gegen Mengenzusage), maximiert nicht, ist für einen informierten Lieferanten ausnutzbar (Anteil 0.72 → 0.05, Nutzen −57 %, schlechtester Fall −58 %, nie unter dem Mindestnutzen); reziprok, Boulware, fester Anspruch nur gerechnet (`scripts/analyse_strategie.py`) | angenommen 11.11.2026 (Entscheid A); kippt, wenn in Demo-Probe oder Live-Runden ≥ 1 von 4 Personen von sich aus hinhält |
-| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen; Nachtrag 11.11.: Mandat-Karte «Grenzen» nur, was der Code prüft, Zeile «Richtlinie» (Entscheid B) |
+| ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen; Nachtrag 11.11.: Mandat-Karte «Grenzen» nur, was der Code prüft, Zeile «Richtlinie» (Entscheid B); Nachtrag 12.11.: ERP mit Vorgeschichte als Standard (Entscheid M2: die Einkäuferin sieht eine frühere Verhandlung am Start und in der Eskalation, der Agent nicht) |
 
 ## 5. Architektur heute (Varianten a und b)
 
@@ -95,8 +95,9 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
   Terminal in `live.py`: `--live` (Simulator, Einkäuferin entscheidet), `--human` (`HumanSupplier`, sieht nur Text,
   Ereignis `human`). Web-UI `ea-ui` (`ui.py`, `ui_session.py`, `ui_text.py`, NiceGUI 3.18.0, ADR 0016; links Sicht des Lieferanten mit Einladung als Vorlage vor dem Chat, rechts intern mit Mandat-Karte zugeklappt): `Session` startet `run_live` im
   Hintergrund-Thread, `ask` blockiert an einer Queue, der optionale Callback `emit` liefert die Schritte als Daten; Lauf im
-  Server-Prozess (Reload zeigt denselben Stand), «Neue Verhandlung» bricht ab, ERP-Datei oder `:memory:`, Modell oder
-  `offline`, Ereignisse als JSONL in `results/ui/`. Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
+  Server-Prozess (Reload zeigt denselben Stand), «Neue Verhandlung» bricht ab, ERP standardmässig `demo` (im Speicher;
+  `add_history` spielt vor jedem Lauf still eine frühere Verhandlung offline gegen den Simulator, ADR 0016 Nachtrag 12.11.),
+  sonst `:memory:` (leer) oder eine Datei, Modell oder `offline`, Ereignisse als JSONL in `results/ui/`. Die Eval hält am Interrupt an und wertet `escalated` wie bisher. Code-Schritte in `hybrid.py` (`check_message`, `assess_reply`, Vorlagen), Parser in `extract.py`
   (`LLMParser`, `RuleParser`; Protokoll `Parser` mit optionaler `confidence`), Narrator in `narrate.py`. `narrate` sieht
   nur Pakete und Runde; `parse_response` sieht nur Antwort und Gesendetes; keiner sieht das Mandat. Einigung liest
   `parse_response` aus dem Text; die Eval prüft sie gegen den Simulator (`deal:not_agreed`). Offline:
@@ -314,6 +315,16 @@ Erledigt:
     Lieferanten, Zielkonflikt Anspruch gegen Abschlussquote, was den Lieferanten vom Hinhalten abhält).
   - Korrektur: Hinhalten kostet 57 % (36'870 → 15'995), −58 % ist der schlechteste Fall mit Scheinkonzessionen (ADR 0017,
     README, §5, `eval-metriken.md`). Explainer M8 lokal in `kontext/lernen/`.
+- Session 12.11.2026, Etappe 10, Punkt 0 (Fragen des Nutzers nach einem eigenen Durchlauf):
+  - Modell-Auswahl: Erklärung reicht (Feld zeigt Startmodell und «offline»); nicht alle Modelle anbieten, (b) nur mit Luna
+    gemessen.
+  - Demo üben ohne Spuren: Leistungsbewertung neu gelesen (Präsentation nur erfüllt/nicht erfüllt, Prüfung 100 %, Memory
+    als Konzept gefragt). Entscheid des Nutzers M2 (ADR 0016, Nachtrag 12.11.): ERP im Speicher mit Vorgeschichte als
+    Standard; die Einkäuferin sieht die frühere Verhandlung am Start und in der grünen Karte, der Agent nutzt sie nicht
+    (ehrliche Formulierung statt «der Agent berücksichtigt frühere Verhandlungen»). Gebaut in `ui_session.py` (`DEMO`,
+    `add_history`), `ui.py`, `ui_text.history_lines`; 93 Tests grün (3 neu), ruff sauber; Headless-Browser offline (S11
+    zweimal) und mit Luna (vier Demo-Sätze: R4, CHF 4'000, 0.52, keine Verstösse, rund 21 s). `docs/demo.md` §1, README,
+    `docs/gesamtsystem.md`, Sprechernotiz Folie 7 (Folien Version 26).
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -340,7 +351,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    erledigt 11.11.:** Mandat-Karte (Entscheid B), Untersuchung Strategie und Use-Case, Entscheid A (ADR 0017). Einstieg für
    Etappe 9: `kontext/UEBERGABE-PROMPT-ABGABE-9.md`. **Etappe 9 erledigt 12.11.:** Geschichte der 10 Minuten (7 Hauptfolien,
    Version 22, Ziel ausdrücklich in `docs/gesamtsystem.md` §2.2). Einstieg für Etappe 10: `kontext/UEBERGABE-PROMPT-ABGABE-10.md`
-   (zuerst Punkt 0: Modell-Auswahl in der UI, Demo üben ohne Spuren im ERP). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   (zuerst Punkt 0: Modell-Auswahl in der UI, Demo üben ohne Spuren im ERP). **Etappe 10, Punkt 0 erledigt 12.11.:**
+   Modell-Auswahl erklärt (keine Änderung), ERP mit Vorgeschichte als Standard der UI (Entscheid M2, ADR 0016 Nachtrag;
+   Sprechernotiz Folie 7, Folien Version 26). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -358,8 +371,11 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
   (nur Grenzen zulasten der Musterhandel AG). Ein Gegenangebot mit 95 Tagen wurde angenommen, ohne Verstoss. Nicht
   geändert (Feature-Freeze). Entscheid des Nutzers 11.11.: B, nur den Wortlaut der Mandat-Karte präzisieren; **umgesetzt
   11.11.** (Etappe 8, Teil A, ADR 0016 Nachtrag): «Grenzen» nur, was der Code prüft, neue Zeile «Richtlinie».
-- **Demo-ERP (10.11.2026):** `results/erp-demo.sqlite` enthält nach Proben des Nutzers 3 Protokolle statt 1; vor der Demo
-  löschen und den Vorlauf wiederholen (`docs/demo.md` §1).
+- **Demo-ERP (erledigt 12.11.2026):** Die UI braucht keine Demo-Datei mehr. Standard ist das ERP «mit Vorgeschichte
+  (Demo)» im Speicher; jede Verhandlung startet mit genau einer früheren Verhandlung, nichts bleibt zurück (ADR 0016,
+  Nachtrag 12.11.). Der Vorlauf offline ergibt dasselbe Protokoll wie mit Luna (geprüft für S04), weil das Protokoll nur
+  Code-Daten hält. Vorgeschichte ohne Datum und Konditionen, weil `seed` die heutigen Konditionen aus dem Szenario setzt.
+  `results/erp-demo.sqlite` (3 Protokolle) ist ein Überbleibsel, nicht mehr nötig.
 
 - **Web-UI (10.11.2026):** Im Windows-Browser `http://127.0.0.1:8080` öffnen; `localhost` läuft unter WSL (Modus
   `mirrored`) in einen Timeout, vermutlich IPv6 zuerst. Der Server lauscht nur auf `127.0.0.1` (Binden an `0.0.0.0` wurde
@@ -367,9 +383,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
   bleibt 3.18.0. Ein abgebrochener Lauf kann ein Protokoll «escalated» in der ERP-Datei hinterlassen: Proben «nur im
   Speicher». Browser-Tests laufen mit `uv run --no-project --with playwright==1.63.0` und `LD_LIBRARY_PATH` auf die
   entpackte `libasound2t64` (wie beim BPMN-Rendern).
-- **Web-UI, Auswahlfelder (12.11.2026):** «Modell» zeigt nur das Startmodell aus `--model` plus «offline», «ERP» nur die
-  Startdatei aus `--erp` plus «nur im Speicher». Wer mit `--model offline` startet, sieht nur «offline». Üben ohne Spuren
-  im Demo-ERP ist offen (Etappe 10, Punkt 0).
+- **Web-UI, Auswahlfelder (12.11.2026):** «Modell» zeigt nur das Startmodell aus `--model` plus «offline»; wer mit
+  `--model offline` startet, sieht nur «offline». Entscheid: so lassen, (b) ist nur mit Luna gemessen (ADR 0013). «ERP»
+  zeigt «mit Vorgeschichte (Demo)», «leer, nur im Speicher» und, falls mit `--erp DATEI` gestartet, die Datei.
 - **Konzession nach «weiterverhandeln» (10.11.2026):** zeitabhängig, liest keine Signale (Befund der Probe, ADR 0012
   Nachtrag). Nicht ändern (Feature-Freeze); messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
 
@@ -480,9 +496,9 @@ uv run python scripts/analyse_strategie.py        # ADR 0017: Effizienz der fina
 uv run ea-eval --policy rule --repeats 3 --scenarios data/scenarios/test.jsonl              # Testset offline: 0.80
 uv run ea-eval --variant b --model gpt-5.6-luna --repeats 3 --scenarios data/scenarios/test.jsonl   # Testset (b): 0.98
 uv run ea-run --scenario S11 --variant b --policy rule --live                # Eskalation, Einkäuferin im Terminal (offline)
-uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Demo im Terminal (Fallback)
-uv run ea-ui                                      # Web-UI für die Demo: http://127.0.0.1:8080 (nicht localhost), ADR 0016
-uv run ea-ui --model offline --erp :memory:       # Web-UI ohne Proxy, Probe ohne Spuren im ERP
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human   # Demo im Terminal (Fallback, ERP leer im Speicher)
+uv run ea-ui                                      # Web-UI für die Demo: http://127.0.0.1:8080 (nicht localhost), ERP mit Vorgeschichte, ADR 0016
+uv run ea-ui --model offline                      # Web-UI ohne Proxy (Simulator, z.B. S11)
 # Finale Läufe der Abgabe (14 Stück, --out docs/ergebnisse/<datum>): Befehle in docs/ergebnisse/2026-11-09/README.md
 # BPMN (optional, Node 22 + Playwright-Chromium; Details und WSL-Hinweis in docs/process/README.md):
 cd docs/process && npm install && python3 gen_bpmn_v4.py ../../einkaufsagent-prozess_v4.bpmn \

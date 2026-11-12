@@ -110,6 +110,22 @@ def explain_step(node: str | None, text: str) -> str:
     return prefix + " · ".join(out)
 
 
+STATUS_DE = {"deal": "Abschluss", "no_deal": "keine Einigung", "escalated": "an die Einkäuferin eskaliert"}
+
+
+def history_lines(count: int, items: list[dict]) -> list[str]:
+    """Frühere Verhandlungen aus dem ERP in Worten, ohne Datum und Konditionen (ADR 0016, Nachtrag 12.11.):
+    Die Vorgeschichte der Demo entsteht kurz vor dem Lauf, und das Szenario setzt die heutigen Konditionen."""
+    if not count:
+        return ["keine früheren Verhandlungen mit diesem Lieferanten"]
+    lines = [f"{count} frühere Verhandlung{'en' if count > 1 else ''} mit diesem Lieferanten:"]
+    for m in items:
+        rounds = f"{m['rounds']} Runde{'n' if m['rounds'] != 1 else ''}"
+        choice = f", Paket {m['choice']} gewählt" if m.get("choice") not in (None, "–") else ""
+        lines.append(f"· {STATUS_DE.get(m['status'], m['status'])} nach {rounds}{choice}")
+    return lines
+
+
 def report_help(line: str) -> str | None:
     for start, text in REPORT_HELP.items():
         if line.startswith(start):

@@ -43,7 +43,7 @@ die Schriften mit; die Seite braucht zur Laufzeit kein Internet.
 - «Neue Verhandlung» bricht einen laufenden Lauf nach einer Rückfrage ab und startet sofort neu; ein Reload der Seite zeigt
   denselben Stand, auch mitten in der Eskalation.
 - ERP wählbar: die Demo-Datei (Langzeitgedächtnis über Läufe) oder «nur im Speicher» für Proben ohne Spuren in der
-  Demo-Datei.
+  Demo-Datei. Abgelöst durch den Nachtrag 12.11.2026: Standard ist ein ERP im Speicher mit Vorgeschichte.
 - Modell wählbar: Luna oder «offline» (Vorlage + Regex) für den Fallback ohne Proxy, zum Beispiel S11 mit dem Simulator.
 - Jeder Lauf schreibt seine Ereignisse als JSONL nach `results/ui/` (für die Tabelle der Live-Runden). Die Server-Konsole
   zeigt dieselbe Ausgabe wie das Terminal.
@@ -168,3 +168,53 @@ Entscheid des Nutzers (11.11.): B, nur den Wortlaut präzisieren, keine neue Reg
   Zahlungsziel und Rabatt höchstens …, «nur für unsere Pakete; ein Gegenangebot darüber darf der Code annehmen».
 - Test `test_mandate_in_words_only_from_public_part` angepasst. 90 Tests grün, ruff sauber; Karte im Headless-Browser
   offline geprüft (S04, 1600 × 1000 px, eine Zeile mehr, ohne Scrollen lesbar).
+
+## Nachtrag 12.11.2026: ERP mit Vorgeschichte, jede Verhandlung gleich (Entscheid M2)
+
+**Anlass.** Der Nutzer will vor und am Tag der Demo mehrmals live mit Luna üben; jeder Lauf soll gleich starten, ohne
+Dateien zu löschen. Bisher schrieb jede Verhandlung ein Protokoll in die Demo-Datei `results/erp-demo.sqlite`; nach Proben
+lagen 3 Protokolle statt 1 darin. «Nur im Speicher» war sauber, zeigte am Start aber kein früheres Protokoll. Zudem soll
+die Demo das Langzeitgedächtnis sichtbar und ehrlich zeigen: Der Agent liest die Protokolle nicht (Gedächtnis (c)
+gestrichen, ADR 0014), die Einkäuferin schon.
+
+**Optionen** (trennende Achse: wer das Gedächtnis nutzt)
+
+| | Was die Seite zeigt | Aufwand | Bewertung |
+| --- | --- | --- | --- |
+| M1 Nur angezeigt | am Start «1 frühere Verhandlung» | klein | wahr, aber ohne Rolle im Ablauf |
+| **M2 Die Einkäuferin nutzt es** | dasselbe, dazu die Vorgeschichte in der grünen Eskalationskarte | klein, nur Darstellung | **gewählt:** verbindet Langzeitgedächtnis und Human-in-the-loop (SW8 Folien 7, 15, 19) in einem Moment, den die Demo ohnehin hat |
+| M3 Der Agent nutzt es (Variante c) | Pakete richten sich nach der früheren Paketwahl | gross: Regeln, Szenarien mit Vorgeschichte, neue Messung | verworfen: bricht den Feature-Freeze |
+
+Zum Herstellen der Vorgeschichte verworfen: eine Vorlage-Datei, die pro Lauf kopiert wird (kann fehlen oder veralten, gilt
+nur für einen Lieferanten), und ein Befehl, der die Datei löscht und den Vorlauf wiederholt (muss nach jeder Probe laufen;
+vergessen heisst 2 Protokolle in der Demo).
+
+**Entscheid des Nutzers (12.11.2026): M2.**
+- `ui_session.DEMO` ist der neue Standard für `--erp`: ein ERP im Speicher. Vor jeder Verhandlung schreibt
+  `add_history` eine frühere Verhandlung mit demselben Lieferanten hinein, still, offline (Vorlage + Regex-Parser) gegen
+  den Simulator, in rund 0,02 s; eine Eskalation bricht die Einkäuferin dort ab. Jede «Neue Verhandlung» startet so mit
+  genau einem früheren Protokoll, und nach dem Lauf bleibt nichts zurück. «leer, nur im Speicher» und `--erp DATEI`
+  bleiben.
+- Offline statt mit Luna: Das Protokoll hält nur fest, was der Code bestimmt (Pakete, Antworttyp, Paketwahl, Ergebnis),
+  keine Texte. Geprüft am 12.11. für S04: Vorlauf offline und Vorlauf mit Luna (Demo-Datei vom 09.11.) ergeben bis auf ID
+  und Zeitstempel dasselbe Protokoll (1 Runde, Gegenangebot, Annahme, 30 Tage, 2,5 %, 80 %).
+- Darstellung (`ui_text.history_lines`): «1 frühere Verhandlung mit diesem Lieferanten: · Abschluss nach 1 Runde», mit dem
+  Hinweis «Vorgeschichte für die Demo: vorab offline mit dem Simulator verhandelt» und «Die Einkäuferin sieht sie hier und
+  bei einer Eskalation; der Agent nutzt sie nicht.» Die grüne Karte zeigt die Zeile «Vorgeschichte im ERP». Ohne Datum und
+  ohne Konditionen: Die Vorgeschichte entsteht Sekunden vor dem Lauf, und `seed` setzt die heutigen Konditionen aus dem
+  Szenario (S04: 30 Tage, 0 %); ein früherer Abschluss mit 2,5 % sähe daneben widersprüchlich aus.
+- Graph, Prompts, Regeln, Eval, `live.py` und `erp.py` unverändert; Terminal-Ausgabe ohne `emit` byte-gleich.
+
+**Prüfung.** 93 Tests grün (3 neu: jede Verhandlung startet mit genau einem früheren Protokoll, Vorgeschichte für alle
+11 Dev- und 15 Testszenarien ohne Rückfrage und ohne Canary im ERP-Dump, Text der Vorgeschichte), ruff sauber.
+Headless-Browser offline: S11 mit dem Simulator zweimal hintereinander, je «1 frühere Verhandlung» («an die Einkäuferin
+eskaliert nach 1 Runde, Paket B gewählt»), auch in der grünen Karte. Mit Luna die vier Demo-Sätze (S04, Mensch,
+«weiterverhandeln», Zustimmung): Vorgeschichte «Abschluss nach 1 Runde» am Start und in der Karte, Abschluss in Runde 4
+mit CHF 4'000, Anteil 0.52, keine Verstösse, also dasselbe Ergebnis wie am 10.11.; Lauf rund 21 s.
+
+**Satz für die Demo.** «Der Agent verhandelt nur nach Mandat; wenn eine Ausnahme kommt, entscheidet die Einkäuferin mit
+der Vorgeschichte aus dem ERP.» Falls gefragt, warum der Agent sie nicht nutzt: Sonst könnte ein Lieferant über alte
+Verhandlungen Einfluss auf die Pakete nehmen, und die Eval misst es nicht; das ist Gedächtnis (c), der nächste Ausbau.
+
+**Kippt, wenn** die Vorgeschichte in der Demo-Probe Fragen auslöst, die die 4 Minuten sprengen: dann «leer, nur im
+Speicher» wählen (ohne Bau).

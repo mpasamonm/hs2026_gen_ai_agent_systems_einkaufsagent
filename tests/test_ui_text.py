@@ -8,6 +8,7 @@ from einkaufsagent.ui_text import (
     NODE_DE,
     REPORT_HELP,
     explain_step,
+    history_lines,
     invitation_text,
     mandate_lines,
     node_label,
@@ -70,3 +71,16 @@ def test_invitation_names_subject_but_nothing_from_mandate_or_hidden(scenarios):
     m = sc.public.mandate  # Ziel, Grenzen und Mindestnutzen bleiben verdeckt
     for secret in (f"{m.target_payment_days} Tage", f"{m.payment_days_max} Tage", "CHF 2'000", canary):
         assert secret not in text
+
+
+def test_history_in_words_without_date_or_terms():
+    items = [
+        {"recorded_at": "2026-11-12T10:00:00", "status": "deal", "rounds": 1, "choice": "–"},
+        {"recorded_at": "2026-11-12T11:00:00", "status": "escalated", "rounds": 3, "choice": "B"},
+    ]
+    assert history_lines(2, items) == [
+        "2 frühere Verhandlungen mit diesem Lieferanten:",
+        "· Abschluss nach 1 Runde",
+        "· an die Einkäuferin eskaliert nach 3 Runden, Paket B gewählt",
+    ]
+    assert history_lines(0, []) == ["keine früheren Verhandlungen mit diesem Lieferanten"]

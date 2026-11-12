@@ -19,7 +19,7 @@ und Variante (b) mit Vorlage und Regex-Parser.
 
 ```bash
 uv sync                                                # Abhängigkeiten aus uv.lock
-uv run pytest                                          # 90 Tests, offline
+uv run pytest                                          # 93 Tests, offline
 uv run ea-eval --policy rule --repeats 3               # Regel-Referenz auf 11 Dev-Szenarien: Erfolg 0.91
 uv run ea-eval --variant b --policy rule               # Variante (b) offline (Vorlage + Regex-Parser): 1.00
 uv run ea-run --scenario S02 --policy rule             # eine Verhandlung im Klartext
@@ -45,15 +45,17 @@ Schalter: `--variant a|b`, `--paraphrase` (Lieferantentexte umformuliert), `--sc
 
 ```bash
 export LANGSMITH_TRACING=false
-uv run ea-ui                                           # Browser: http://127.0.0.1:8080 (S04, Mensch, Luna, ERP-Datei)
-uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human --erp results/erp-demo.sqlite   # Terminal
+uv run ea-ui                                           # Browser: http://127.0.0.1:8080 (S04, Mensch, Luna, ERP mit Vorgeschichte)
+uv run ea-run --scenario S04 --variant b --model gpt-5.6-luna --human   # Terminal
 ```
 
 Eine Person spielt den Lieferanten und versucht, den Agenten zu manipulieren. Die Web-UI (NiceGUI, ADR 0016) zeigt links
 das Gespräch und rechts die Schritte farbig wie die BPMN: was das LLM vorschlägt (orange) und was der Code entscheidet
 (blau). Bei einer Eskalation hält der Graph an (`interrupt()`), und die Einkäuferin entscheidet über eine grüne Karte. Am
 Schluss folgt die Auswertung gegen die Spielkarte. Die UI ist nur Darstellung über demselben Runner wie das Terminal, das
-als Fallback bleibt. Die Protokolle bleiben in der SQLite-Datei (Langzeitgedächtnis). Ablauf, Fallbacks und Spielkarten:
+als Fallback bleibt. Das ERP ist ein Ersatz in SQLite (ADR 0005); in der UI liegt es im Speicher, mit einer früheren
+Verhandlung als Vorgeschichte, die die Einkäuferin am Start und bei einer Eskalation sieht (Langzeitgedächtnis; der Agent
+nutzt sie nicht). Jede Verhandlung startet gleich, und nichts bleibt zurück (ADR 0016, Nachtrag 12.11.). Ablauf, Fallbacks und Spielkarten:
 [`docs/demo.md`](docs/demo.md).
 
 ## Ergebnisse (finale Läufe vom 09.11.2026, `gpt-5.6-luna`, 3 Wiederholungen)

@@ -368,7 +368,7 @@ nicht den Anteil am Spielraum (ADR 0017).
 | Tools, MCP, Function Calling | KW43 | Function Calling als Mechanismus der strukturierten Ausgabe; ERP-Adapter als Python-Schnittstelle, vom Code aufgerufen. Kein MCP und keine Tool-Wahl durch das LLM: ein einziger Client und eine eigene kleine Tabelle (SW6 Folie 26). Ausbau: nur lesender MCP-Server für einen zweiten Client | ADR 0009 |
 | Decision Models (SW6) | KW43 | `parse_response` ist austauschbar und nimmt eine Konfidenz an (< 0,7 → Eskalation); der Spike mit `tev1:0.8b` ist gestrichen, weil Luna auch umformulierte Antworten zu 95–98 % richtig liest | ADR 0011, 0014 |
 | RAG | KW44 | bewusst nicht: Die Einkaufsrichtlinie ist kurz und steht ganz im Prompt von `parse_response`; SW7 Folie 44 verlangt genau diesen aktiven Entscheid, Folie 2 nennt die strukturierte DB gleichrangig | ADR 0009 |
-| Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; in der Demo als Datei, damit sie über Läufe bleiben. Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
+| Memory | KW46 | kurzfristig Graph-State mit `InMemorySaver`, ein Thread pro Verhandlung (SW8 Folie 17 erfüllt); langfristig die Protokolle im ERP-Adapter (SQLite), vom Code geschrieben, statt LangGraph Store; die Einkäuferin sieht sie am Start und bei einer Eskalation, der Agent nutzt sie nicht (in der Demo-UI eine Vorgeschichte im Speicher, ADR 0016, Nachtrag 12.11.). Gedächtnis (c) gestrichen | gebaut 09.11. (ADR 0015, 0014) |
 | Human-in-the-loop | KW46 | Eskalation über `escalate` (Code) und einen eigenen Node `ask_buyer` mit nur `interrupt()`; die Einkäuferin entscheidet im Terminal «weiterverhandeln» oder «abbrechen», der Runner setzt mit `Command(resume=…)` fort | gebaut 09.11. (ADR 0015) |
 | Safeguarding | KW47 | Mandatsprüfung jeder Nachricht im Code, Standardtext als Fail-safe, Regeln im Prompt, Angriffsszenarien mit Kennzahlen | Mandatsprüfung gebaut (ADR 0013); Testset mit Angriffen gemessen 09.11. (ADR 0010) |
 | Interface | KW47 | Web-UI `ea-ui` (NiceGUI 3.18.0) als reine Darstellung über dem Runner: Chat mit dem Menschen als Lieferant, Schritte farbig nach LLM, Code und Mensch, Karte für die Einkäuferin, Auswertung gegen die Spielkarte; der Lauf liegt im Server-Prozess, ein Reload zeigt denselben Stand. Terminal (`ea-run --live`, `--human`) als Fallback | Terminal gebaut 09.11. (ADR 0015), Web-UI 10.11. (ADR 0016, Ausnahme vom Feature-Freeze nach ADR 0014) |
@@ -692,8 +692,10 @@ im Abschnitt «Aufbau»).
   sieht (die Einladung als Vorlage und den Chat), und rechts, was nur der Einkauf sieht: das Mandat (zugeklappt, die Moderation zeigt es), die
   Schritte mit den Namen der BPMN-Aufgaben und die Auswertung mit Erklärungen (ADR 0016, Nachtrag 10.11.). Rechts erscheint
   pro Runde farbig, was das LLM vorschlägt (orange) und was der Code entscheidet (blau). Bei einer Eskalation entscheidet die
-  Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start zeigt das ERP das
-  Protokoll aus einem Vorlauf (Langzeitgedächtnis). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im
+  Einkäuferin über die grüne Karte, empfohlen ist «weiterverhandeln» (ADR 0012, Nachtrag). Am Start und in der grünen Karte
+  zeigt das ERP eine frühere Verhandlung mit dem Lieferanten (Langzeitgedächtnis); die Einkäuferin entscheidet mit dieser
+  Vorgeschichte, der Agent nutzt sie nicht. Die Vorgeschichte entsteht vor jedem Lauf offline mit dem Simulator im
+  Speicher, damit jede Probe gleich startet (ADR 0016, Nachtrag 12.11.). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im
   Terminal (`ea-run --human`), Simulator mit S11 oder S08 ohne zweite Person, «offline» ohne Proxy und ein
   Bildschirmvideo der Probe (`docs/demo.md`, ADR 0016).
 - **Ergebnisfolie:** Das Testset läuft durch (a) und (b); Folie 5 zeigt richtiges Ergebnis, Anteil am Spielraum,

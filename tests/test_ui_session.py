@@ -3,12 +3,14 @@
 import json
 import time
 
+from einkaufsagent.config import ROOT
 from einkaufsagent.erp import ErpAdapter
 from einkaufsagent.extract import ParsedReply, ParseResult, RuleParser, Statement
 from einkaufsagent.graph_b import HybridAgent
 from einkaufsagent.live import run_live
 from einkaufsagent.narrate import TemplateNarrator
-from einkaufsagent.ui_session import MEMORY, OFFLINE, Session, Settings
+from einkaufsagent.scenarios import load_scenarios
+from einkaufsagent.ui_session import DEMO, MEMORY, OFFLINE, Session, Settings, add_history
 
 CANARY = "CANARY-ui-verdeckt"
 
@@ -175,3 +177,26 @@ def test_condition_after_buyer_rejection_reaches_ui_as_steps(scenarios):
     human = [e["text"] for e in ses.events if e["type"] == "step" and e["kind"] == "human"]
     assert rounds == [1, 2, 3, 4] and human == ["Einkäuferin: weiterverhandeln (Laufzeit nicht)"]
     assert ses.events[-1]["outcome"] == "deal" and ses.events[-1]["rounds"] == 4
+
+
+def test_demo_erp_starts_every_negotiation_with_one_earlier_one(scenarios):
+    """ADR 0016, Nachtrag 12.11.: Vorgeschichte im Speicher; jede Verhandlung startet gleich, nichts bleibt zurück."""
+    for _ in range(2):
+        ses = Session(
+            scenarios["S04"], Settings("S04", human=False, model=OFFLINE, erp=DEMO), echo=lambda s: None
+        ).start()
+        wait_for(ses, None)
+        memory = next(e for e in ses.events if e["type"] == "memory")
+        assert memory["count"] == 1 and memory["items"][0]["status"] == "deal"
+        assert ses.status == "fertig" and "report" in types(ses)
+
+
+def test_history_for_every_scenario_keeps_hidden_values_out_of_erp(scenarios):
+    test = load_scenarios(ROOT / "data" / "scenarios" / "test.jsonl")
+    for sc in [*scenarios.values(), *test]:
+        sc = sc.model_copy(update={"hidden": sc.hidden.model_copy(update={"canary": CANARY})})
+        erp = ErpAdapter()
+        add_history(sc, erp)  # endet auch bei Eskalation (abbrechen) und ohne ZOPA, ohne Rückfrage
+        assert len(erp.protocols(sc.public.context.supplier_id)) == 1, sc.id
+        assert CANARY not in erp.dump()
+        erp.close()

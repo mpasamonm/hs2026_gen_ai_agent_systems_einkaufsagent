@@ -1,13 +1,16 @@
 """Web-UI für Demo und Live-Runden (ADR 0016): reine Darstellung über ``live.run_live``, Graph unverändert.
 
-    uv run ea-ui                          # http://127.0.0.1:8080 (nicht localhost) · Mensch als Lieferant · Luna · ERP results/erp-demo.sqlite
+    uv run ea-ui                          # http://127.0.0.1:8080 (nicht localhost) · Mensch als Lieferant · Luna · ERP mit Vorgeschichte
     uv run ea-ui --model offline          # ohne Proxy (Vorlage + Regex-Parser), z.B. S11 mit dem Simulator
+    uv run ea-ui --erp results/erp.sqlite # ERP als Datei: Protokolle bleiben über Läufe
 
 Links die Sicht des Lieferanten (Einladung als erste Nachricht, Chat und Zustimmung; die Person tippt als Lieferant), rechts die interne Sicht des
 Einkaufs: das Mandat (zugeklappt, damit es in Live-Runden verdeckt bleibt), bei einer Eskalation die Vorlage für die
 Einkäuferin mit zwei Knöpfen, am Schluss Protokoll und Auswertung gegen die Spielkarte, und die Schritte farbig wie die
 BPMN (orange LLM, blau Code, grün Mensch) mit den Namen der BPMN-Aufgaben. Texte in ``ui_text``. Der Lauf liegt im Server-Prozess (``ui_session.Session``); ein Reload
-der Seite zeigt denselben Stand. «Neue Verhandlung» bricht einen laufenden Lauf ab.
+der Seite zeigt denselben Stand. «Neue Verhandlung» bricht einen laufenden Lauf ab. Das ERP liegt standardmässig im
+Speicher, mit einer früheren Verhandlung als Vorgeschichte (``ui_session.DEMO``); jede Verhandlung startet gleich, und
+nach dem Lauf bleibt nichts zurück. Die Einkäuferin sieht die Vorgeschichte am Start und in der Eskalation.
 """
 
 from __future__ import annotations
@@ -21,9 +24,10 @@ from nicegui import app, ui
 from einkaufsagent.config import ROOT, flush_traces
 from einkaufsagent.eval import DEFAULT_SCENARIOS
 from einkaufsagent.scenarios import load_scenarios
-from einkaufsagent.ui_session import MEMORY, OFFLINE, Session, Settings
+from einkaufsagent.ui_session import DEMO, MEMORY, OFFLINE, Session, Settings
 from einkaufsagent.ui_text import (
     explain_step,
+    history_lines,
     invitation_text,
     mandate_lines,
     node_label,
@@ -68,7 +72,7 @@ def index() -> None:
     ui.add_css(CSS)
     ui.page_title("Einkaufsagent")
     settings: Settings = STATE["settings"]
-    view: dict[str, Any] = {"session": None, "seen": 0, "report": False, "mandate_for": None}
+    view: dict[str, Any] = {"session": None, "seen": 0, "report": False, "mandate_for": None, "history": []}
 
     with ui.header().classes("items-center bg-slate-800 py-2"):
         ui.label("Einkaufsagent · Musterhandel AG").classes("text-xl font-bold")
@@ -84,8 +88,9 @@ def index() -> None:
         models = {settings.model: settings.model} if settings.model != OFFLINE else {}
         models[OFFLINE] = "offline (Vorlage + Regex)"
         sel_model = ui.select(models, value=settings.model, label="Modell").classes("w-56")
-        erps = {settings.erp: f"ERP {settings.erp}"} if settings.erp != MEMORY else {}
-        erps[MEMORY] = "ERP nur im Speicher (Probe)"
+        erps = {DEMO: "mit Vorgeschichte (Demo)", MEMORY: "leer, nur im Speicher"}
+        if settings.erp not in erps:
+            erps[settings.erp] = f"Datei {settings.erp}"
         sel_erp = ui.select(erps, value=settings.erp, label="ERP").classes("w-72")
         ui.button("Neue Verhandlung", icon="play_arrow", on_click=lambda: confirm_new())
         with ui.row().classes("items-center gap-2"):
@@ -239,16 +244,16 @@ def index() -> None:
                         f"Agent: {e['agent']}"
                     ).classes("font-bold")
             case "memory":
-                lines = [
-                    f"{m['recorded_at']}: {m['status']} nach {m['rounds']} Runden, Paketwahl {m['choice']}"
-                    for m in e["items"]
-                ]
-                step(
-                    "code",
-                    "ERP-Gedächtnis",
-                    "\n".join([f"{e['count']} frühere Verhandlung(en) mit diesem Lieferanten", *lines])
-                    + "\n(nur zur Information der Einkäuferin; der Agent nutzt sie nicht)",
-                )
+                view["history"] = history_lines(e["count"], e["items"])
+                ses = STATE["session"]
+                lines = list(view["history"])
+                if e["count"] and ses is not None and ses.settings.erp == DEMO:
+                    lines.append("(Vorgeschichte für die Demo: vorab offline mit dem Simulator verhandelt)")
+                if e["count"]:
+                    lines.append(
+                        "Die Einkäuferin sieht sie hier und bei einer Eskalation; der Agent nutzt sie nicht."
+                    )
+                step("code", "ERP-Gedächtnis", "\n".join(lines))
             case "round":
                 with steps:
                     ui.label(f"Runde {e['round']}").classes("round")
@@ -270,6 +275,10 @@ def index() -> None:
                 with esc_body:
                     for key in ("grund", "runde", "mandat"):
                         ui.label(f"{key.capitalize()}: {b[key]}")
+                    earlier = [line.removeprefix("· ") for line in view["history"][1:]]
+                    ui.label(
+                        "Vorgeschichte im ERP: " + ("; ".join(earlier) or "".join(view["history"][:1]) or "–")
+                    )
                     ui.label(f"Letzte Antwort: {b['letzte_antwort']}").style("white-space:pre-wrap")
                     for h in b["hinweise"]:
                         ui.label(f"Hinweis: {h}").classes("font-bold")
@@ -309,7 +318,7 @@ def index() -> None:
         if ses is not view["session"]:
             for c in (chat, steps, esc_body, report_body):
                 c.clear()
-            view.update(session=ses, seen=0, report=False)
+            view.update(session=ses, seen=0, report=False, history=[])
         if ses is None:
             status.text = "bereit: Szenario wählen, dann «Neue Verhandlung»"
             spinner.set_visibility(False)
@@ -354,7 +363,11 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--scenario", default="S04")
     ap.add_argument("--model", default="gpt-5.6-luna", help=f"Modell aus config/models.toml oder «{OFFLINE}»")
-    ap.add_argument("--erp", default="results/erp-demo.sqlite", help=f"SQLite-Datei oder «{MEMORY}»")
+    ap.add_argument(
+        "--erp",
+        default=DEMO,
+        help=f"«{DEMO}» (im Speicher mit Vorgeschichte, Standard), «{MEMORY}» (leer) oder eine SQLite-Datei",
+    )
     ap.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
     ap.add_argument("--log-dir", default=str(ROOT / "results" / "ui"), help="Ereignisse pro Lauf als JSONL")
     a = ap.parse_args()
