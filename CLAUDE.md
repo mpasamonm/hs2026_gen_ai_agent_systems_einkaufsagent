@@ -339,8 +339,8 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    erledigt 11.11.:** Red-Teaming durch Claude (8 Läufe, `docs/demo.md` §3, ADR 0012, Nachtrag). **Etappe 8
    erledigt 11.11.:** Mandat-Karte (Entscheid B), Untersuchung Strategie und Use-Case, Entscheid A (ADR 0017). Einstieg für
    Etappe 9: `kontext/UEBERGABE-PROMPT-ABGABE-9.md`. **Etappe 9 erledigt 12.11.:** Geschichte der 10 Minuten (7 Hauptfolien,
-   Version 22, Ziel ausdrücklich in `docs/gesamtsystem.md` §2.2). Einstieg für Etappe 10: `kontext/UEBERGABE-PROMPT-ABGABE-10.md`.
-   Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   Version 22, Ziel ausdrücklich in `docs/gesamtsystem.md` §2.2). Einstieg für Etappe 10: `kontext/UEBERGABE-PROMPT-ABGABE-10.md`
+   (zuerst Punkt 0: Modell-Auswahl in der UI, Demo üben ohne Spuren im ERP). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -367,6 +367,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
   bleibt 3.18.0. Ein abgebrochener Lauf kann ein Protokoll «escalated» in der ERP-Datei hinterlassen: Proben «nur im
   Speicher». Browser-Tests laufen mit `uv run --no-project --with playwright==1.63.0` und `LD_LIBRARY_PATH` auf die
   entpackte `libasound2t64` (wie beim BPMN-Rendern).
+- **Web-UI, Auswahlfelder (12.11.2026):** «Modell» zeigt nur das Startmodell aus `--model` plus «offline», «ERP» nur die
+  Startdatei aus `--erp` plus «nur im Speicher». Wer mit `--model offline` startet, sieht nur «offline». Üben ohne Spuren
+  im Demo-ERP ist offen (Etappe 10, Punkt 0).
 - **Konzession nach «weiterverhandeln» (10.11.2026):** zeitabhängig, liest keine Signale (Befund der Probe, ADR 0012
   Nachtrag). Nicht ändern (Feature-Freeze); messbar erst, wenn die Eval nach `ask_buyer` mit festem Entscheid fortsetzt.
 
