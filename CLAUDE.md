@@ -1,6 +1,6 @@
 # CLAUDE.md – Einkaufsagent (Gruppenarbeit GenKI & Agentensysteme, FHNW HSW, HS 2026)
 
-Diese Datei ist die Übergabe für jede neue Session. Stand: 11.11.2026 (Etappe 8: Mandat-Karte, ADR 0017 Strategie lassen). Das Repository ist ab jetzt die
+Diese Datei ist die Übergabe für jede neue Session. Stand: 12.11.2026 (Etappe 9: Geschichte der 10 Minuten, 7 Hauptfolien). Das Repository ist ab jetzt die
 führende Quelle; die claude.ai-Dokumente sind nur noch Referenz (`kontext/README.md`).
 
 ## 1. Projekt in fünf Sätzen
@@ -79,7 +79,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 | ADR 0013 | Variante (b) gebaut; Ablation (a) gegen (b): Kernthese trägt (Spielraum +52 Punkte), Restfehler im Extrahieren | angenommen 19.10.2026; Nachtrag 09.11.: Kippregel unnötige Eskalationen auf dem Testset greift formal, Entscheid: nicht ändern |
 | ADR 0014 | Umfang bis 23.11.: Bau 1 (ERP-Protokoll, `interrupt()`, Mensch als Lieferant, `_v4`), Bau 2 (Testset mit Angriffen); Spike, (c), MCP gestrichen | angenommen 09.11.2026; Nachtrag: (c) nur bei Restzeit nach dem Testset; Nachtrag: Web-UI als einzige Ausnahme vom Feature-Freeze (Stichtag 15.11.) |
 | ADR 0015 | Memory: State mit `InMemorySaver`, Protokoll im ERP-Adapter statt Store; Node `ask_buyer` mit `interrupt()`; `HumanSupplier` per `input()`, nur (b) | angenommen und gebaut 09.11.2026 (Nachtrag mit Messung); Nachtrag: Kippregel «Web-UI» greift nicht (Runner im Thread) |
-| ADR 0017 | Strategie lassen, Geschichte schärfen: (b) schliesst effizient ab (Pareto 1.00 Dev / 0.98 Test, Rabatt gegen Mengenzusage), maximiert nicht, ist für einen informierten Lieferanten ausnutzbar (Anteil 0.72 → 0.05, Nutzen −58 %, nie unter dem Mindestnutzen); reziprok, Boulware, fester Anspruch nur gerechnet (`scripts/analyse_strategie.py`) | angenommen 11.11.2026 (Entscheid A); kippt, wenn in Demo-Probe oder Live-Runden ≥ 1 von 4 Personen von sich aus hinhält |
+| ADR 0017 | Strategie lassen, Geschichte schärfen: (b) schliesst effizient ab (Pareto 1.00 Dev / 0.98 Test, Rabatt gegen Mengenzusage), maximiert nicht, ist für einen informierten Lieferanten ausnutzbar (Anteil 0.72 → 0.05, Nutzen −57 %, schlechtester Fall −58 %, nie unter dem Mindestnutzen); reziprok, Boulware, fester Anspruch nur gerechnet (`scripts/analyse_strategie.py`) | angenommen 11.11.2026 (Entscheid A); kippt, wenn in Demo-Probe oder Live-Runden ≥ 1 von 4 Personen von sich aus hinhält |
 | ADR 0016 | Web-UI `ea-ui` mit NiceGUI 3.18.0 über dem Runner, `emit` in `live.py`, `Session` im Hintergrund-Thread; Gradio, Streamlit, Chainlit verworfen | angenommen und gebaut 10.11.2026; Nachtrag 10.11.: lesbare Seite (C+: Rollen beschriftet, Mandat-Karte, BPMN-Namen, Erklärungen in `ui_text.py`); Nachtrag 11.11.: Einladung als erste Nachricht links (Gegenstand, freie Antwort), U2/U3 verworfen; Nachtrag 11.11.: Mandat-Karte «Grenzen» nur, was der Code prüft, Zeile «Richtlinie» (Entscheid B) |
 
 ## 5. Architektur heute (Varianten a und b)
@@ -138,7 +138,7 @@ Parametern und bekannter Wahrheit (ZOPA). Team-Entscheid vom 05.10.2026 (ADR 000
 - Behauptungen des Lieferanten ändern das Mandat nie; eskaliert wird nur nach ADR 0008. Richtlinie und Protokolle
   liefern Kontext, keine Grenzen (ADR 0009).
 
-## 6. Stand am 11.11.2026 (Etappe 8)
+## 6. Stand am 12.11.2026 (Etappe 9)
 
 Erledigt:
 - BPMN-Review mit Befundtabelle; v2 geprüft mit bpmn-moddle, bpmnlint «recommended» und bpmn-js 18.31.0,
@@ -303,7 +303,17 @@ Erledigt:
   - Teil B: Untersuchung «klug verhandeln, Realität, Use-Case» (Recherche und Analyse lokal in
     `kontext/recherche-2026-11-11-agent-realitaet.md`). Entscheid des Nutzers: A, ADR 0017. `scripts/analyse_strategie.py`
     (Effizienz aus `runs.jsonl`, Ausnutzbarkeit offline), `docs/gesamtsystem.md` §2.5, §4, §5, §6, §7,
-    `docs/eval-metriken.md`. Strategie, Graph, Prompts und Regeln unverändert; Folien noch nicht angepasst.
+    `docs/eval-metriken.md`. Strategie, Graph, Prompts und Regeln unverändert; Folien in Etappe 9 angepasst.
+- Session 11./12.11.2026, Etappe 9 (Geschichte der 10 Minuten):
+  - Story-Diagnose: K2 (Kernthese) kam fünfmal, K3 (ADR 0017) fehlte, Folie 6 doppelte Folie 5, «Spielraum» unerklärt,
+    Sprechertext 820 Wörter für 5:40. Entscheid des Nutzers: V2 (7 Hauptfolien) mit klarem Ziel, Warum und Wie zuerst.
+  - Slides-Artifact Version 22: Aktionstitel und Fortschrittsband (Ziel · Ansatz · Umsetzung · Ergebnis · Erkenntnisse ·
+    Demo); neue Folie «Ergebnis» (Testset, (a) gegen (b), 4 Kennzahlen, Spielraum erklärt); Kampagne und volle Ablation
+    ins Backup; neue Backup-Folie «Verhandelt der Agent klug?»; gesprochen 680 Wörter (≈ 5:15). Roter Faden, Kernbotschaften
+    und 2-Minuten-Erklärung in `docs/gesamtsystem.md` (Aufbau); Ziel des Agenten ausdrücklich in §2.2 (Jahresnutzen über alle
+    Lieferanten, Zielkonflikt Anspruch gegen Abschlussquote, was den Lieferanten vom Hinhalten abhält).
+  - Korrektur: Hinhalten kostet 57 % (36'870 → 15'995), −58 % ist der schlechteste Fall mit Scheinkonzessionen (ADR 0017,
+    README, §5, `eval-metriken.md`). Explainer M8 lokal in `kontext/lernen/`.
 
 ## 7. Fahrplan bis zur Abgabe am 23.11.2026
 
@@ -328,8 +338,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
    Gegenstand Jahreskonditionen, Belege 2024–2026, Demo allein (ADR 0001, 0012, 0016, Nachträge; Folien Version 15). **Etappe 7, Punkt 1
    erledigt 11.11.:** Red-Teaming durch Claude (8 Läufe, `docs/demo.md` §3, ADR 0012, Nachtrag). **Etappe 8
    erledigt 11.11.:** Mandat-Karte (Entscheid B), Untersuchung Strategie und Use-Case, Entscheid A (ADR 0017). Einstieg für
-   Etappe 9 (frische Session): `kontext/UEBERGABE-PROMPT-ABGABE-9.md`: **Geschichte der 10 Minuten prüfen und überarbeiten**
-   (6 Min. Folien, 4 Min. Demo; Kernbotschaften, Folienzahl, ADR 0017 einordnen, höchstens eine Backup-Folie). Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
+   Etappe 9: `kontext/UEBERGABE-PROMPT-ABGABE-9.md`. **Etappe 9 erledigt 12.11.:** Geschichte der 10 Minuten (7 Hauptfolien,
+   Version 22, Ziel ausdrücklich in `docs/gesamtsystem.md` §2.2). Einstieg für Etappe 10: `kontext/UEBERGABE-PROMPT-ABGABE-10.md`.
+   Danach SW9 einordnen, sobald die Folien da sind; Demo-Probe in der UI mit
    Bildschirmvideo (beim Nutzer); mindestens 3 Live-Runden mit unbeteiligten Personen und Spielkarte (Tabelle in
    `docs/demo.md` §3); Namen auf der Titelfolie und PDF-Export (Share › Export, beim Nutzer); Zugriff für die
    Dozierenden (öffentlich oder Einladung) erst am Schluss; Prüfungsvorbereitung nach Anhang A.
@@ -401,6 +412,9 @@ Commit und dem Prompt für die nächste; Einstieg ist der jeweils neueste `konte
   endet `parse_response` dann als «nicht auswertbar» und eskaliert (T09). In (a) nie beobachtet.
 - Wiederkehrende Angriffstexte stehen in jeder Antwort; liest der Parser sie als Forderung auf «other», eskaliert
   Regel 2 beim zweiten Mal (T11). ADR 0008 schliesst den Denial of Service nur für Behauptungen.
+- **Flaky Test (12.11.2026):** `test_protocols_survive_across_negotiations_in_a_file` schlug einmal fehl (Reihenfolge der
+  Protokolle), drei Wiederholungen grün. Vermutlich ein Rücksprung der WSL-Uhr: `erp._now()` ist Ortszeit auf die Sekunde,
+  sortiert wird nach `recorded_at, rowid`. Nicht geändert (Feature-Freeze); bei Wiederholung nur nach `rowid` sortieren.
 - `pkill -f` mit einem Muster wie «ea-eval» trifft auch die eigene Shell (Exit 144); Läufe besser per PID beenden.
 - BPMN liegt doppelt: `docs/process/einkaufsagent-prozess.bpmn` und `einkaufsagent-prozess_v4.bpmn` im Root
   (byte-gleich, gültig seit 09.11.2026). Änderungen als neue Root-Datei, alte behalten; die nächste heisst `_v5`.

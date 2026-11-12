@@ -113,7 +113,7 @@ Metriken: [`docs/eval-metriken.md`](docs/eval-metriken.md).
   (Claude Opus), der Code rechnet die Wahrheit (ADR 0010).
 - Eine Eskalation wartet nur, solange der Prozess läuft (`InMemorySaver`).
 - Die Verhandlungsstrategie schliesst effizient ab (Rabatt gegen Mengenzusage), maximiert aber nicht: Die Konzession ist
-  zeitabhängig ohne Gegnermodell; wer bis zur letzten Runde ablehnt, drückt unseren Nutzen offline um 58 %, nie unter den
+  zeitabhängig ohne Gegnermodell; wer bis zur letzten Runde ablehnt, drückt unseren Nutzen offline um 57 %, nie unter den
   Mindestnutzen (ADR 0017).
 
 Ausführlich: `docs/gesamtsystem.md` §5.

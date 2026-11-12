@@ -70,7 +70,7 @@ wenn ein erwartetes Ergebnis nicht zur ZOPA passt.
 | Kennzahl | Definition | Stand finale Läufe 09.11. |
 | --- | --- | --- |
 | Effizienz | gemeinsamer Überschuss des Abschlusses (unser Nutzen − Nettokosten des Lieferanten, verdeckt) ÷ Maximum im Mandat; 1.0 = Pareto-Front. Der Rabatt verschiebt nur Wert | (b) 1.00 Dev / 0.98 Test; (a) 0.42 / 0.46 |
-| Ausnutzbarkeit | Nutzen Σ und Anteil am Spielraum gegen strategische Lieferanten (Hinhalten bis zur letzten Runde, Scheinkonzessionen), Dev im ökonomischen Kern | heute 0.72 → 0.05, Nutzen −58 % |
+| Ausnutzbarkeit | Nutzen Σ und Anteil am Spielraum gegen strategische Lieferanten (Hinhalten bis zur letzten Runde, Scheinkonzessionen), Dev im ökonomischen Kern | heute 0.72 → 0.05, Nutzen −57 % (schlechtester Fall −58 %) |
 
 `gesicherter_spielraum_mittel` misst nur die Verteilung; erst mit der Effizienz zusammen sagt er, ob ein Abschluss gut
 ist.

@@ -28,7 +28,8 @@ Vorlage und Regex-Parser, Dev-Set im ökonomischen Kern (Forderung, Bedingung, I
    Tausch. Das leistet MESO ohne Gegnermodell: Der Lieferant wählt das für ihn billigste der gleichwertigen Pakete, und
    das ist das effiziente. (a) mit Luna erreicht 0.42 (Dev) bzw. 0.46 (Test), vor allem wegen 90-Tage-Paketen.
 2. **Ausnutzbar:** Ein Lieferant, der bis Runde 6 ablehnt, drückt den Anteil am Spielraum von 0.72 auf 0.05 und unseren
-   Nutzen um 58 %; unter den Mindestnutzen kommt er nie. Das ist eine bekannte Eigenschaft zeitabhängiger Taktiken:
+   Nutzen um 57 % (mit Scheinkonzessionen im schlechtesten Fall um 58 %; Korrektur 12.11.2026, vorher «58 %» fürs Hinhalten);
+   unter den Mindestnutzen kommt er nie. Das ist eine bekannte Eigenschaft zeitabhängiger Taktiken:
    «All the strategies that lie on the line CR = 1 give in fully to Hardliner» (Baarslag et al., Artificial Intelligence
    198, 2013, ANAC 2011).
 3. **Was-wäre-wenn** (nur gerechnet, nichts gebaut): Konzession nur auf ein Gegenangebot wird durch Scheinkonzessionen

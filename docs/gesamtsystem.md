@@ -14,18 +14,63 @@ Verweis. Ändert sich ein Entscheid, wird dieser Text im selben Commit nachgefü
 Die Abschnitte folgen den Teilen, die der Projektbeschrieb für die Präsentation verlangt. Die rechte Spalte nennt
 die Prüfungsthemen aus dem Projektbeschrieb, die der Abschnitt abdeckt.
 
-| Abschnitt | Präsentation (10 Min. inkl. Fragen) | Prüfungsthemen |
+| Abschnitt | Präsentation (6 Min. Folien, 4 Min. Demo) | Prüfungsthemen |
 | --- | --- | --- |
-| 1 Problem | Problemstellung | Problemstellung |
-| 2 Ansatz | Lösungsansatz | Methodenwahl, alternative Lösungsansätze |
-| 3 Umsetzung | technische Umsetzung | Modellwahl, Architektur, technische Umsetzung, Daten und Werkzeuge |
-| 4 Evaluation | Evaluation | Evaluation |
-| 5 Erkenntnisse und Limitationen | Erkenntnisse und Limitationen | Limitationen |
-| 6 Demo und Abgabe | Demonstration | – |
+| 1 Problem | Folie 2 «Ziel» | Problemstellung |
+| 2 Ansatz | Folie 3 «Ansatz» | Methodenwahl, alternative Lösungsansätze |
+| 3 Umsetzung | Folie 4 «Umsetzung» | Modellwahl, Architektur, technische Umsetzung, Daten und Werkzeuge |
+| 4 Evaluation | Folie 5 «Ergebnis»; Backup «Verhandelt der Agent klug?», «Ablation im Detail», «Kampagne» | Evaluation |
+| 5 Erkenntnisse und Limitationen | Folie 6 «Erkenntnisse und Grenzen» | Limitationen |
+| 6 Demo und Abgabe | Folie 7 «Demo» | – |
 | 7 Verworfene Alternativen | Backup-Folie | alternative Lösungsansätze |
 | 8 Was wir gewählt haben und warum | Backup-Folie | Modell- und Methodenwahl, alternative Lösungsansätze |
 | 9 Abdeckung der Modulthemen | – | Evaluation, Limitationen |
 | 10 Beiträge | – | individueller Beitrag |
+
+**Roter Faden der 10 Minuten** (Überarbeitung 11.11.2026, Etappe 9). Aufbau nach dem Muster Situation → Komplikation →
+Frage → Antwort: Erst steht das Ziel, dann das Warum, dann das Wie, danach der Beleg und die Grenzen. Jeder Folientitel ist
+eine Aussage; liest man nur die Titel, ergibt sich die Geschichte. Ein Band oben auf jeder Hauptfolie zeigt, wo wir
+stehen. Was einen Titel nicht stützt, steht im Backup oder in der Sprechernotiz.
+
+| Folie | Titel | Was die Person mitnimmt | Zeit |
+| --- | --- | --- | --- |
+| 1 | Einkaufsagent: LLM schlägt vor, Code entscheidet | Worum es geht, in einem Satz | 0:15 |
+| 2 | Ziel: Ein Agent verhandelt die Konditionen kleiner Lieferanten nach | Was wir erreichen wollen (Zahlungsziel, Rabatt, Mengenzusage für 12 Monate), warum (450 Lieferanten liegen brach, Walmart zeigt den Nutzen) und unter welcher Bedingung (Mandat) | 0:55 |
+| 3 | Ansatz: Das LLM schlägt vor, der Code entscheidet | Pakete statt Feilschen; LLM liest und formuliert, Code rechnet und entscheidet, die Einkäuferin entscheidet den Rest; Farbcode | 1:00 |
+| 4 | Umsetzung: eine Runde in LangGraph | Der Graph mit LLM-, Code- und Mensch-Knoten; das LLM kennt das Mandat nie | 0:55 |
+| 5 | Ergebnis: gleiches Modell, doppelter Nutzen | (b) 98 % gegen 73 % richtig, Spielraum 70 % gegen 25 %, 0 gegen 2 Verstösse, Jahresnutzen doppelt; ohne LLM bricht das Lesen ein | 1:15 |
+| 6 | Erkenntnisse und Grenzen | Fehler nur beim Lesen und sicher; effizient, aber nicht maximal (ADR 0017); Sicherheit kostet Verfügbarkeit; Simulator statt Menschen | 1:00 |
+| 7 | Demo: Ein Lieferant versucht, den Agenten zu überlisten | Behauptung, Manipulation und Bedingung live; Eskalation an die Einkäuferin; Buchung | 4:00 |
+
+Drei Kernbotschaften: (1) Long-Tail-Konditionen lassen sich mit einem Agenten nachverhandeln, wenn er Pakete anbietet.
+(2) Das LLM liest und schreibt, der Code rechnet und entscheidet; das belegt die Ablation. (3) Der Agent bleibt sicher im
+Mandat und schliesst effizient ab, maximiert aber nicht. Gesprochen sind die Folien 1–6 rund 680 Wörter (5:15 Min. bei
+130 Wörtern pro Minute); die Kürzungsstelle ist Folie 6 (nur die drei Erkenntnisse). Nicht auf den Hauptfolien, nur im
+Backup oder in der Notiz: Regel-Referenz, Dev-Set, Umformulierungen im Detail, Red-Teaming, Zahl der ADRs, Isolation der
+verdeckten Werte.
+
+**2-Minuten-Erklärung** (jede Person muss das Gesamtsystem erklären können; rund 270 Wörter)
+- **Problem:** Die fiktive Musterhandel AG hat rund 450 kleine Lieferanten, deren Konditionen niemand nachverhandelt;
+  viele haben seit Jahren 30 Tage Zahlungsziel und 0 % Rabatt. Walmart zeigt mit dem Bot von Pactum, dass sich das lohnt
+  (64 % Einigung im Pilot). Das Risiko: Ein LLM, das selbst Zahlen zusagt, verrechnet sich oder lässt sich überreden.
+- **Ansatz:** Der Agent bietet pro Runde 2–3 für uns gleichwertige Pakete aus Zahlungsziel, Rabatt und Mengenzusage an
+  (MESO); die Wahl des Lieferanten zeigt, was ihm wichtig ist. Kernthese: Das LLM schlägt vor, der Code entscheidet. Das
+  LLM liest die Antwort und formuliert die Nachricht; Code rechnet die Pakete, prüft jede Nachricht gegen das Mandat und
+  entscheidet über den Abschluss; was das Mandat nicht regelt, entscheidet die Einkäuferin.
+- **Architektur:** Ein LangGraph-Graph: `offer_engine` → `narrate` → `mandate_guard` → Lieferant → `parse_response` →
+  `assess_response` → nächste Runde, Annahme, Eskalation mit `interrupt()` oder Buchung im ERP (SQLite). `narrate` kennt
+  das Mandat nicht, `parse_response` liefert nur typisierte Felder. Modell `gpt-5.6-luna` über den FHNW-LiteLLM,
+  Kurzzeitgedächtnis `InMemorySaver`, Protokolle im ERP.
+- **Evaluation:** Ablation gegen regelbasierte Lieferanten mit verdeckten Grenzen, damit ist die richtige Antwort bekannt.
+  Auf 15 zurückgehaltenen Testszenarien mit 6 Angriffen (Luna, je 3 Läufe) trifft (b) in 98 % das richtige Ergebnis, das
+  reine LLM in 73 %; Anteil am Spielraum 0.70 gegen 0.25, 0 gegen 2 Verstösse, doppelter Jahresnutzen. Mit Regex statt LLM
+  fällt (b) bei umformulierten Texten auf 0.13: Lesen braucht das LLM, Entscheiden den Code.
+- **Limitation:** Simulator statt Menschen. Kein Angriff wirkte, auch nicht gegen (a): Der Schutz ist gebaut, mit Luna
+  aber nicht messbar. Die Strategie schliesst effizient ab, maximiert aber nicht: Wer bis zur letzten Runde hinhält, holt
+  fast den ganzen Spielraum, nie unter den Mindestnutzen (ADR 0017).
+- **Alternative:** Reines LLM mit Mandat im Prompt (Variante (a), gemessen schlechter); LLM als Router oder ein zweiter
+  Agent als Prüfer (verworfen: Fehlklassifikation bucht Abschlüsse, mehr Angriffsfläche, §7); reziproke Konzession gegen
+  Hinhalten (gerechnet: −40 % statt −58 % im schlechtesten Fall, aber −6 % gegen ehrliche Lieferanten).
 
 ## 1 Problem
 
@@ -88,6 +133,31 @@ Der Wert eines Pakets für die Musterhandel AG (`domain.buyer_value_chf`), gegen
 Das **Mandat** der Einkäuferin (`domain.Mandate`) enthält Zielwerte, Obergrenzen, die höchste erlaubte
 Mengenzusage und Preiserhöhung, die maximale Rundenzahl (6) und den **Mindestnutzen** (Walk-away). Ein Abschluss
 ausserhalb der Grenzen oder unter dem Mindestnutzen ist ein Mandatsverstoss (`domain.check_deal`).
+
+**Ziel des Agenten** (ausdrücklich festgehalten am 12.11.2026; vorher nur indirekt über Mandat, Kennzahlen und ADR 0017)
+- **Zielgrösse:** möglichst viel Jahresnutzen für die Musterhandel AG über alle Lieferanten einer Kampagne, also
+  Abschlussquote × Nutzen pro Abschluss, nicht der grösstmögliche Nutzen in einer einzelnen Verhandlung.
+- **Harte Grenzen, im Code geprüft:** Mandat (Grenzen zulasten der Musterhandel AG) und Mindestnutzen. Was das Mandat nicht
+  regelt, entscheidet die Einkäuferin (ADR 0008).
+- **Zielkonflikt:** Mehr Anspruch pro Abschluss kostet Abschlüsse. Ein Lieferant schliesst nur ab, wenn ihm das Paket
+  reicht; ohne Abschluss bleibt es bei den heutigen Konditionen, und wir gewinnen nichts. Ein fester Anspruch wäre
+  unangreifbar, brächte über das Dev-Set aber 27 % weniger (ADR 0017).
+- **Gemeinsamer Wert:** Ein Teil unseres Nutzens kostet den Lieferanten nichts, weil eine Mengenzusage ihm mehr wert ist,
+  als sie uns kostet. Effizient ist deshalb der Tausch Rabatt gegen Mengenzusage (§4, «Verhandelt der Agent klug?»).
+- **Beziehung:** Die Lieferanten im Long Tail sind klein. Pactum misst neben der Einsparung auch Abdeckung, Tempo und
+  Zufriedenheit der Lieferanten (2.5); ausgepresste Lieferanten sind ein Risiko für Versorgung und Ruf (nicht modelliert).
+- **Messgrössen:** Erfolg (richtiges Ergebnis ohne Verstoss), Anteil am Spielraum pro Abschluss, Abschlussquote und
+  Jahresnutzen der Kampagne (`docs/eval-metriken.md`).
+- **Was wir nicht behaupten:** Der Agent maximiert nicht. Seine Zugeständnisse folgen einer festen Kurve über die Runden;
+  ein Lieferant, der hinhält, holt fast den ganzen Spielraum, nie aber mehr als bis zum Mindestnutzen (ADR 0017).
+
+**Was den Lieferanten vom Hinhalten abhält** (häufige Rückfrage): wenig. Er verhandelt höchstens `max_rounds` (6)
+Angebotsrunden, erfährt dieses Limit aber nicht; der Schritt, der die Nachricht formuliert, kennt nur die laufende Runde.
+Lehnt er einmal zu oft ab, endet die Verhandlung ohne Abschluss, und er verliert, was ihm die Mengenzusage gebracht hätte.
+Das ist eine schwache Bremse, weil die heutigen Konditionen für ihn nicht schlecht sind. Wer hinhält, drückt unseren
+Anteil am Spielraum von 0.72 auf 0.05 und unseren Nutzen um 57 %; unter den Mindestnutzen kommt er nicht, weil die
+Grenze im Code liegt. Dass er mit einer KI spricht, verschärft das eher: Menschen nutzen Maschinen im Labor stärker aus
+(Karpus et al. 2021, de Melo et al. 2016). Gegenmittel und ihr Preis stehen in §4 und ADR 0017.
 
 ### 2.3 Pakete (MESO)
 
@@ -592,7 +662,7 @@ nicht den Anteil am Spielraum (ADR 0017).
   - *Berechenbare Kurve:* Ablehnen, Zögern («muss ich noch abklären»), eine unbekannte Paketwahl und jede Eskalation mit
     «weiterverhandeln» kosten je einen Konzessionsschritt. Wer das weiss, wartet bis zur letzten Runde und schliesst auf
     dem Mindestnutzen ab (S04: Anteil am Spielraum 0.00 statt 0.84 in der Eval). Offline über das Dev-Set gemessen: Anteil
-    0.72 → 0.05, Nutzen −58 % (§4, ADR 0017).
+    0.72 → 0.05, Nutzen −57 %, im schlechtesten Fall −58 % (§4, ADR 0017).
   - *Abschluss ohne echte Zustimmung:* Viermal wurde gebucht, was der Lieferant so nicht meinte: Verweis auf eine
     Bedingung aus einer früheren Nachricht (`parse_response` sieht nur die aktuelle Antwort), «klingt fair, schicken Sie
     es schriftlich», eine Bestätigung mit widersprüchlicher Paketwahl (bei einer Annahme auf unsere Annahme prüft der
@@ -613,7 +683,8 @@ nicht den Anteil am Spielraum (ADR 0017).
 
 **Demo (ADR 0012)**: Ablauf, Fallbacks, Aufzeichnung und Spielkarten in `docs/demo.md`. Zeitplan der Präsentation
 (Entscheid des Nutzers, 09.11.2026): 6 Minuten Folien, 4 Minuten Demo, Fragen nicht eingerechnet. Der Projektbeschrieb
-nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 7 ist die Kürzungsstelle.
+nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Folie 6 ist die Kürzungsstelle (roter Faden
+im Abschnitt «Aufbau»).
 - **Live «Ein Lieferant greift den Agenten an»:** Die vortragende Person führt allein vor: Sie spielt den Lieferanten in
   der Web-UI (`uv run ea-ui`, Browser `http://127.0.0.1:8080`) mit der Spielkarte S04 und versucht, den Agenten zu
   manipulieren, moderiert und entscheidet an der grünen Karte als Einkäuferin; den Wechsel sagt sie laut (ADR 0012,
@@ -625,8 +696,9 @@ nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Fol
   Protokoll aus einem Vorlauf (Langzeitgedächtnis). Fallbacks: Neustart der UI in rund 2 Sekunden, dieselbe Demo im
   Terminal (`ea-run --human`), Simulator mit S11 oder S08 ohne zweite Person, «offline» ohne Proxy und ein
   Bildschirmvideo der Probe (`docs/demo.md`, ADR 0016).
-- **Ergebnisfolie als Kampagne:** Das Testset läuft durch (a) und (b); die Folie zeigt Abschlussquote, Nutzen in CHF,
-  Mandatsverstösse und Erfolgsquote der Angriffe, daneben Walmart/Pactum mit 64 % Einigungen im Pilot.
+- **Ergebnisfolie:** Das Testset läuft durch (a) und (b); Folie 5 zeigt richtiges Ergebnis, Anteil am Spielraum,
+  Mandatsverstösse und Jahresnutzen über die 15 Lieferanten. Die Sicht als Kampagne (Abschlussquote, Angriffe, Vergleich
+  mit Walmart/Pactum und 64 % Einigungen im Pilot) steht seit dem 11.11.2026 im Backup.
 - **Live-Runden:** Mindestens 3 unbeteiligte Personen erhalten je eine Spielkarte mit ihren verdeckten Grenzen aus
   einem Szenario. Damit ist die ZOPA bekannt, und der Code bewertet wie in der Eval (Verstösse, Leaks, Ergebnis gegen
   ZOPA). Red-Teaming durch Claude (kennt Mandat und Prompts) steht als eigene Zeile daneben, nie als Live-Runde
@@ -635,7 +707,7 @@ nennt 10 Minuten, das Semesterprogramm «10 Min. inkl. Verständnisfragen»; Fol
 **Abgabe am 23.11.2026 (Anhang A):** Link auf die ausführbare Lösung (dieses Repository mit Anleitung; ohne
 Cloud-Key laufen die Regel-Referenz und Variante (b) mit Vorlage und Regex-Parser offline), Projektartefakte (dieses
 Dokument, ADRs, BPMN, Eval-Ergebnisse unter `docs/ergebnisse/`) und die Präsentation als PDF. Die Folien liegen als
-Slides-Artifact vor (8 Hauptfolien, 6 Backup-Folien mit Sprechernotizen) und werden von dort als PDF exportiert. Der
+Slides-Artifact vor (7 Hauptfolien, 9 Backup-Folien mit Sprechernotizen) und werden von dort als PDF exportiert. Der
 Zugriff für die Dozierenden (öffentlich oder Einladung) wird vor der Abgabe eingerichtet; der Veröffentlichungs-Check vom
 09.11.2026 fand keine Secrets und keine Kursunterlagen in der Historie.
 
