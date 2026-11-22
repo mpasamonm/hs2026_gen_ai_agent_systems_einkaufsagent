@@ -12,6 +12,9 @@ formuliert und Code Pakete berechnet, jede Nachricht gegen das Mandat prüft und
 **Einstieg:** [`docs/gesamtsystem.md`](docs/gesamtsystem.md) erklärt Problem, Ansatz, Umsetzung, Evaluation und
 Limitationen mit Quellen; die Entscheide mit Alternativen stehen in [`docs/adr/`](docs/adr/README.md).
 
+**Präsentation:** [`Einkaufsagent_GenAI_v1.pdf`](Einkaufsagent_GenAI_v1.pdf), Abschlusspräsentation vom 23.11.2026
+(7 Hauptfolien, Backup für Rückfragen).
+
 ## Start
 
 Voraussetzung: Python ≥ 3.12 und [uv](https://docs.astral.sh/uv/). Ohne API-Key laufen die Tests, die Regel-Referenz
